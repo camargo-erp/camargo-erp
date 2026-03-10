@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
+<!-- saved from url=(0043)file:///C:/Users/carlo/Downloads/index.html -->
+<html lang="es"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Camargo ERP</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="./index_files/css2" rel="stylesheet">
 <style>
   :root {
     --bg: #0f1117;
@@ -35,6 +35,22 @@
   .nav-right { margin-left:auto; display:flex; align-items:center; gap:12px; }
   .badge { background:var(--accent); color:#fff; border-radius:10px; font-size:11px; padding:2px 7px; font-weight:600; }
   .badge.warn { background:var(--warn); }
+
+  /* LOGIN */
+  #login-screen { position:fixed; inset:0; background:var(--bg); display:flex; align-items:center; justify-content:center; z-index:9999; }
+  .login-box { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:40px; width:360px; }
+  .login-logo { font-size:22px; font-weight:700; color:var(--accent); margin-bottom:4px; letter-spacing:-0.5px; }
+  .login-logo span { color:var(--muted); font-weight:300; }
+  .login-sub { font-size:13px; color:var(--muted); margin-bottom:28px; }
+  .login-group { margin-bottom:16px; }
+  .login-group label { display:block; font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.6px; margin-bottom:6px; }
+  .login-group input { width:100%; background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:10px 14px; border-radius:8px; font-family:var(--font); font-size:14px; outline:none; transition:border .15s; }
+  .login-group input:focus { border-color:var(--accent); }
+  .login-btn { width:100%; padding:11px; background:var(--accent); color:#fff; border:none; border-radius:8px; font-family:var(--font); font-size:14px; font-weight:600; cursor:pointer; margin-top:8px; transition:background .15s; }
+  .login-btn:hover { background:#5590ff; }
+  .login-error { background:#2d1a22; border:1px solid #ff4d6a40; color:var(--red); border-radius:7px; padding:9px 14px; font-size:13px; margin-top:12px; display:none; }
+  .login-error.show { display:block; }
+  #app { display:none; }
 
   /* LAYOUT */
   .page { display:none; padding:24px; max-width:1400px; margin:0 auto; }
@@ -138,13 +154,33 @@
 </head>
 <body>
 
+<!-- LOGIN -->
+<div id="login-screen" style="position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:40px;width:360px;text-align:center;">
+    <div style="font-size:28px;font-weight:700;color:var(--accent);letter-spacing:-1px;margin-bottom:4px">Camargo <span style="color:var(--muted);font-weight:300">ERP</span></div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:32px">Sistema de gestión comercial</div>
+    <div style="display:flex;flex-direction:column;gap:14px;text-align:left">
+      <div>
+        <label style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px">Usuario</label>
+        <input type="text" id="login-user" placeholder="usuario" style="margin-top:6px;width:100%" onkeydown="if(event.key===&#39;Enter&#39;)doLogin()">
+      </div>
+      <div>
+        <label style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px">Contraseña</label>
+        <input type="password" id="login-pass" placeholder="••••••••" style="margin-top:6px;width:100%" onkeydown="if(event.key===&#39;Enter&#39;)doLogin()">
+      </div>
+      <div id="login-error" style="color:var(--red);font-size:12px;display:none">Usuario o contraseña incorrectos</div>
+      <button class="btn btn-primary" style="width:100%;margin-top:6px;padding:12px" onclick="doLogin()">Ingresar →</button>
+    </div>
+  </div>
+</div>
+
 <nav>
   <div class="nav-brand">Camargo <span>ERP</span></div>
-  <div class="nav-tab active" onclick="showPage('dashboard')">📊 Dashboard</div>
-  <div class="nav-tab" onclick="showPage('ventas')">🧾 Ventas</div>
-  <div class="nav-tab" onclick="showPage('nueva-venta')">➕ Nueva Venta</div>
-  <div class="nav-tab" onclick="showPage('pendientes')">⏳ Pendientes <span class="badge warn" id="badge-pend">8</span></div>
-  <div class="nav-tab" onclick="showPage('precios')">💲 Precios/Costos</div>
+  <div class="nav-tab active" onclick="showPage(&#39;dashboard&#39;)">📊 Dashboard</div>
+  <div class="nav-tab" onclick="showPage(&#39;ventas&#39;)">🧾 Ventas</div>
+  <div class="nav-tab" onclick="showPage(&#39;nueva-venta&#39;)">➕ Nueva Venta</div>
+  <div class="nav-tab" onclick="showPage(&#39;pendientes&#39;)">⏳ Pendientes <span class="badge warn" id="badge-pend">8</span></div>
+  <div class="nav-tab" onclick="showPage(&#39;precios&#39;)">💲 Precios/Costos</div>
   <div class="nav-right">
     <span style="font-size:12px;color:var(--muted)">Marzo 2026</span>
   </div>
@@ -206,11 +242,81 @@
   <div class="grid2">
     <div class="card">
       <div class="card-title">Ventas por Cliente (Top 8)</div>
-      <div class="bar-chart" id="bar-clientes"></div>
+      <div class="bar-chart" id="bar-clientes">
+    <div class="bar-row">
+      <div class="bar-label" title="Oscar Enrique Magnanego">Oscar</div>
+      <div class="bar-track"><div class="bar-fill" style="width:100%"></div></div>
+      <div class="bar-val">$4.736.000</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label" title="BYT Quimica">BYT</div>
+      <div class="bar-track"><div class="bar-fill" style="width:19%"></div></div>
+      <div class="bar-val">$903.000</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label" title="stetsyk vyktor">stetsyk</div>
+      <div class="bar-track"><div class="bar-fill" style="width:18%"></div></div>
+      <div class="bar-val">$859.100</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label" title="Ochoa Ana Laura">Ochoa</div>
+      <div class="bar-track"><div class="bar-fill" style="width:14%"></div></div>
+      <div class="bar-val">$646.800</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label" title="Familia Que Produce">Familia</div>
+      <div class="bar-track"><div class="bar-fill" style="width:11%"></div></div>
+      <div class="bar-val">$510.250</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label" title="Cecilia Noel Simon">Cecilia</div>
+      <div class="bar-track"><div class="bar-fill" style="width:9%"></div></div>
+      <div class="bar-val">$449.200</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label" title="MATEOS MAYRA DANIELA">MATEOS</div>
+      <div class="bar-track"><div class="bar-fill" style="width:8%"></div></div>
+      <div class="bar-val">$364.650</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label" title="Guido Dalponte">Guido</div>
+      <div class="bar-track"><div class="bar-fill" style="width:7%"></div></div>
+      <div class="bar-val">$323.400</div>
+    </div></div>
     </div>
     <div class="card">
       <div class="card-title">Ventas por Producto</div>
-      <div class="bar-chart" id="bar-productos"></div>
+      <div class="bar-chart" id="bar-productos">
+    <div class="bar-row">
+      <div class="bar-label" title="tambor recambio">tambor recambio</div>
+      <div class="bar-track"><div class="bar-fill" style="width:100%;background:var(--accent2)"></div></div>
+      <div class="bar-val">$7.468.300</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label" title="fracc envase">fracc envase</div>
+      <div class="bar-track"><div class="bar-fill" style="width:14%;background:var(--accent2)"></div></div>
+      <div class="bar-val">$1.018.870</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label" title="envase caja">envase caja</div>
+      <div class="bar-track"><div class="bar-fill" style="width:8%;background:var(--accent2)"></div></div>
+      <div class="bar-val">$613.600</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label" title="tambor venta">tambor venta</div>
+      <div class="bar-track"><div class="bar-fill" style="width:5%;background:var(--accent2)"></div></div>
+      <div class="bar-val">$364.650</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label" title="fracc recambio">fracc recambio</div>
+      <div class="bar-track"><div class="bar-fill" style="width:2%;background:var(--accent2)"></div></div>
+      <div class="bar-val">$166.800</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label" title="perlas 99%">perlas 99%</div>
+      <div class="bar-track"><div class="bar-fill" style="width:2%;background:var(--accent2)"></div></div>
+      <div class="bar-val">$116.400</div>
+    </div></div>
     </div>
   </div>
 </div>
@@ -219,7 +325,7 @@
 <div class="page" id="page-ventas">
   <div class="section-header">
     <div class="section-title">Historial de Ventas</div>
-    <button class="btn btn-primary" onclick="showPage('nueva-venta')">+ Nueva Venta</button>
+    <button class="btn btn-primary" onclick="showPage(&#39;nueva-venta&#39;)">+ Nueva Venta</button>
   </div>
   <div class="frozen-banner">
     🔒 Los precios y costos de ventas ya registradas están <strong>&nbsp;congelados</strong>. Cambiar PRECIOS_TRIDEST no afecta operaciones históricas.
@@ -245,7 +351,7 @@
 <div class="page" id="page-nueva-venta">
   <div class="section-header">
     <div class="section-title">Nueva Venta</div>
-    <button class="btn btn-ghost" onclick="showPage('ventas')">← Volver</button>
+    <button class="btn btn-ghost" onclick="showPage(&#39;ventas&#39;)">← Volver</button>
   </div>
   <div class="grid2">
     <div class="card">
@@ -257,21 +363,17 @@
         </div>
         <div class="form-group">
           <label>Cliente</label>
-          <select id="nv-cliente" onchange="autoCompleteCliente()">
-            <option value="">— Seleccionar —</option>
-          </select>
+          <select id="nv-cliente" onchange="autoCompleteCliente()"><option value="">— Seleccionar —</option><option value="Jorge Rodríguez">Jorge Rodríguez</option><option value="liliana gomez">liliana gomez</option><option value="Virginia Werro">Virginia Werro</option><option value="Soledad Bleta">Soledad Bleta</option><option value="BYT Quimica">BYT Quimica</option><option value="Oscar Enrique Magnanego">Oscar Enrique Magnanego</option><option value="Geronimo">Geronimo</option><option value="Mariano">Mariano</option><option value="Andres azuri">Andres azuri</option><option value="MATEOS MAYRA DANIELA">MATEOS MAYRA DANIELA</option><option value="Javier Pacella">Javier Pacella</option><option value="Familia Que Produce">Familia Que Produce</option><option value="FARMACIA MASCHWITZ S.C.S.">FARMACIA MASCHWITZ S.C.S.</option><option value="Cecilia Noel Simon">Cecilia Noel Simon</option><option value="Campaña jeremias">Campaña jeremias</option><option value="Paula Verónica Durán">Paula Verónica Durán</option><option value="Guido Dalponte">Guido Dalponte</option><option value="stetsyk vyktor">stetsyk vyktor</option><option value="Nicolas dosio">Nicolas dosio</option><option value="Ochoa Ana Laura">Ochoa Ana Laura</option><option value="Daniel Omar Zicchini">Daniel Omar Zicchini</option><option value="Silvina Laura Deluca">Silvina Laura Deluca</option></select>
         </div>
         <div class="form-group">
           <label class="auto-label">Canal</label>
-          <input class="auto-field" id="nv-canal" readonly>
+          <input class="auto-field" id="nv-canal" readonly="">
         </div>
       </div>
       <div class="form-grid" style="margin-bottom:14px">
         <div class="form-group">
           <label>Producto</label>
-          <select id="nv-producto" onchange="calcularPrecio()">
-            <option value="">— Seleccionar —</option>
-          </select>
+          <select id="nv-producto" onchange="calcularPrecio()"><option value="">— Seleccionar —</option><optgroup label="Tridestilado"><option>Alcohol de Cereal ( tridestilado) EXTRA NEUTRO fracc envase</option><option>Alcohol de Cereal ( tridestilado) EXTRA NEUTRO fracc envase caja</option><option>Alcohol de Cereal ( tridestilado) EXTRA NEUTRO fracc recambio</option><option>Alcohol de Cereal ( tridestilado) EXTRA NEUTRO tambor recambio</option><option>Alcohol de Cereal ( tridestilado) EXTRA NEUTRO tambor venta</option></optgroup><optgroup label="Otros"><option>Alcohol Etílico al 96% Buen gusto tambor recambio</option><option>Alcohol Etílico al 96% Buen gusto tambor venta</option><option>Glicerina usp vegetal fracc envase</option><option>Soda Cáustica en perlas 99%</option><option>Acido sulfónico 96% tambor recambio</option></optgroup></select>
         </div>
         <div class="form-group">
           <label>Cantidad (Lts)</label>
@@ -279,7 +381,7 @@
         </div>
         <div class="form-group">
           <label class="auto-label">Precio Unitario</label>
-          <input class="auto-field" id="nv-precio" readonly>
+          <input class="auto-field" id="nv-precio" readonly="">
         </div>
       </div>
       <div class="form-grid" style="margin-bottom:14px">
@@ -725,10 +827,23 @@ function guardarPrecios() {
   notify('✓ Precios actualizados — ventas históricas sin cambios');
 }
 
+// =========== LOGIN ===========
+function doLogin() {
+  const user = document.getElementById('login-user').value.trim().toLowerCase();
+  const pass = document.getElementById('login-pass').value;
+  if(user === 'camargo' && pass === 'Milei2027') {
+    document.getElementById('login-screen').style.display = 'none';
+  } else {
+    document.getElementById('login-error').style.display = 'block';
+    document.getElementById('login-pass').value = '';
+  }
+}
+
 // =========== INIT ===========
 renderDashboard();
 initForm();
 document.getElementById('badge-pend').textContent = VENTAS.filter(v=>v.entregado==='No'||v.pagado==='No').length;
 </script>
-</body>
-</html>
+
+
+</body></html>
