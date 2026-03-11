@@ -1182,7 +1182,10 @@ function renderPendientes() {
         </div>
         <div style="text-align:right">
           <div class="pend-monto">${fmt(v.total)}</div>
-          <button class="btn btn-success btn-sm" style="margin-top:6px" onclick="marcarEntregado(${VENTAS.indexOf(v)})">✅ Entregado</button>
+          <div style="display:flex;gap:6px;margin-top:6px;justify-content:flex-end">
+            <button class="btn btn-ghost btn-sm" onclick="imprimirRemito(${VENTAS.indexOf(v)})">🖨️ Remito</button>
+            <button class="btn btn-success btn-sm" onclick="marcarEntregado(${VENTAS.indexOf(v)})">✅ Entregado</button>
+          </div>
         </div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;background:var(--surface);border-radius:6px;padding:10px;font-size:12px">
@@ -1901,6 +1904,177 @@ async function guardarEdicionVenta() {
   const res = await gsCall('updateVenta', {idx: editIdx, campos});
   setSyncStatus(res.ok ? 'ok' : 'error');
   editIdx = -1;
+}
+
+// =========== REMITO INTERNO ===========
+function imprimirRemito(idx) {
+  const v = VENTAS[idx];
+  const cli = getClienteData(v.cliente);
+  const dir = cli.dir || '—';
+  const localidad = cli.localidad || '';
+  const provincia = cli.provincia || '';
+  const cuit = cli.cuit || '—';
+  const transporte = v.transporte || cli.entrega || '—';
+  const dirCompleta = [dir, localidad, provincia].filter(Boolean).join(' — ');
+
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  @page { size: A4; margin: 12mm 14mm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; font-size: 12px; color: #111; }
+
+  .remito-wrap { border: 2px solid #111; padding: 0; }
+
+  /* HEADER */
+  .header { display: flex; border-bottom: 2px solid #111; }
+  .header-left { padding: 12px 16px; flex: 1; border-right: 2px solid #111; }
+  .header-right { padding: 12px 16px; flex: 1; }
+  .empresa-nombre { font-size: 20px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; line-height: 1.1; }
+  .empresa-sub { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #444; margin-top: 2px; }
+  .empresa-dir { font-size: 11px; margin-top: 10px; text-align: center; }
+  .empresa-categoria { font-size: 10px; font-weight: 700; text-align: center; margin-top: 4px; border-top: 1px solid #aaa; padding-top: 4px; letter-spacing: 1px; }
+  .remito-titulo { font-size: 22px; font-weight: 900; letter-spacing: 3px; margin-bottom: 8px; }
+  .remito-num { font-size: 13px; margin-bottom: 6px; }
+  .remito-num span { font-size: 13px; font-weight: 700; }
+  .fecha-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 12px; }
+  .fecha-box { border: 1.5px solid #111; padding: 4px 14px; font-size: 13px; font-weight: 700; min-width: 90px; }
+  .fiscal-row { font-size: 10px; margin-top: 6px; color: #333; line-height: 1.6; }
+
+  /* DESTINATARIO */
+  .dest-section { border-bottom: 1.5px solid #111; padding: 10px 16px; }
+  .dest-row { display: flex; align-items: flex-end; gap: 4px; margin-bottom: 7px; font-size: 12px; }
+  .dest-label { font-weight: 700; font-size: 11px; white-space: nowrap; }
+  .dest-line { flex: 1; border-bottom: 1px solid #555; padding-bottom: 1px; padding-left: 6px; font-size: 12px; }
+  .dest-cuit { border-bottom: 1px solid #555; padding-bottom: 1px; padding-left: 6px; min-width: 130px; font-size: 12px; }
+
+  /* TABLA */
+  .tabla { width: 100%; border-collapse: collapse; }
+  .tabla thead tr { background: #555; color: #fff; }
+  .tabla th { padding: 7px 12px; text-align: left; font-size: 11px; letter-spacing: .5px; text-transform: uppercase; }
+  .tabla th.right { text-align: right; }
+  .tabla td { padding: 7px 12px; border-bottom: 1px solid #ddd; font-size: 12px; }
+  .tabla td.right { text-align: right; font-family: monospace; }
+  .tabla tr:nth-child(even) td { background: #f9f9f9; }
+  /* filas vacías */
+  .tabla tr.empty td { border-bottom: 1px solid #e0e0e0; height: 26px; }
+
+  /* TOTAL */
+  .total-row { display: flex; justify-content: flex-end; border-top: 2px solid #111; padding: 10px 16px; }
+  .total-box { font-size: 14px; font-weight: 700; }
+  .total-box span { font-size: 16px; }
+
+  /* FIRMAS */
+  .firmas { display: flex; border-top: 2px solid #111; }
+  .firma-box { flex: 1; padding: 14px 16px 10px; font-size: 11px; font-weight: 700; letter-spacing: .5px; }
+  .firma-box:first-child { border-right: 1.5px solid #111; }
+  .firma-linea { border-top: 1px dashed #555; margin-top: 28px; padding-top: 4px; font-size: 10px; color: #555; }
+
+  /* PIE */
+  .pie { text-align: center; padding: 6px 16px; font-size: 9px; color: #666; border-top: 1px solid #ccc; }
+</style>
+</head>
+<body>
+<div class="remito-wrap">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-left">
+      <div class="empresa-nombre">Camargo<br>Distribuidora</div>
+      <div class="empresa-sub">de Goñi Carlos Martin</div>
+      <div class="empresa-dir">
+        Itaqui 6918<br>
+        (1439) Capital Federal — C.A.B.A.<br>
+        Tel: 11-5139-4939
+      </div>
+      <div class="empresa-categoria">Responsable Monotributo</div>
+    </div>
+    <div class="header-right">
+      <div class="remito-titulo">REMITO</div>
+      <div class="remito-num">Comprobante interno · <span>${v.fecha}</span></div>
+      <div class="fecha-row">
+        <span style="font-weight:700">Fecha:</span>
+        <div class="fecha-box">${v.fecha}</div>
+      </div>
+      <div class="fiscal-row">
+        CUIT: 20-21738556-4<br>
+        Ingr. Br.: 20-21738556-4<br>
+        Inicio Act. 01-01-2024
+      </div>
+    </div>
+  </div>
+
+  <!-- DESTINATARIO -->
+  <div class="dest-section">
+    <div class="dest-row">
+      <span class="dest-label">IDENTIFICACIÓN DESTINATARIO:</span>
+      <span class="dest-line">${v.cliente}</span>
+    </div>
+    <div class="dest-row">
+      <span class="dest-label">DOMICILIO:</span>
+      <span class="dest-line">${dirCompleta}</span>
+      <span class="dest-label">C.U.I.T.:</span>
+      <span class="dest-cuit">${cuit}</span>
+    </div>
+    <div class="dest-row">
+      <span class="dest-label">TRANSPORTE:</span>
+      <span class="dest-line">${transporte}</span>
+    </div>
+  </div>
+
+  <!-- TABLA PRODUCTOS -->
+  <table class="tabla">
+    <thead>
+      <tr>
+        <th style="width:90px">Cantidad</th>
+        <th>Descripción</th>
+        <th class="right" style="width:120px">Precio Unit.</th>
+        <th class="right" style="width:120px">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>${v.cant} Lts</td>
+        <td>${v.producto}</td>
+        <td class="right">$${v.precioU.toLocaleString('es-AR')}</td>
+        <td class="right">$${v.total.toLocaleString('es-AR')}</td>
+      </tr>
+      ${[...Array(8)].map(()=>'<tr class="empty"><td></td><td></td><td></td><td></td></tr>').join('')}
+    </tbody>
+  </table>
+
+  <!-- TOTAL -->
+  <div class="total-row">
+    <div class="total-box">TOTAL: <span>$${v.total.toLocaleString('es-AR')}</span></div>
+  </div>
+
+  <!-- FIRMAS -->
+  <div class="firmas">
+    <div class="firma-box">
+      RECIBI CONFORME
+      <div class="firma-linea">Firma y sello</div>
+    </div>
+    <div class="firma-box">
+      ACLARACIÓN
+      <div class="firma-linea">Nombre y documento</div>
+    </div>
+  </div>
+
+  <!-- PIE -->
+  <div class="pie">
+    Comprobante interno — No válido como factura ni remito fiscal · Camargo Distribuidora · CUIT 20-21738556-4
+  </div>
+
+</div>
+</body>
+</html>`;
+
+  const w = window.open('', '_blank', 'width=794,height=1123');
+  w.document.write(html);
+  w.document.close();
+  setTimeout(()=>w.print(), 400);
 }
 
 // =========== INIT ===========
