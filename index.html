@@ -675,6 +675,26 @@ let dashPeriodo = 'year';
 const fmt = n => n!=null&&n!==undefined&&n!=='' ? '$'+Math.round(n).toLocaleString('es-AR') : '—';
 const pct = n => n!=null&&n!==undefined ? (n*100).toFixed(1)+'%' : '—';
 
+function formatFechaDisplay(f){
+  if(!f) return '—';
+  const s=String(f);
+  if(s.includes('T')||s.match(/^\d{4}-\d{2}-\d{2}/)){
+    const d=new Date(s);
+    const dd=String(d.getUTCDate()).padStart(2,'0');
+    const mm=String(d.getUTCMonth()+1).padStart(2,'0');
+    return dd+'/'+mm+'/'+d.getUTCFullYear();
+  }
+  return s; // ya es dd/mm/yyyy
+}
+
+function getNroRemito(){
+  const base=257;
+  const key='camargo_remito_counter';
+  let n=parseInt(localStorage.getItem(key)||String(base))+1;
+  localStorage.setItem(key,String(n));
+  return String(n).padStart(6,'0');
+}
+
 function showPage(id) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
@@ -1915,6 +1935,8 @@ function imprimirRemito(idx) {
   const provincia = cli.provincia || '';
   const cuit = cli.cuit || '—';
   const transporte = v.transporte || cli.entrega || '—';
+  const fechaOk = formatFechaDisplay(v.fecha);
+  const nroRemito = getNroRemito();
   const dirCompleta = [dir, localidad, provincia].filter(Boolean).join(' — ');
 
   const html = `<!DOCTYPE html>
@@ -1993,10 +2015,10 @@ function imprimirRemito(idx) {
     </div>
     <div class="header-right">
       <div class="remito-titulo">REMITO</div>
-      <div class="remito-num">Comprobante interno · <span>${v.fecha}</span></div>
+      <div class="remito-num">Remito Interno N° <span>0004-${nroRemito}</span></div>
       <div class="fecha-row">
         <span style="font-weight:700">Fecha:</span>
-        <div class="fecha-box">${v.fecha}</div>
+        <div class="fecha-box">${fechaOk}</div>
       </div>
       <div class="fiscal-row">
         CUIT: 20-21738556-4<br>
