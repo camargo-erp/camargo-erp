@@ -691,13 +691,29 @@ function setDashPeriodo(p) {
   renderDashboard();
 }
 
+function getMesVenta(fecha){
+  // Soporta dd/mm/yyyy y yyyy-mm-dd y mm/dd/yyyy
+  if(!fecha) return 0;
+  const s = String(fecha);
+  if(s.includes('/')){
+    const p=s.split('/');
+    // dd/mm/yyyy → p[1] es mes
+    if(p[2] && p[2].length===4) return parseInt(p[1],10);
+    // mm/dd/yyyy → p[0] es mes (fallback)
+    return parseInt(p[0],10);
+  }
+  if(s.includes('-')){
+    const p=s.split('-');
+    // yyyy-mm-dd → p[1] es mes
+    return parseInt(p[1],10);
+  }
+  return 0;
+}
+
 function getVentasFiltradas() {
   if(dashPeriodo==='year') return VENTAS;
   const mes = parseInt(document.getElementById('dash-mes-sel').value);
-  return VENTAS.filter(v=>{
-    const parts = v.fecha.split('/');
-    return parseInt(parts[1])===mes;
-  });
+  return VENTAS.filter(v=> getMesVenta(v.fecha)===mes);
 }
 
 function renderDashboard() {
@@ -1174,25 +1190,39 @@ function showPendTab(tab){
 // =========== EXPORTAR PENDIENTES — solo sin entregar ===========
 function imprimirPendientes(){
   const sinE=VENTAS.filter(v=>v.entregado==='No');
+  const filas=sinE.map(v=>{
+    const cli=getClienteData(v.cliente);
+    return `<tr>
+      <td>${v.fecha}</td><td>${v.cliente}</td>
+      <td>${cli.tel||'—'}</td>
+      <td>${v.transporte||cli.entrega||'—'}</td>
+      <td>${cli.dir||'—'}</td>
+      <td>${cli.localidad||'—'}</td>
+      <td>${cli.provincia||'—'}</td>
+      <td style="font-size:10px">${v.producto}</td>
+      <td>${v.cant}</td>
+      <td>${v.fpago}</td><td>${v.pagado}</td><td>${v.entrega}</td>
+      <td style="text-align:right">$${v.total.toLocaleString('es-AR')}</td>
+    </tr>`;
+  }).join('');
   const html=`<html><head><style>
-    body{font-family:Arial,sans-serif;font-size:12px;padding:20px;}
-    h2{color:#1a3a6e;border-bottom:2px solid #1a3a6e;padding-bottom:6px;margin-bottom:16px;}
-    table{width:100%;border-collapse:collapse;margin-top:8px;}
-    th{background:#1a3a6e;color:#fff;padding:7px 10px;text-align:left;font-size:11px;}
-    td{padding:6px 10px;border-bottom:1px solid #ddd;font-size:12px;}
+    @page{size:landscape}
+    body{font-family:Arial,sans-serif;font-size:11px;padding:16px;}
+    h2{color:#1a3a6e;border-bottom:2px solid #1a3a6e;padding-bottom:6px;margin-bottom:10px;}
+    table{width:100%;border-collapse:collapse;}
+    th{background:#1a3a6e;color:#fff;padding:6px 8px;text-align:left;font-size:10px;}
+    td{padding:5px 8px;border-bottom:1px solid #ddd;font-size:11px;}
     tr:nth-child(even)td{background:#f5f7fa;}
-    .total{font-weight:bold;text-align:right;margin-top:8px;font-size:13px;}
+    .total{font-weight:bold;text-align:right;margin-top:8px;}
   </style></head><body>
   <h2>⏳ Pendientes de Entrega — Camargo ERP</h2>
-  <p style="color:#666;margin-bottom:12px">Generado: ${new Date().toLocaleDateString('es-AR')} | Total: ${sinE.length} operaciones</p>
-  <table><thead><tr><th>Fecha</th><th>Cliente</th><th>Producto</th><th>Cant.</th><th>Precio U.</th><th>Total</th><th>Forma Pago</th><th>Pagado</th><th>Entrega</th><th>F. Pago</th></tr></thead>
-  <tbody>${sinE.map(v=>`<tr>
-    <td>${v.fecha}</td><td>${v.cliente}</td><td>${v.producto}</td>
-    <td>${v.cant} Lts</td><td>$${v.precioU.toLocaleString('es-AR')}</td>
-    <td>$${v.total.toLocaleString('es-AR')}</td><td>${v.fpago}</td>
-    <td>${v.pagado}</td><td>${v.entrega}</td><td>${v.fpago}</td>
-  </tr>`).join('')}</tbody></table>
-  <p class="total">Total pendiente: $${sinE.reduce((s,v)=>s+v.total,0).toLocaleString('es-AR')}</p>
+  <p style="color:#666;margin-bottom:10px">Generado: ${new Date().toLocaleDateString('es-AR')} | ${sinE.length} operaciones</p>
+  <table><thead><tr>
+    <th>Fecha</th><th>Cliente</th><th>Teléfono</th><th>Transporte</th><th>Dirección</th>
+    <th>Localidad</th><th>Provincia</th><th>Producto</th><th>Cant.</th>
+    <th>F.Pago</th><th>Pagado</th><th>Tipo Entrega</th><th>Total Venta</th>
+  </tr></thead><tbody>${filas}</tbody></table>
+  <p class="total">Total: $${sinE.reduce((s,v)=>s+v.total,0).toLocaleString('es-AR')}</p>
   </body></html>`;
   const w=window.open('','_blank');
   w.document.write(html);
@@ -1206,15 +1236,19 @@ function exportPendientesExcel() {
   const rowsE=sinE.map(v=>{
     const cli=getClienteData(v.cliente);
     return {
-      'Fecha':v.fecha,'Cliente':v.cliente,
-      'Transporte':v.transporte||cli.entrega||'',
-      'Dirección':v.dir||cli.dir||'',
-      'Localidad':cli.localidad||'','Provincia':cli.provincia||'',
+      'Fecha':v.fecha,
+      'Cliente':v.cliente,
       'Teléfono':cli.tel||'',
-      'Producto':v.producto,'Cantidad':v.cant,
-      'Precio Unit.':v.precioU,'Total':v.total,
-      'Forma Pago':v.fpago,'Pagado':v.pagado,'Tipo Entrega':v.entrega,
-      'Canal':v.canal,'Costo Unit.':v.costoU,'Costo Total':v.costoT,'Ganancia':v.gan
+      'Transporte':v.transporte||cli.entrega||'',
+      'Dirección':cli.dir||'',
+      'Localidad':cli.localidad||'',
+      'Provincia':cli.provincia||'',
+      'Producto':v.producto,
+      'Cantidad':v.cant,
+      'Forma Pago':v.fpago,
+      'Pagado':v.pagado,
+      'Tipo Entrega':v.entrega,
+      'Total Venta':v.total
     };
   });
   XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rowsE),'Sin Entregar');
@@ -1224,25 +1258,35 @@ function exportPendientesExcel() {
 
 function exportPendientesPDF() {
   const sinE=VENTAS.filter(v=>v.entregado==='No');
+  const filas=sinE.map(v=>{
+    const cli=getClienteData(v.cliente);
+    return `<tr>
+      <td>${v.fecha}</td><td>${v.cliente}</td>
+      <td>${cli.tel||'—'}</td><td>${v.transporte||cli.entrega||'—'}</td>
+      <td>${cli.dir||'—'}</td><td>${cli.localidad||'—'}</td><td>${cli.provincia||'—'}</td>
+      <td style="font-size:10px">${v.producto}</td><td>${v.cant}</td>
+      <td>${v.fpago}</td><td>${v.pagado}</td><td>${v.entrega}</td>
+      <td style="text-align:right">$${v.total.toLocaleString('es-AR')}</td>
+    </tr>`;
+  }).join('');
   const html=`<html><head><style>
-    body{font-family:Arial,sans-serif;font-size:12px;padding:20px;}
-    h2{color:#1a3a6e;border-bottom:2px solid #1a3a6e;padding-bottom:6px;}
-    table{width:100%;border-collapse:collapse;margin-top:8px;}
-    th{background:#1a3a6e;color:#fff;padding:7px 10px;text-align:left;font-size:11px;}
-    td{padding:6px 10px;border-bottom:1px solid #ddd;font-size:12px;}
+    @page{size:landscape}
+    body{font-family:Arial,sans-serif;font-size:11px;padding:16px;}
+    h2{color:#1a3a6e;border-bottom:2px solid #1a3a6e;padding-bottom:6px;margin-bottom:10px;}
+    table{width:100%;border-collapse:collapse;}
+    th{background:#1a3a6e;color:#fff;padding:6px 8px;text-align:left;font-size:10px;}
+    td{padding:5px 8px;border-bottom:1px solid #ddd;font-size:11px;}
     tr:nth-child(even)td{background:#f5f7fa;}
-    .total{font-weight:bold;text-align:right;margin-top:8px;font-size:13px;}
+    .total{font-weight:bold;text-align:right;margin-top:8px;}
   </style></head><body>
   <h2>⏳ Pendientes de Entrega — Camargo ERP</h2>
-  <p style="color:#666;margin-bottom:12px">Generado: ${new Date().toLocaleDateString('es-AR')} | ${sinE.length} operaciones</p>
-  <table><thead><tr><th>Fecha</th><th>Cliente</th><th>Producto</th><th>Cant.</th><th>Precio U.</th><th>Total</th><th>F.Pago</th><th>Pagado</th><th>Entrega</th></tr></thead>
-  <tbody>${sinE.map(v=>`<tr>
-    <td>${v.fecha}</td><td>${v.cliente}</td><td>${v.producto}</td>
-    <td>${v.cant} Lts</td><td>$${v.precioU.toLocaleString('es-AR')}</td>
-    <td>$${v.total.toLocaleString('es-AR')}</td><td>${v.fpago}</td>
-    <td>${v.pagado}</td><td>${v.entrega}</td>
-  </tr>`).join('')}</tbody></table>
-  <p class="total">Total pendiente: $${sinE.reduce((s,v)=>s+v.total,0).toLocaleString('es-AR')}</p>
+  <p style="color:#666;margin-bottom:10px">Generado: ${new Date().toLocaleDateString('es-AR')} | ${sinE.length} operaciones</p>
+  <table><thead><tr>
+    <th>Fecha</th><th>Cliente</th><th>Teléfono</th><th>Transporte</th><th>Dirección</th>
+    <th>Localidad</th><th>Provincia</th><th>Producto</th><th>Cant.</th>
+    <th>F.Pago</th><th>Pagado</th><th>Tipo Entrega</th><th>Total Venta</th>
+  </tr></thead><tbody>${filas}</tbody></table>
+  <p class="total">Total: $${sinE.reduce((s,v)=>s+v.total,0).toLocaleString('es-AR')}</p>
   </body></html>`;
   const w=window.open('','_blank');
   w.document.write(html);
@@ -1257,11 +1301,7 @@ function getContadorVentas(){
   const transfOk=document.getElementById('cont-transf').checked;
   const echeqOk=document.getElementById('cont-echeq').checked;
   return VENTAS.filter(v=>{
-    // fecha formato dd/mm/yyyy
-    const partes=(v.fecha||'').split('/');
-    if(partes.length<3) return false;
-    const vMes=parseInt(partes[1],10);
-    if(vMes!==mes) return false;
+    if(getMesVenta(v.fecha)!==mes) return false;
     const fp=(v.fpago||'').toLowerCase().trim();
     if(transfOk && fp==='transferencia') return true;
     if(echeqOk && fp==='echeq') return true;
