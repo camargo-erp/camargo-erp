@@ -1059,7 +1059,7 @@ function renderPendientes() {
 
 function marcarEntregado(idx){VENTAS[idx].entregado='Sí';actualizarBadge();notify('✓ Marcado como entregado');renderPendientes();}
 function marcarCobrado(idx){VENTAS[idx].pagado='Sí';actualizarBadge();notify('✓ Marcado como cobrado');renderPendientes();}
-function actualizarBadge(){document.getElementById('badge-pend').textContent=VENTAS.filter(v=>v.entregado==='No'||v.pagado==='No').length;}
+function actualizarBadge(){const sinE=VENTAS.filter(v=>v.entregado==='No').length;const sinC=VENTAS.filter(v=>v.pagado==='No').length;document.getElementById('badge-pend').textContent=sinE+sinC;}
 
 // EXPORTAR PENDIENTES
 function imprimirPendientes(){window.print();}
