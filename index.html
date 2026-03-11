@@ -288,6 +288,32 @@
     <button class="btn btn-primary" onclick="showPage('nueva-venta')">+ Nueva Venta</button>
   </div>
   <div class="frozen-banner">🔒 Los precios de ventas registradas están <strong>&nbsp;congelados</strong>. Cambiar la tabla maestra no afecta operaciones históricas.</div>
+  <!-- FILTROS -->
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:center">
+    <div style="font-size:12px;color:var(--muted);font-weight:500">Filtrar:</div>
+    <select id="flt-fpago" onchange="renderVentas()" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px">
+      <option value="">Forma Pago: Todas</option>
+      <option>Transferencia</option><option>Efectivo</option>
+      <option>Echeq</option><option>Cuenta corriente</option>
+    </select>
+    <select id="flt-pagado" onchange="renderVentas()" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px">
+      <option value="">Pagado: Todos</option>
+      <option value="Sí">Pagado: Sí</option>
+      <option value="No">Pagado: No</option>
+    </select>
+    <select id="flt-entrega" onchange="renderVentas()" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px">
+      <option value="">Tipo Entrega: Todas</option>
+      <option>Propio</option><option>Envío transporte</option>
+      <option>Retiro cliente</option><option>Retiro transporte</option>
+    </select>
+    <select id="flt-entregado" onchange="renderVentas()" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px">
+      <option value="">Entregado: Todos</option>
+      <option value="Sí">Entregado: Sí</option>
+      <option value="No">Entregado: No</option>
+    </select>
+    <button class="btn btn-ghost btn-sm" onclick="limpiarFiltrosVentas()" style="font-size:12px">✕ Limpiar</button>
+    <span id="flt-count" style="margin-left:auto;font-size:12px;color:var(--muted)"></span>
+  </div>
   <div class="card">
     <div class="table-wrap">
       <table id="tabla-ventas">
@@ -946,9 +972,40 @@ function renderChartsMensual() {
 }
 
 // =========== VENTAS ===========
+function getVentasFiltradas_tabla() {
+  const fpago  = document.getElementById('flt-fpago')?.value  || '';
+  const pagado = document.getElementById('flt-pagado')?.value || '';
+  const entrega    = document.getElementById('flt-entrega')?.value    || '';
+  const entregado  = document.getElementById('flt-entregado')?.value  || '';
+  return VENTAS.filter(v=>{
+    if(fpago     && v.fpago     !== fpago)     return false;
+    if(pagado    && v.pagado    !== pagado)    return false;
+    if(entrega   && v.entrega   !== entrega)   return false;
+    if(entregado && v.entregado !== entregado) return false;
+    return true;
+  });
+}
+
+function limpiarFiltrosVentas() {
+  ['flt-fpago','flt-pagado','flt-entrega','flt-entregado'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.value='';
+  });
+  renderVentas();
+}
+
 function renderVentas() {
   const tb=document.getElementById('ventas-body');
-  tb.innerHTML=VENTAS.map((v,i)=>`
+  const filtradas = getVentasFiltradas_tabla();
+  const cnt = document.getElementById('flt-count');
+  if(cnt) {
+    const hayFiltro = ['flt-fpago','flt-pagado','flt-entrega','flt-entregado']
+      .some(id=>document.getElementById(id)?.value);
+    cnt.textContent = hayFiltro ? `${filtradas.length} de ${VENTAS.length} ventas` : `${VENTAS.length} ventas`;
+  }
+  tb.innerHTML=filtradas.map((v)=>{
+    const i = VENTAS.indexOf(v);
+    return `
     <tr>
       <td>${v.fecha}</td>
       <td><span class="chip ${v.canal==='Mayorista'?'blue':'gray'}">${v.canal}</span></td>
@@ -965,7 +1022,8 @@ function renderVentas() {
       <td>${v.entrega}</td>
       <td><span class="chip ${v.entregado==='Sí'?'green':'yellow'}">${v.entregado==='Sí'?'✓ Sí':'⏳ No'}</span></td>
       <td><button class="btn btn-ghost btn-sm" onclick="abrirEditar(${i})" style="padding:4px 10px;font-size:12px">✏️</button></td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
 }
 
 // =========== NUEVA VENTA ===========
