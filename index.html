@@ -135,6 +135,19 @@
   .inner-tab{flex:1;text-align:center;padding:7px 10px;border-radius:6px;font-size:12px;cursor:pointer;color:var(--muted);transition:all .15s;}
   .inner-tab.active{background:var(--accent);color:#fff;}
   @media print{nav,.btn,.pend-actions,.filter-btn{display:none!important;} .page{display:block!important;padding:10px;}}
+
+  /* LOGIN */
+  #login-screen{position:fixed;inset:0;background:#0a0d14;display:flex;align-items:center;justify-content:center;z-index:9999;}
+  #login-screen.hidden{display:none;}
+  .login-box{background:#181c27;border:1px solid #2a3050;border-radius:16px;padding:48px 40px;width:360px;text-align:center;}
+  .login-logo{font-size:28px;font-weight:700;color:#3d7fff;letter-spacing:-1px;margin-bottom:4px;}
+  .login-sub{font-size:13px;color:#7a84a8;margin-bottom:32px;}
+  .login-box input{width:100%;padding:12px 16px;background:#0f1117;border:1px solid #2a3050;border-radius:8px;color:#e8eaf2;font-size:14px;margin-bottom:12px;outline:none;}
+  .login-box input:focus{border-color:#3d7fff;}
+  .login-box button{width:100%;padding:12px;background:#3d7fff;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;margin-top:8px;}
+  .login-box button:hover{background:#5a91ff;}
+  .login-error{color:#ff4d6a;font-size:13px;margin-top:8px;display:none;}
+
 </style>
 </head>
 <body>
@@ -152,6 +165,18 @@
     <span style="font-size:12px;color:var(--muted)" id="nav-fecha"></span>
   </div>
 </nav>
+
+
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">Camargo<span style="color:#00d4aa">ERP</span></div>
+    <div class="login-sub">Distribución de Químicos</div>
+    <input type="text" id="login-user" placeholder="Usuario" onkeydown="if(event.key==='Enter')doLogin()">
+    <input type="password" id="login-pass" placeholder="Contraseña" onkeydown="if(event.key==='Enter')doLogin()">
+    <button onclick="doLogin()">Ingresar</button>
+    <div class="login-error" id="login-error">Usuario o contraseña incorrectos</div>
+  </div>
+</div>
 
 <div id="notify" class="notify"></div>
 
@@ -382,22 +407,63 @@
 
 <!-- ===== PENDIENTES ===== -->
 <div class="page" id="page-pendientes">
-  <div class="section-header">
-    <div class="section-title">Pendientes</div>
-    <div style="display:flex;gap:8px">
+  <!-- TABS internos -->
+  <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:20px;align-items:center">
+    <div class="pend-tab active" id="ptab-entregas" onclick="showPendTab('entregas')" style="padding:10px 20px;cursor:pointer;font-size:13px;border-bottom:2px solid var(--accent);color:var(--accent);font-weight:500">⏳ Sin Entregar (<span id="cnt-entregas">0</span>)</div>
+    <div class="pend-tab" id="ptab-cobros" onclick="showPendTab('cobros')" style="padding:10px 20px;cursor:pointer;font-size:13px;border-bottom:2px solid transparent;color:var(--muted)">💳 Sin Cobrar (<span id="cnt-cobros">0</span>)</div>
+    <div class="pend-tab" id="ptab-contador" onclick="showPendTab('contador')" style="padding:10px 20px;cursor:pointer;font-size:13px;border-bottom:2px solid transparent;color:var(--muted)">🧾 Reporte Contador</div>
+    <div style="margin-left:auto;display:flex;gap:8px" id="pend-btns-entregas">
       <button class="btn btn-ghost btn-sm" onclick="imprimirPendientes()">🖨️ Imprimir</button>
       <button class="btn btn-warn btn-sm" onclick="exportPendientesExcel()">📊 Excel</button>
       <button class="btn btn-ghost btn-sm" onclick="exportPendientesPDF()">📄 PDF</button>
     </div>
-  </div>
-  <div class="grid2" id="pend-container">
-    <div>
-      <div class="card-title" style="margin-bottom:12px">⏳ Sin Entregar (<span id="cnt-entregas">0</span>)</div>
-      <div id="lista-entregas"></div>
+    <div style="margin-left:auto;display:flex;gap:8px;display:none" id="pend-btns-cobros"></div>
+    <div style="margin-left:auto;display:flex;gap:8px;display:none" id="pend-btns-contador">
+      <button class="btn btn-warn btn-sm" onclick="exportContadorExcel()">📊 Descargar Excel</button>
     </div>
-    <div>
-      <div class="card-title" style="margin-bottom:12px">💳 Sin Cobrar (<span id="cnt-cobros">0</span>)</div>
-      <div id="lista-cobros"></div>
+  </div>
+
+  <!-- Panel Sin Entregar -->
+  <div id="panel-entregas">
+    <div id="lista-entregas"></div>
+  </div>
+
+  <!-- Panel Sin Cobrar -->
+  <div id="panel-cobros" style="display:none">
+    <div id="lista-cobros"></div>
+  </div>
+
+  <!-- Panel Reporte Contador -->
+  <div id="panel-contador" style="display:none">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+      <div style="font-size:13px;color:var(--muted)">Mes:</div>
+      <select id="cont-mes" onchange="renderContador()" style="padding:7px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px">
+        <option value="1">Enero</option><option value="2">Febrero</option><option value="3" selected>Marzo</option>
+        <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
+        <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
+        <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+      </select>
+      <div style="font-size:13px;color:var(--muted)">Forma de pago:</div>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+        <input type="checkbox" id="cont-transf" checked onchange="renderContador()"> Transferencia
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+        <input type="checkbox" id="cont-echeq" checked onchange="renderContador()"> Echeq
+      </label>
+    </div>
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Fecha</th><th>Cliente</th><th>Producto</th><th>Cant.</th>
+            <th style="text-align:right">Total</th><th>F. Pago</th><th>N° Factura</th>
+          </tr></thead>
+          <tbody id="tabla-contador"></tbody>
+        </table>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+        <div style="font-family:var(--mono);font-size:14px;color:var(--green)">Total: <span id="cont-total" style="font-weight:600">$0</span></div>
+      </div>
     </div>
   </div>
 </div>
@@ -1061,50 +1127,156 @@ function marcarEntregado(idx){VENTAS[idx].entregado='Sí';actualizarBadge();noti
 function marcarCobrado(idx){VENTAS[idx].pagado='Sí';actualizarBadge();notify('✓ Marcado como cobrado');renderPendientes();}
 function actualizarBadge(){const sinE=VENTAS.filter(v=>v.entregado==='No').length;const sinC=VENTAS.filter(v=>v.pagado==='No').length;document.getElementById('badge-pend').textContent=sinE+sinC;}
 
-// EXPORTAR PENDIENTES
-function imprimirPendientes(){window.print();}
+// =========== LOGIN ===========
+function doLogin(){
+  const u=document.getElementById('login-user').value.trim();
+  const p=document.getElementById('login-pass').value;
+  if(u==='camargo' && p==='Milei2027'){
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('login-error').style.display='none';
+  } else {
+    document.getElementById('login-error').style.display='block';
+    document.getElementById('login-pass').value='';
+  }
+}
+
+// =========== TABS DE PENDIENTES ===========
+function showPendTab(tab){
+  ['entregas','cobros','contador'].forEach(t=>{
+    document.getElementById('panel-'+t).style.display = t===tab?'block':'none';
+    const el=document.getElementById('ptab-'+t);
+    el.style.borderBottomColor = t===tab?'var(--accent)':'transparent';
+    el.style.color = t===tab?'var(--accent)':'var(--muted)';
+    const btns=document.getElementById('pend-btns-'+t);
+    if(btns) btns.style.display = t===tab?'flex':'none';
+  });
+  if(tab==='contador') renderContador();
+}
+
+// =========== EXPORTAR PENDIENTES — solo sin entregar ===========
+function imprimirPendientes(){
+  const sinE=VENTAS.filter(v=>v.entregado==='No');
+  const html=`<html><head><style>
+    body{font-family:Arial,sans-serif;font-size:12px;padding:20px;}
+    h2{color:#1a3a6e;border-bottom:2px solid #1a3a6e;padding-bottom:6px;margin-bottom:16px;}
+    table{width:100%;border-collapse:collapse;margin-top:8px;}
+    th{background:#1a3a6e;color:#fff;padding:7px 10px;text-align:left;font-size:11px;}
+    td{padding:6px 10px;border-bottom:1px solid #ddd;font-size:12px;}
+    tr:nth-child(even)td{background:#f5f7fa;}
+    .total{font-weight:bold;text-align:right;margin-top:8px;font-size:13px;}
+  </style></head><body>
+  <h2>⏳ Pendientes de Entrega — Camargo ERP</h2>
+  <p style="color:#666;margin-bottom:12px">Generado: ${new Date().toLocaleDateString('es-AR')} | Total: ${sinE.length} operaciones</p>
+  <table><thead><tr><th>Fecha</th><th>Cliente</th><th>Producto</th><th>Cant.</th><th>Precio U.</th><th>Total</th><th>Forma Pago</th><th>Pagado</th><th>Entrega</th><th>F. Pago</th></tr></thead>
+  <tbody>${sinE.map(v=>`<tr>
+    <td>${v.fecha}</td><td>${v.cliente}</td><td>${v.producto}</td>
+    <td>${v.cant} Lts</td><td>$${v.precioU.toLocaleString('es-AR')}</td>
+    <td>$${v.total.toLocaleString('es-AR')}</td><td>${v.fpago}</td>
+    <td>${v.pagado}</td><td>${v.entrega}</td><td>${v.fpago}</td>
+  </tr>`).join('')}</tbody></table>
+  <p class="total">Total pendiente: $${sinE.reduce((s,v)=>s+v.total,0).toLocaleString('es-AR')}</p>
+  </body></html>`;
+  const w=window.open('','_blank');
+  w.document.write(html);
+  w.document.close();
+  w.print();
+}
 
 function exportPendientesExcel() {
   const sinE=VENTAS.filter(v=>v.entregado==='No');
-  const sinC=VENTAS.filter(v=>v.pagado==='No');
   const wb=XLSX.utils.book_new();
-  const rowsE=sinE.map(v=>({Fecha:v.fecha,Cliente:v.cliente,Producto:v.producto,Cantidad:v.cant,Total:v.total,Entrega:v.entrega}));
-  const rowsC=sinC.map(v=>({Fecha:v.fecha,Cliente:v.cliente,Producto:v.producto,Total:v.total,'Forma Pago':v.fpago}));
+  const rowsE=sinE.map(v=>({
+    'Fecha':v.fecha,'Cliente':v.cliente,'Producto':v.producto,
+    'Cantidad':v.cant,'Precio Unit.':v.precioU,'Total':v.total,
+    'Forma Pago':v.fpago,'Pagado':v.pagado,'Tipo Entrega':v.entrega,
+    'Canal':v.canal,'Costo Unit.':v.costoU,'Costo Total':v.costoT,'Ganancia':v.gan
+  }));
   XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rowsE),'Sin Entregar');
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rowsC),'Sin Cobrar');
-  XLSX.writeFile(wb,'pendientes_camargo.xlsx');
+  XLSX.writeFile(wb,'pendientes_entrega_camargo.xlsx');
   notify('✓ Excel generado');
 }
 
 function exportPendientesPDF() {
   const sinE=VENTAS.filter(v=>v.entregado==='No');
-  const sinC=VENTAS.filter(v=>v.pagado==='No');
   const html=`<html><head><style>
     body{font-family:Arial,sans-serif;font-size:12px;padding:20px;}
     h2{color:#1a3a6e;border-bottom:2px solid #1a3a6e;padding-bottom:6px;}
-    h3{color:#333;margin-top:20px;}
     table{width:100%;border-collapse:collapse;margin-top:8px;}
     th{background:#1a3a6e;color:#fff;padding:7px 10px;text-align:left;font-size:11px;}
     td{padding:6px 10px;border-bottom:1px solid #ddd;font-size:12px;}
     tr:nth-child(even)td{background:#f5f7fa;}
-    .total{font-weight:bold;text-align:right;margin-top:4px;}
+    .total{font-weight:bold;text-align:right;margin-top:8px;font-size:13px;}
   </style></head><body>
-  <h2>📋 Pendientes — Camargo ERP</h2>
-  <p style="color:#666">Generado: ${new Date().toLocaleDateString('es-AR')}</p>
-  <h3>⏳ Sin Entregar (${sinE.length})</h3>
-  <table><thead><tr><th>Fecha</th><th>Cliente</th><th>Producto</th><th>Cant.</th><th>Total</th><th>Entrega</th></tr></thead>
-  <tbody>${sinE.map(v=>`<tr><td>${v.fecha}</td><td>${v.cliente}</td><td>${v.producto.substring(0,45)}</td><td>${v.cant} Lts</td><td>$${v.total.toLocaleString('es-AR')}</td><td>${v.entrega}</td></tr>`).join('')}</tbody></table>
-  <p class="total">Total pendiente entrega: $${sinE.reduce((s,v)=>s+v.total,0).toLocaleString('es-AR')}</p>
-  <h3>💳 Sin Cobrar (${sinC.length})</h3>
-  <table><thead><tr><th>Fecha</th><th>Cliente</th><th>Producto</th><th>Total</th><th>Forma Pago</th></tr></thead>
-  <tbody>${sinC.map(v=>`<tr><td>${v.fecha}</td><td>${v.cliente}</td><td>${v.producto.substring(0,45)}</td><td>$${v.total.toLocaleString('es-AR')}</td><td>${v.fpago}</td></tr>`).join('')}</tbody></table>
-  <p class="total">Total pendiente cobro: $${sinC.reduce((s,v)=>s+v.total,0).toLocaleString('es-AR')}</p>
+  <h2>⏳ Pendientes de Entrega — Camargo ERP</h2>
+  <p style="color:#666;margin-bottom:12px">Generado: ${new Date().toLocaleDateString('es-AR')} | ${sinE.length} operaciones</p>
+  <table><thead><tr><th>Fecha</th><th>Cliente</th><th>Producto</th><th>Cant.</th><th>Precio U.</th><th>Total</th><th>F.Pago</th><th>Pagado</th><th>Entrega</th></tr></thead>
+  <tbody>${sinE.map(v=>`<tr>
+    <td>${v.fecha}</td><td>${v.cliente}</td><td>${v.producto}</td>
+    <td>${v.cant} Lts</td><td>$${v.precioU.toLocaleString('es-AR')}</td>
+    <td>$${v.total.toLocaleString('es-AR')}</td><td>${v.fpago}</td>
+    <td>${v.pagado}</td><td>${v.entrega}</td>
+  </tr>`).join('')}</tbody></table>
+  <p class="total">Total pendiente: $${sinE.reduce((s,v)=>s+v.total,0).toLocaleString('es-AR')}</p>
   </body></html>`;
   const w=window.open('','_blank');
   w.document.write(html);
   w.document.close();
   w.onload=()=>{w.print();};
   notify('✓ PDF listo para imprimir');
+}
+
+// =========== REPORTE CONTADOR ===========
+function getContadorVentas(){
+  const mes=parseInt(document.getElementById('cont-mes').value);
+  const transfOk=document.getElementById('cont-transf').checked;
+  const echeqOk=document.getElementById('cont-echeq').checked;
+  return VENTAS.filter(v=>{
+    const partes=v.fecha.split('/');
+    const vMes=parseInt(partes[1]);
+    if(vMes!==mes) return false;
+    const fp=(v.fpago||'').toLowerCase();
+    if(transfOk && fp==='transferencia') return true;
+    if(echeqOk && fp==='echeq') return true;
+    return false;
+  });
+}
+
+function renderContador(){
+  const ventas=getContadorVentas();
+  const tbody=document.getElementById('tabla-contador');
+  if(!tbody) return;
+  tbody.innerHTML=ventas.map(v=>`
+    <tr>
+      <td>${v.fecha}</td>
+      <td>${v.cliente}</td>
+      <td style="font-size:12px">${v.producto.substring(0,45)}${v.producto.length>45?'…':''}</td>
+      <td>${v.cant}</td>
+      <td style="text-align:right;font-family:var(--mono)">$${v.total.toLocaleString('es-AR')}</td>
+      <td><span class="chip gray">${v.fpago}</span></td>
+      <td style="color:var(--muted);font-size:12px">${v.nroFactura||'—'}</td>
+    </tr>`).join('')||'<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">Sin ventas para este período</td></tr>';
+  const total=ventas.reduce((s,v)=>s+v.total,0);
+  document.getElementById('cont-total').textContent='$'+total.toLocaleString('es-AR');
+}
+
+function exportContadorExcel(){
+  const ventas=getContadorVentas();
+  const meses=['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const mes=parseInt(document.getElementById('cont-mes').value);
+  const wb=XLSX.utils.book_new();
+  const rows=ventas.map(v=>({
+    'Fecha':v.fecha,'Cliente':v.cliente,'Producto':v.producto,
+    'Cantidad':v.cant,'Total':v.total,'Forma de Pago':v.fpago,
+    'Pagado':v.pagado,'N° Factura':v.nroFactura||'',
+    'Canal':v.canal,'Entrega':v.entrega
+  }));
+  rows.push({'Fecha':'','Cliente':'','Producto':'TOTAL','Cantidad':'',
+    'Total':ventas.reduce((s,v)=>s+v.total,0),'Forma de Pago':'',
+    'Pagado':'','N° Factura':'','Canal':'','Entrega':''});
+  const ws=XLSX.utils.json_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb,ws,'Reporte Contador');
+  XLSX.writeFile(wb,'reporte_contador_'+meses[mes].toLowerCase()+'_2026.xlsx');
+  notify('✓ Excel contador generado');
 }
 
 // =========== PRECIOS ===========
