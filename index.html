@@ -26,7 +26,15 @@
   .badge.warn{background:var(--warn);}
   .page{display:none;padding:24px;max-width:1400px;margin:0 auto;}
   .page.active{display:block;}
-  .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;}
+  .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:16px;}
+  .kpi-grid2{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;}
+  .kpi.highlight{border-color:#3d7fff55;background:linear-gradient(135deg,#181c27,#1a2540);}
+  .kpi.highlight2{border-color:#00d4aa44;background:linear-gradient(135deg,#181c27,#0f2420);}
+  .canal-table{width:100%;border-collapse:collapse;margin-top:8px;}
+  .canal-table th{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);padding:7px 10px;text-align:right;border-bottom:1px solid var(--border);}
+  .canal-table th:first-child{text-align:left;}
+  .canal-table td{padding:8px 10px;font-family:var(--mono);font-size:13px;text-align:right;border-bottom:1px solid #1e2335;}
+  .canal-table td:first-child{text-align:left;font-family:var(--font);font-weight:500;}
   .kpi{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;}
   .kpi-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;}
   .kpi-value{font-size:24px;font-weight:600;font-family:var(--mono);color:var(--text);}
@@ -214,6 +222,7 @@
   </div>
 
   <div class="kpi-grid" id="dash-kpis"></div>
+  <div class="kpi-grid2" id="dash-kpis2"></div>
   <div class="grid3" id="dash-cards2"></div>
   <div class="grid2">
     <div class="card">
@@ -623,14 +632,19 @@ function renderDashboard() {
   const ops = vf.length;
   const lts = vf.reduce((s,v)=>s+v.cant,0);
   const margenGlobal = totalVentas>0 ? totalGan/totalVentas : 0;
+  const rentCosto = totalCosto>0 ? totalGan/totalCosto : 0;
+  const ticketProm = ops>0 ? totalVentas/ops : 0;
+  const ganBruta = vf.reduce((s,v)=>s+(v.total - v.costoT),0); // sin logística
+  const resLogistico = vf.reduce((s,v)=>s+(v.envioT||0),0);
 
+  // Fila 1: métricas base
   document.getElementById('dash-kpis').innerHTML = `
     <div class="kpi"><div class="kpi-label">Ventas ${dashPeriodo==='year'?'Año':'Mes'}</div>
       <div class="kpi-value accent">${fmt(totalVentas)}</div>
       <div class="kpi-sub">${ops} ops · ${lts.toLocaleString('es-AR')} Lts</div></div>
     <div class="kpi"><div class="kpi-label">Ganancia Neta</div>
       <div class="kpi-value green">${fmt(totalGan)}</div>
-      <div class="kpi-sub">Margen ${(margenGlobal*100).toFixed(1)}%</div></div>
+      <div class="kpi-sub">Sobre $${Math.round(totalCosto/1e6*10)/10}M de costo</div></div>
     <div class="kpi"><div class="kpi-label">Costo Total</div>
       <div class="kpi-value">${fmt(totalCosto)}</div>
       <div class="kpi-sub">${dashPeriodo==='year'?'Año 2026':'Mes seleccionado'}</div></div>
@@ -638,10 +652,33 @@ function renderDashboard() {
       <div class="kpi-value" style="color:var(--yellow)">${fmt(totalCuentas)}</div>
       <div class="kpi-sub">${vf.filter(v=>v.pagado==='No').length} ops sin cobrar</div></div>`;
 
-  const sinEntregar = vf.filter(v=>v.entregado==='No');
-  const sinCobrarE = vf.filter(v=>v.pagado==='No'&&v.entregado==='Sí');
-  const minor = vf.filter(v=>v.canal==='Minorista').reduce((s,v)=>s+v.total,0);
-  const mayor = vf.filter(v=>v.canal==='Mayorista').reduce((s,v)=>s+v.total,0);
+  // Fila 2: rentabilidad + ticket
+  document.getElementById('dash-kpis2').innerHTML = `
+    <div class="kpi highlight">
+      <div class="kpi-label">📊 Margen Operación</div>
+      <div class="kpi-value" style="color:#3d7fff;font-size:28px">${(margenGlobal*100).toFixed(1)}%</div>
+      <div class="kpi-sub">Ganancia / Venta · de cada $100 facturado, $${(margenGlobal*100).toFixed(1)} quedan</div></div>
+    <div class="kpi highlight2">
+      <div class="kpi-label">💰 Rentabilidad s/Costo</div>
+      <div class="kpi-value" style="color:#00d4aa;font-size:28px">${(rentCosto*100).toFixed(1)}%</div>
+      <div class="kpi-sub">Ganancia / Costo · por cada $100 invertido, ganás $${(rentCosto*100).toFixed(1)}</div></div>
+    <div class="kpi">
+      <div class="kpi-label">🎫 Ticket Promedio</div>
+      <div class="kpi-value" style="color:var(--yellow)">${fmt(ticketProm)}</div>
+      <div class="kpi-sub">${ops} operaciones en el período</div></div>
+    <div class="kpi">
+      <div class="kpi-label">📦 Cantidad Promedio / Op</div>
+      <div class="kpi-value">${ops>0?Math.round(lts/ops):0} Lts</div>
+      <div class="kpi-sub">${lts.toLocaleString('es-AR')} Lts totales</div></div>`;
+
+  // Cards row — ahora con tabla canal mejorada
+  const minor = vf.filter(v=>v.canal==='Minorista');
+  const mayor = vf.filter(v=>v.canal==='Mayorista');
+  const minorV=minor.reduce((s,v)=>s+v.total,0), minorG=minor.reduce((s,v)=>s+v.gan,0), minorL=minor.reduce((s,v)=>s+v.cant,0);
+  const mayorV=mayor.reduce((s,v)=>s+v.total,0), mayorG=mayor.reduce((s,v)=>s+v.gan,0), mayorL=mayor.reduce((s,v)=>s+v.cant,0);
+  const sinEntregar=vf.filter(v=>v.entregado==='No');
+  const sinCobrarE=vf.filter(v=>v.pagado==='No'&&v.entregado==='Sí');
+
   document.getElementById('dash-cards2').innerHTML = `
     <div class="card"><div class="card-title">Pendiente de Entrega</div>
       <div style="font-size:28px;font-weight:600;font-family:var(--mono);color:var(--warn)">${fmt(sinEntregar.reduce((s,v)=>s+v.total,0))}</div>
@@ -649,12 +686,27 @@ function renderDashboard() {
     <div class="card"><div class="card-title">Entregado y No Cobrado</div>
       <div style="font-size:28px;font-weight:600;font-family:var(--mono);color:var(--green)">${fmt(sinCobrarE.reduce((s,v)=>s+v.total,0))}</div>
       <div style="font-size:13px;color:var(--muted);margin-top:6px">${sinCobrarE.length>0?sinCobrarE.length+' ops pendientes':'Todo al día ✓'}</div></div>
-    <div class="card"><div class="card-title">Canal</div>
-      <div style="display:flex;gap:16px;margin-top:4px">
-        <div><div style="font-size:11px;color:var(--muted)">Minorista</div><div style="font-size:20px;font-weight:600;color:var(--accent)">${fmt(minor)}</div></div>
-        <div style="width:1px;background:var(--border)"></div>
-        <div><div style="font-size:11px;color:var(--muted)">Mayorista</div><div style="font-size:20px;font-weight:600;color:var(--accent2)">${fmt(mayor)}</div></div>
-      </div></div>`;
+    <div class="card"><div class="card-title">Canal — Ventas / GN / Cantidad</div>
+      <table class="canal-table">
+        <thead><tr><th>Canal</th><th>Ventas $</th><th>GN $</th><th>Margen</th><th>Cantidad</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="chip blue">Mayorista</span></td>
+            <td>${fmt(mayorV)}</td>
+            <td style="color:var(--green)">${fmt(mayorG)}</td>
+            <td style="color:var(--green)">${mayorV>0?(mayorG/mayorV*100).toFixed(1)+'%':'—'}</td>
+            <td>${mayorL.toLocaleString('es-AR')} Lts</td>
+          </tr>
+          <tr>
+            <td><span class="chip gray">Minorista</span></td>
+            <td>${fmt(minorV)}</td>
+            <td style="color:var(--green)">${fmt(minorG)}</td>
+            <td style="color:var(--green)">${minorV>0?(minorG/minorV*100).toFixed(1)+'%':'—'}</td>
+            <td>${minorL.toLocaleString('es-AR')} Lts</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>`;
 
   // Bar charts
   const totCliente={};
