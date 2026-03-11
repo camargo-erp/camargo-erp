@@ -295,7 +295,7 @@
           <th>Fecha</th><th>Canal</th><th>Cliente</th><th>Producto</th>
           <th>Cant.</th><th>$ Unit.</th><th>Total</th><th>Costo</th>
           <th>Ganancia</th><th>Margen</th><th>Pago</th><th>Pagado</th>
-          <th>Entrega</th><th>Entregado</th>
+          <th>Entrega</th><th>Entregado</th><th></th>
         </tr></thead>
         <tbody id="ventas-body"></tbody>
       </table>
@@ -948,7 +948,7 @@ function renderChartsMensual() {
 // =========== VENTAS ===========
 function renderVentas() {
   const tb=document.getElementById('ventas-body');
-  tb.innerHTML=VENTAS.map((v)=>`
+  tb.innerHTML=VENTAS.map((v,i)=>`
     <tr>
       <td>${v.fecha}</td>
       <td><span class="chip ${v.canal==='Mayorista'?'blue':'gray'}">${v.canal}</span></td>
@@ -964,6 +964,7 @@ function renderVentas() {
       <td><span class="chip ${v.pagado==='Sí'?'green':'red'}">${v.pagado==='Sí'?'✓ Sí':'✗ No'}</span></td>
       <td>${v.entrega}</td>
       <td><span class="chip ${v.entregado==='Sí'?'green':'yellow'}">${v.entregado==='Sí'?'✓ Sí':'⏳ No'}</span></td>
+      <td><button class="btn btn-ghost btn-sm" onclick="abrirEditar(${i})" style="padding:4px 10px;font-size:12px">✏️</button></td>
     </tr>`).join('');
 }
 
@@ -1217,7 +1218,56 @@ function imprimirPendientes(){
     <th>F.Pago</th><th>Pagado</th><th>Tipo Entrega</th><th>Total Venta</th>
   </tr></thead><tbody>${filas}</tbody></table>
   <p class="total">Total: $${sinE.reduce((s,v)=>s+v.total,0).toLocaleString('es-AR')}</p>
-  </body></html>`;
+  
+<!-- MODAL EDITAR VENTA -->
+<div class="modal-overlay" id="modal-editar-venta">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-title">✏️ Editar Venta</div>
+    <div class="form-grid cols2" style="gap:12px">
+      <div class="form-group"><label>Fecha</label><input type="date" id="ev-fecha"></div>
+      <div class="form-group"><label>Canal</label>
+        <select id="ev-canal"><option value="Minorista">Minorista</option><option value="Mayorista">Mayorista</option></select>
+      </div>
+      <div class="form-group"><label>Cliente</label><input id="ev-cliente"></div>
+      <div class="form-group"><label>Producto</label><input id="ev-producto"></div>
+      <div class="form-group"><label>Cantidad</label><input type="number" id="ev-cant" oninput="actualizarPreviewEditar()"></div>
+      <div class="form-group"><label>Precio Unit.</label><input type="number" id="ev-precioU" oninput="actualizarPreviewEditar()"></div>
+      <div class="form-group"><label>Costo Unit.</label><input type="number" id="ev-costoU" oninput="actualizarPreviewEditar()"></div>
+      <div class="form-group"><label>Forma de Pago</label>
+        <select id="ev-fpago">
+          <option>Transferencia</option><option>Efectivo</option>
+          <option>Echeq</option><option>Cuenta corriente</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Pagado</label>
+        <select id="ev-pagado"><option value="Sí">Sí</option><option value="No">No</option></select>
+      </div>
+      <div class="form-group"><label>Tipo Entrega</label>
+        <select id="ev-entrega">
+          <option>Propio</option><option>Envío transporte</option>
+          <option>Retiro cliente</option><option>Retiro transporte</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Entregado</label>
+        <select id="ev-entregado"><option value="Sí">Sí</option><option value="No">No</option></select>
+      </div>
+      <div class="form-group"><label>N° Factura</label><input id="ev-nroFactura" placeholder="Opcional"></div>
+    </div>
+    <div class="form-group" style="margin-top:12px">
+      <div style="background:var(--surface);border-radius:8px;padding:12px;font-family:var(--mono);font-size:13px;display:flex;gap:24px">
+        <div>Total: <span id="ev-total-preview" style="color:var(--green);font-weight:600">$0</span></div>
+        <div>Costo: <span id="ev-costo-preview" style="color:var(--muted)">$0</span></div>
+        <div>Ganancia: <span id="ev-gan-preview" style="color:var(--accent2)">$0</span></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="cerrarModal('modal-editar-venta')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarEdicionVenta()">💾 Guardar Cambios</button>
+    </div>
+  </div>
+</div>
+
+</body></html>`;
   const w=window.open('','_blank');
   w.document.write(html);
   w.document.close();
@@ -1281,7 +1331,56 @@ function exportPendientesPDF() {
     <th>F.Pago</th><th>Pagado</th><th>Tipo Entrega</th><th>Total Venta</th>
   </tr></thead><tbody>${filas}</tbody></table>
   <p class="total">Total: $${sinE.reduce((s,v)=>s+v.total,0).toLocaleString('es-AR')}</p>
-  </body></html>`;
+  
+<!-- MODAL EDITAR VENTA -->
+<div class="modal-overlay" id="modal-editar-venta">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-title">✏️ Editar Venta</div>
+    <div class="form-grid cols2" style="gap:12px">
+      <div class="form-group"><label>Fecha</label><input type="date" id="ev-fecha"></div>
+      <div class="form-group"><label>Canal</label>
+        <select id="ev-canal"><option value="Minorista">Minorista</option><option value="Mayorista">Mayorista</option></select>
+      </div>
+      <div class="form-group"><label>Cliente</label><input id="ev-cliente"></div>
+      <div class="form-group"><label>Producto</label><input id="ev-producto"></div>
+      <div class="form-group"><label>Cantidad</label><input type="number" id="ev-cant" oninput="actualizarPreviewEditar()"></div>
+      <div class="form-group"><label>Precio Unit.</label><input type="number" id="ev-precioU" oninput="actualizarPreviewEditar()"></div>
+      <div class="form-group"><label>Costo Unit.</label><input type="number" id="ev-costoU" oninput="actualizarPreviewEditar()"></div>
+      <div class="form-group"><label>Forma de Pago</label>
+        <select id="ev-fpago">
+          <option>Transferencia</option><option>Efectivo</option>
+          <option>Echeq</option><option>Cuenta corriente</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Pagado</label>
+        <select id="ev-pagado"><option value="Sí">Sí</option><option value="No">No</option></select>
+      </div>
+      <div class="form-group"><label>Tipo Entrega</label>
+        <select id="ev-entrega">
+          <option>Propio</option><option>Envío transporte</option>
+          <option>Retiro cliente</option><option>Retiro transporte</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Entregado</label>
+        <select id="ev-entregado"><option value="Sí">Sí</option><option value="No">No</option></select>
+      </div>
+      <div class="form-group"><label>N° Factura</label><input id="ev-nroFactura" placeholder="Opcional"></div>
+    </div>
+    <div class="form-group" style="margin-top:12px">
+      <div style="background:var(--surface);border-radius:8px;padding:12px;font-family:var(--mono);font-size:13px;display:flex;gap:24px">
+        <div>Total: <span id="ev-total-preview" style="color:var(--green);font-weight:600">$0</span></div>
+        <div>Costo: <span id="ev-costo-preview" style="color:var(--muted)">$0</span></div>
+        <div>Ganancia: <span id="ev-gan-preview" style="color:var(--accent2)">$0</span></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="cerrarModal('modal-editar-venta')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarEdicionVenta()">💾 Guardar Cambios</button>
+    </div>
+  </div>
+</div>
+
+</body></html>`;
   const w=window.open('','_blank');
   w.document.write(html);
   w.document.close();
@@ -1669,10 +1768,136 @@ async function marcarCobrado(idx){
   await gsActualizarVenta(idx, {pagado:'Sí'});
 }
 
+// =========== EDITAR VENTA ===========
+let editIdx = -1;
+
+function abrirEditar(idx) {
+  editIdx = idx;
+  const v = VENTAS[idx];
+  // Convertir fecha dd/mm/yyyy a yyyy-mm-dd para el input date
+  const partes = v.fecha.split('/');
+  const fechaInput = partes.length===3 ? `${partes[2]}-${partes[1]}-${partes[0]}` : v.fecha;
+  document.getElementById('ev-fecha').value = fechaInput;
+  document.getElementById('ev-canal').value = v.canal;
+  document.getElementById('ev-cliente').value = v.cliente;
+  document.getElementById('ev-producto').value = v.producto;
+  document.getElementById('ev-cant').value = v.cant;
+  document.getElementById('ev-precioU').value = v.precioU;
+  document.getElementById('ev-costoU').value = v.costoU;
+  document.getElementById('ev-fpago').value = v.fpago;
+  document.getElementById('ev-pagado').value = v.pagado;
+  document.getElementById('ev-entrega').value = v.entrega;
+  document.getElementById('ev-entregado').value = v.entregado;
+  document.getElementById('ev-nroFactura').value = v.nroFactura||'';
+  actualizarPreviewEditar();
+  document.getElementById('modal-editar-venta').classList.add('show');
+}
+
+function actualizarPreviewEditar() {
+  const cant = parseFloat(document.getElementById('ev-cant').value)||0;
+  const precioU = parseFloat(document.getElementById('ev-precioU').value)||0;
+  const costoU = parseFloat(document.getElementById('ev-costoU').value)||0;
+  const total = cant * precioU;
+  const costoT = cant * costoU;
+  const gan = total - costoT;
+  document.getElementById('ev-total-preview').textContent = '$'+total.toLocaleString('es-AR');
+  document.getElementById('ev-costo-preview').textContent = '$'+costoT.toLocaleString('es-AR');
+  document.getElementById('ev-gan-preview').textContent = '$'+gan.toLocaleString('es-AR');
+}
+
+async function guardarEdicionVenta() {
+  if(editIdx < 0) return;
+  const cant = parseFloat(document.getElementById('ev-cant').value)||0;
+  const precioU = parseFloat(document.getElementById('ev-precioU').value)||0;
+  const costoU = parseFloat(document.getElementById('ev-costoU').value)||0;
+  const total = cant * precioU;
+  const costoT = cant * costoU;
+  const gan = total - costoT;
+  const margen = total > 0 ? gan/total : 0;
+  // Convertir fecha yyyy-mm-dd a dd/mm/yyyy
+  const fechaRaw = document.getElementById('ev-fecha').value;
+  const fp = fechaRaw.split('-');
+  const fecha = fp.length===3 ? `${fp[2]}/${fp[1]}/${fp[0]}` : fechaRaw;
+  const campos = {
+    fecha, canal: document.getElementById('ev-canal').value,
+    cliente: document.getElementById('ev-cliente').value,
+    producto: document.getElementById('ev-producto').value,
+    cant, precioU, costoU, total, costoT, gan,
+    margen: Math.round(margen*10000)/10000,
+    fpago: document.getElementById('ev-fpago').value,
+    pagado: document.getElementById('ev-pagado').value,
+    entrega: document.getElementById('ev-entrega').value,
+    entregado: document.getElementById('ev-entregado').value,
+    nroFactura: document.getElementById('ev-nroFactura').value,
+  };
+  // Actualizar en memoria
+  VENTAS[editIdx] = {...VENTAS[editIdx], ...campos};
+  cerrarModal('modal-editar-venta');
+  actualizarBadge();
+  renderVentas();
+  renderPendientes();
+  renderDashboard();
+  notify('✓ Venta actualizada');
+  // Sincronizar con Sheets
+  setSyncStatus('sync');
+  const res = await gsCall('updateVenta', {idx: editIdx, campos});
+  setSyncStatus(res.ok ? 'ok' : 'error');
+  editIdx = -1;
+}
+
 // =========== INIT ===========
 document.getElementById('nav-fecha').textContent = new Date().toLocaleDateString('es-AR',{month:'long',year:'numeric'});
 actualizarBadge();
 cargarDesdeSheets(); // Carga datos desde Sheets y luego renderiza
 </script>
+
+<!-- MODAL EDITAR VENTA -->
+<div class="modal-overlay" id="modal-editar-venta">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-title">✏️ Editar Venta</div>
+    <div class="form-grid cols2" style="gap:12px">
+      <div class="form-group"><label>Fecha</label><input type="date" id="ev-fecha"></div>
+      <div class="form-group"><label>Canal</label>
+        <select id="ev-canal"><option value="Minorista">Minorista</option><option value="Mayorista">Mayorista</option></select>
+      </div>
+      <div class="form-group"><label>Cliente</label><input id="ev-cliente"></div>
+      <div class="form-group"><label>Producto</label><input id="ev-producto"></div>
+      <div class="form-group"><label>Cantidad</label><input type="number" id="ev-cant" oninput="actualizarPreviewEditar()"></div>
+      <div class="form-group"><label>Precio Unit.</label><input type="number" id="ev-precioU" oninput="actualizarPreviewEditar()"></div>
+      <div class="form-group"><label>Costo Unit.</label><input type="number" id="ev-costoU" oninput="actualizarPreviewEditar()"></div>
+      <div class="form-group"><label>Forma de Pago</label>
+        <select id="ev-fpago">
+          <option>Transferencia</option><option>Efectivo</option>
+          <option>Echeq</option><option>Cuenta corriente</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Pagado</label>
+        <select id="ev-pagado"><option value="Sí">Sí</option><option value="No">No</option></select>
+      </div>
+      <div class="form-group"><label>Tipo Entrega</label>
+        <select id="ev-entrega">
+          <option>Propio</option><option>Envío transporte</option>
+          <option>Retiro cliente</option><option>Retiro transporte</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Entregado</label>
+        <select id="ev-entregado"><option value="Sí">Sí</option><option value="No">No</option></select>
+      </div>
+      <div class="form-group"><label>N° Factura</label><input id="ev-nroFactura" placeholder="Opcional"></div>
+    </div>
+    <div class="form-group" style="margin-top:12px">
+      <div style="background:var(--surface);border-radius:8px;padding:12px;font-family:var(--mono);font-size:13px;display:flex;gap:24px">
+        <div>Total: <span id="ev-total-preview" style="color:var(--green);font-weight:600">$0</span></div>
+        <div>Costo: <span id="ev-costo-preview" style="color:var(--muted)">$0</span></div>
+        <div>Ganancia: <span id="ev-gan-preview" style="color:var(--accent2)">$0</span></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="cerrarModal('modal-editar-venta')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarEdicionVenta()">💾 Guardar Cambios</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
