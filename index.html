@@ -455,7 +455,7 @@
       <div class="table-wrap">
         <table>
           <thead><tr>
-            <th>Fecha</th><th>Cliente</th><th>Producto</th><th>Cant.</th>
+            <th>Fecha</th><th>Cliente</th><th>Localidad</th><th>Provincia</th><th>Producto</th><th>Cant.</th>
             <th style="text-align:right">Total</th><th>F. Pago</th><th>N° Factura</th>
           </tr></thead>
           <tbody id="tabla-contador"></tbody>
@@ -1088,25 +1088,43 @@ function limpiarForm(){
 }
 
 // =========== PENDIENTES ===========
+function getClienteData(nombre){
+  return CLIENTES.find(c=>(c.nombre||'').toLowerCase()===nombre.toLowerCase())||{};
+}
+
 function renderPendientes() {
   const sinEntregar=VENTAS.filter(v=>v.entregado==='No');
   const sinCobrar=VENTAS.filter(v=>v.pagado==='No');
   document.getElementById('cnt-entregas').textContent=sinEntregar.length;
   document.getElementById('cnt-cobros').textContent=sinCobrar.length;
-  document.getElementById('lista-entregas').innerHTML=sinEntregar.map((v)=>`
-    <div class="pend-item">
-      <div class="pend-info">
-        <div class="pend-cliente">${v.cliente}</div>
-        <div class="pend-detalle">${v.producto.substring(0,40)}… · ${v.cant} Lts · ${v.fecha}</div>
-        <div style="margin-top:4px"><span class="chip gray">${v.entrega}</span></div>
-      </div>
-      <div style="text-align:right">
-        <div class="pend-monto">${fmt(v.total)}</div>
-        <div class="pend-actions">
-          <button class="btn btn-success btn-sm" onclick="marcarEntregado(${VENTAS.indexOf(v)})">✓ Entregar</button>
+  document.getElementById('lista-entregas').innerHTML=sinEntregar.map((v)=>{
+    const cli=getClienteData(v.cliente);
+    const transporte=v.transporte||cli.entrega||'—';
+    const dir=v.dir||cli.dir||'—';
+    const prov=v.provincia||cli.provincia||'—';
+    const loc=v.localidad||cli.localidad||'—';
+    const tel=v.tel||cli.tel||'—';
+    return `
+    <div class="pend-item" style="flex-direction:column;align-items:stretch;gap:10px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div class="pend-cliente">${v.cliente}</div>
+          <div class="pend-detalle" style="margin-top:2px">${v.producto} · <strong>${v.cant} Lts</strong> · ${v.fecha}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="pend-monto">${fmt(v.total)}</div>
+          <button class="btn btn-success btn-sm" style="margin-top:6px" onclick="marcarEntregado(${VENTAS.indexOf(v)})">✓ Entregar</button>
         </div>
       </div>
-    </div>`).join('')||'<div style="color:var(--muted);text-align:center;padding:20px">Sin pendientes ✓</div>';
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;background:var(--surface);border-radius:6px;padding:10px;font-size:12px">
+        <div><div style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Transporte</div><div>${transporte}</div></div>
+        <div><div style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Dirección</div><div>${dir}</div></div>
+        <div><div style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Localidad</div><div>${loc}</div></div>
+        <div><div style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Provincia</div><div>${prov}</div></div>
+        <div><div style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Teléfono</div><div>${tel}</div></div>
+      </div>
+    </div>`;
+  }).join('')||'<div style="color:var(--muted);text-align:center;padding:20px">Sin pendientes ✓</div>';
   document.getElementById('lista-cobros').innerHTML=sinCobrar.map((v)=>`
     <div class="pend-item">
       <div class="pend-info">
@@ -1185,12 +1203,20 @@ function imprimirPendientes(){
 function exportPendientesExcel() {
   const sinE=VENTAS.filter(v=>v.entregado==='No');
   const wb=XLSX.utils.book_new();
-  const rowsE=sinE.map(v=>({
-    'Fecha':v.fecha,'Cliente':v.cliente,'Producto':v.producto,
-    'Cantidad':v.cant,'Precio Unit.':v.precioU,'Total':v.total,
-    'Forma Pago':v.fpago,'Pagado':v.pagado,'Tipo Entrega':v.entrega,
-    'Canal':v.canal,'Costo Unit.':v.costoU,'Costo Total':v.costoT,'Ganancia':v.gan
-  }));
+  const rowsE=sinE.map(v=>{
+    const cli=getClienteData(v.cliente);
+    return {
+      'Fecha':v.fecha,'Cliente':v.cliente,
+      'Transporte':v.transporte||cli.entrega||'',
+      'Dirección':v.dir||cli.dir||'',
+      'Localidad':cli.localidad||'','Provincia':cli.provincia||'',
+      'Teléfono':cli.tel||'',
+      'Producto':v.producto,'Cantidad':v.cant,
+      'Precio Unit.':v.precioU,'Total':v.total,
+      'Forma Pago':v.fpago,'Pagado':v.pagado,'Tipo Entrega':v.entrega,
+      'Canal':v.canal,'Costo Unit.':v.costoU,'Costo Total':v.costoT,'Ganancia':v.gan
+    };
+  });
   XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rowsE),'Sin Entregar');
   XLSX.writeFile(wb,'pendientes_entrega_camargo.xlsx');
   notify('✓ Excel generado');
@@ -1231,10 +1257,12 @@ function getContadorVentas(){
   const transfOk=document.getElementById('cont-transf').checked;
   const echeqOk=document.getElementById('cont-echeq').checked;
   return VENTAS.filter(v=>{
-    const partes=v.fecha.split('/');
-    const vMes=parseInt(partes[1]);
+    // fecha formato dd/mm/yyyy
+    const partes=(v.fecha||'').split('/');
+    if(partes.length<3) return false;
+    const vMes=parseInt(partes[1],10);
     if(vMes!==mes) return false;
-    const fp=(v.fpago||'').toLowerCase();
+    const fp=(v.fpago||'').toLowerCase().trim();
     if(transfOk && fp==='transferencia') return true;
     if(echeqOk && fp==='echeq') return true;
     return false;
@@ -1245,16 +1273,23 @@ function renderContador(){
   const ventas=getContadorVentas();
   const tbody=document.getElementById('tabla-contador');
   if(!tbody) return;
-  tbody.innerHTML=ventas.map(v=>`
+  tbody.innerHTML=ventas.map(v=>{
+    const cli=getClienteData(v.cliente);
+    const loc=cli.localidad||'—';
+    const prov=cli.provincia||'—';
+    return `
     <tr>
       <td>${v.fecha}</td>
       <td>${v.cliente}</td>
-      <td style="font-size:12px">${v.producto.substring(0,45)}${v.producto.length>45?'…':''}</td>
+      <td style="font-size:11px">${loc}</td>
+      <td style="font-size:11px">${prov}</td>
+      <td style="font-size:12px">${v.producto.substring(0,40)}${v.producto.length>40?'…':''}</td>
       <td>${v.cant}</td>
       <td style="text-align:right;font-family:var(--mono)">$${v.total.toLocaleString('es-AR')}</td>
       <td><span class="chip gray">${v.fpago}</span></td>
       <td style="color:var(--muted);font-size:12px">${v.nroFactura||'—'}</td>
-    </tr>`).join('')||'<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">Sin ventas para este período</td></tr>';
+    </tr>`;
+  }).join('')||'<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">Sin ventas para este período</td></tr>';
   const total=ventas.reduce((s,v)=>s+v.total,0);
   document.getElementById('cont-total').textContent='$'+total.toLocaleString('es-AR');
 }
@@ -1264,13 +1299,18 @@ function exportContadorExcel(){
   const meses=['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
   const mes=parseInt(document.getElementById('cont-mes').value);
   const wb=XLSX.utils.book_new();
-  const rows=ventas.map(v=>({
-    'Fecha':v.fecha,'Cliente':v.cliente,'Producto':v.producto,
-    'Cantidad':v.cant,'Total':v.total,'Forma de Pago':v.fpago,
-    'Pagado':v.pagado,'N° Factura':v.nroFactura||'',
-    'Canal':v.canal,'Entrega':v.entrega
-  }));
-  rows.push({'Fecha':'','Cliente':'','Producto':'TOTAL','Cantidad':'',
+  const rows=ventas.map(v=>{
+    const cli=getClienteData(v.cliente);
+    return {
+      'Fecha':v.fecha,'Cliente':v.cliente,
+      'Localidad':cli.localidad||'','Provincia':cli.provincia||'',
+      'Producto':v.producto,'Cantidad':v.cant,'Total':v.total,
+      'Forma de Pago':v.fpago,'Pagado':v.pagado,'N° Factura':v.nroFactura||'',
+      'Canal':v.canal,'Entrega':v.entrega
+    };
+  });
+  rows.push({'Fecha':'','Cliente':'','Localidad':'','Provincia':'',
+    'Producto':'TOTAL','Cantidad':'',
     'Total':ventas.reduce((s,v)=>s+v.total,0),'Forma de Pago':'',
     'Pagado':'','N° Factura':'','Canal':'','Entrega':''});
   const ws=XLSX.utils.json_to_sheet(rows);
