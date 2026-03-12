@@ -161,6 +161,7 @@
   <div class="nav-tab" onclick="showPage('precios')">💲 Precios/Costos</div>
   <div class="nav-tab" onclick="showPage('clientes')">👥 Clientes</div>
   <div class="nav-tab" onclick="showPage('transportes')">🚚 Transportes</div>
+  <div class="nav-tab" onclick="showPage('reporte-contador')">📋 Reporte Contador</div>
   <div class="nav-right">
     <span style="font-size:12px;color:var(--muted)" id="nav-fecha"></span>
   </div>
@@ -179,6 +180,41 @@
 </div>
 
 <div id="notify" class="notify"></div>
+
+<!-- ===== REPORTE CONTADOR ===== -->
+<div class="page" id="page-reporte-contador">
+  <div class="section-header">
+    <div class="section-title">📋 Reporte Contador</div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-warn btn-sm" onclick="exportReporteContadorExcel()">📊 Descargar Excel</button>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+    <div style="font-size:13px;color:var(--muted)">Filtrar por mes:</div>
+    <select id="rc-mes" onchange="renderReporteContador()" style="padding:7px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px">
+      <option value="0">Todos</option>
+      <option value="1">Enero</option><option value="2">Febrero</option><option value="3" selected>Marzo</option>
+      <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
+      <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
+      <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+    </select>
+    <span id="rc-count" style="font-size:12px;color:var(--muted)"></span>
+  </div>
+  <div class="card">
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Fecha</th><th>Cliente</th><th>CUIT</th><th>Condición</th><th>Localidad</th><th>Provincia</th>
+          <th>Producto</th><th>Cant.</th><th style="text-align:right">Total</th><th>F. Pago</th><th>N° Factura</th>
+        </tr></thead>
+        <tbody id="tabla-reporte-contador"></tbody>
+      </table>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+      <div style="font-family:var(--mono);font-size:14px;color:var(--green)">Total: <span id="rc-total" style="font-weight:600">$0</span></div>
+    </div>
+  </div>
+</div>
 
 <!-- MODAL NUEVO CLIENTE -->
 <div class="modal-overlay" id="modal-cliente">
@@ -446,7 +482,7 @@
   <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:20px;align-items:center">
     <div class="pend-tab active" id="ptab-entregas" onclick="showPendTab('entregas')" style="padding:10px 20px;cursor:pointer;font-size:13px;border-bottom:2px solid var(--accent);color:var(--accent);font-weight:500">⏳ Sin Entregar (<span id="cnt-entregas">0</span>)</div>
     <div class="pend-tab" id="ptab-cobros" onclick="showPendTab('cobros')" style="padding:10px 20px;cursor:pointer;font-size:13px;border-bottom:2px solid transparent;color:var(--muted)">💳 Sin Cobrar (<span id="cnt-cobros">0</span>)</div>
-    <div class="pend-tab" id="ptab-contador" onclick="showPendTab('contador')" style="padding:10px 20px;cursor:pointer;font-size:13px;border-bottom:2px solid transparent;color:var(--muted)">🧾 Reporte Contador</div>
+    <div class="pend-tab" id="ptab-contador" onclick="showPendTab('contador')" style="padding:10px 20px;cursor:pointer;font-size:13px;border-bottom:2px solid transparent;color:var(--muted)">📝 A Facturar (<span id="cnt-facturar">0</span>)</div>
     <div style="margin-left:auto;display:flex;gap:8px" id="pend-btns-entregas">
       <button class="btn btn-ghost btn-sm" onclick="imprimirPendientes()">🖨️ Imprimir</button>
       <button class="btn btn-warn btn-sm" onclick="exportPendientesExcel()">📊 Excel</button>
@@ -468,7 +504,7 @@
     <div id="lista-cobros"></div>
   </div>
 
-  <!-- Panel Reporte Contador -->
+  <!-- Panel A Facturar -->
   <div id="panel-contador" style="display:none">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
       <div style="font-size:13px;color:var(--muted)">Mes:</div>
@@ -490,8 +526,9 @@
       <div class="table-wrap">
         <table>
           <thead><tr>
-            <th>Fecha</th><th>Cliente</th><th>CUIT</th><th>Condición</th><th>Localidad</th><th>Provincia</th><th>Producto</th><th>Cant.</th>
-            <th style="text-align:right">Total</th><th>F. Pago</th><th>N° Factura</th>
+            <th>Fecha</th><th>Cliente</th><th>CUIT</th><th>Condición</th><th>Localidad</th><th>Provincia</th>
+            <th>Producto</th><th>Cant.</th><th style="text-align:right">Total</th><th>F. Pago</th>
+            <th style="min-width:160px">N° Factura</th><th></th>
           </tr></thead>
           <tbody id="tabla-contador"></tbody>
         </table>
@@ -711,10 +748,11 @@ function showPage(id) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
-  const tabs={'dashboard':0,'ventas':1,'nueva-venta':2,'pendientes':3,'precios':4,'clientes':5,'transportes':6};
+  const tabs={'dashboard':0,'ventas':1,'nueva-venta':2,'pendientes':3,'precios':4,'clientes':5,'transportes':6,'reporte-contador':7};
   document.querySelectorAll('.nav-tab')[tabs[id]]?.classList.add('active');
   if(id==='ventas') renderVentas();
   if(id==='pendientes') renderPendientes();
+  if(id==='reporte-contador') renderReporteContador();
   if(id==='precios') renderPrecios();
   if(id==='nueva-venta') initForm();
   if(id==='dashboard') renderDashboard();
@@ -1561,13 +1599,14 @@ function exportPendientesPDF() {
   notify('✓ PDF listo para imprimir');
 }
 
-// =========== REPORTE CONTADOR ===========
+// =========== A FACTURAR (en Pendientes) ===========
 function getContadorVentas(){
   const mes=parseInt(document.getElementById('cont-mes').value);
   const transfOk=document.getElementById('cont-transf').checked;
   const echeqOk=document.getElementById('cont-echeq').checked;
   return VENTAS.filter(v=>{
     if(getMesVenta(v.fecha)!==mes) return false;
+    if(v.facturado) return false; // ya facturadas van al repositorio
     const fp=(v.fpago||'').toLowerCase().trim();
     if(transfOk && fp==='transferencia') return true;
     if(echeqOk && fp==='echeq') return true;
@@ -1579,12 +1618,15 @@ function renderContador(){
   const ventas=getContadorVentas();
   const tbody=document.getElementById('tabla-contador');
   if(!tbody) return;
-  tbody.innerHTML=ventas.map(v=>{
+  // Actualizar badge
+  document.getElementById('cnt-facturar').textContent=ventas.length;
+  tbody.innerHTML=ventas.map((v,idx)=>{
     const cli=getClienteData(v.cliente);
     const loc=cli.localidad||'—';
     const prov=cli.provincia||'—';
+    const vidx=VENTAS.indexOf(v);
     return `
-    <tr>
+    <tr id="frow-${vidx}">
       <td>${v.fecha}</td>
       <td>${v.cliente}</td>
       <td style="font-family:var(--mono);font-size:11px">${cli.cuit||'—'}</td>
@@ -1595,14 +1637,39 @@ function renderContador(){
       <td>${v.cant}</td>
       <td style="text-align:right;font-family:var(--mono)">$${v.total.toLocaleString('es-AR')}</td>
       <td><span class="chip gray">${v.fpago}</span></td>
-      <td style="color:var(--muted);font-size:12px">${v.nroFactura||'—'}</td>
+      <td>
+        <input type="text" id="nfac-${vidx}" value="${v.nroFactura||''}" placeholder="Ej: 0001-00000123"
+          style="width:150px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);font-size:12px;font-family:var(--mono)"
+          onkeydown="if(event.key==='Enter')confirmarFactura(${vidx})">
+      </td>
+      <td>
+        <button class="btn btn-primary btn-sm" onclick="confirmarFactura(${vidx})" title="Confirmar factura y enviar al repositorio">
+          ✓ Facturar
+        </button>
+      </td>
     </tr>`;
-  }).join('')||'<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">Sin ventas para este período</td></tr>';
+  }).join('')||'<tr><td colspan="12" style="text-align:center;color:var(--muted);padding:20px">Sin ventas para facturar en este período</td></tr>';
   const total=ventas.reduce((s,v)=>s+v.total,0);
   document.getElementById('cont-total').textContent='$'+total.toLocaleString('es-AR');
 }
 
+function confirmarFactura(vidx){
+  const nfac=document.getElementById('nfac-'+vidx);
+  const nro=(nfac?nfac.value:'').trim();
+  if(!nro){notify('⚠ Ingresá el número de factura primero','warn');nfac&&nfac.focus();return;}
+  VENTAS[vidx].nroFactura=nro;
+  VENTAS[vidx].facturado=true;
+  VENTAS[vidx].fechaFacturado=new Date().toLocaleDateString('es-AR');
+  // Guardar en Sheets
+  apiCall({action:'updateVenta',idx:vidx,campos:{nroFactura:nro,facturado:true,fechaFacturado:VENTAS[vidx].fechaFacturado}});
+  notify('✓ Factura '+nro+' registrada — pasó al Reporte Contador');
+  renderContador();
+  // actualizar badge general
+  updateBadge();
+}
+
 function exportContadorExcel(){
+  // Export del "A Facturar" (sin facturar del mes)
   const ventas=getContadorVentas();
   const meses=['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
   const mes=parseInt(document.getElementById('cont-mes').value);
@@ -1613,18 +1680,71 @@ function exportContadorExcel(){
       'Fecha':v.fecha,'Cliente':v.cliente,'CUIT':cli.cuit||'','Condición':cli.condicion||'',
       'Localidad':cli.localidad||'','Provincia':cli.provincia||'',
       'Producto':v.producto,'Cantidad':v.cant,'Total':v.total,
-      'Forma de Pago':v.fpago,'Pagado':v.pagado,'N° Factura':v.nroFactura||'',
-      'Canal':v.canal,'Entrega':v.entrega
+      'Forma de Pago':v.fpago,'N° Factura':v.nroFactura||''
     };
   });
-  rows.push({'Fecha':'','Cliente':'','Localidad':'','Provincia':'',
-    'Producto':'TOTAL','Cantidad':'',
-    'Total':ventas.reduce((s,v)=>s+v.total,0),'Forma de Pago':'',
-    'Pagado':'','N° Factura':'','Canal':'','Entrega':''});
+  const ws=XLSX.utils.json_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb,ws,'A Facturar');
+  XLSX.writeFile(wb,'a_facturar_'+meses[mes].toLowerCase()+'_2026.xlsx');
+  notify('✓ Excel generado');
+}
+
+// =========== REPORTE CONTADOR (repositorio facturadas) ===========
+function getReporteContadorVentas(){
+  const mes=parseInt(document.getElementById('rc-mes').value);
+  return VENTAS.filter(v=>{
+    if(!v.facturado) return false;
+    if(mes===0) return true;
+    return getMesVenta(v.fecha)===mes;
+  });
+}
+
+function renderReporteContador(){
+  const ventas=getReporteContadorVentas();
+  const tbody=document.getElementById('tabla-reporte-contador');
+  if(!tbody) return;
+  document.getElementById('rc-count').textContent=ventas.length+' factura'+(ventas.length!==1?'s':'');
+  tbody.innerHTML=ventas.map(v=>{
+    const cli=getClienteData(v.cliente);
+    return `<tr>
+      <td>${v.fecha}</td>
+      <td>${v.cliente}</td>
+      <td style="font-family:var(--mono);font-size:11px">${cli.cuit||'—'}</td>
+      <td style="font-size:11px">${cli.condicion||'—'}</td>
+      <td style="font-size:11px">${cli.localidad||'—'}</td>
+      <td style="font-size:11px">${cli.provincia||'—'}</td>
+      <td style="font-size:12px">${v.producto.substring(0,40)}${v.producto.length>40?'…':''}</td>
+      <td>${v.cant}</td>
+      <td style="text-align:right;font-family:var(--mono)">$${v.total.toLocaleString('es-AR')}</td>
+      <td><span class="chip gray">${v.fpago}</span></td>
+      <td style="font-family:var(--mono);font-size:12px;color:var(--green);font-weight:600">${v.nroFactura}</td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:20px">Sin facturas registradas para este período</td></tr>';
+  const total=ventas.reduce((s,v)=>s+v.total,0);
+  document.getElementById('rc-total').textContent='$'+total.toLocaleString('es-AR');
+}
+
+function exportReporteContadorExcel(){
+  const ventas=getReporteContadorVentas();
+  const meses=['Todos','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const mes=parseInt(document.getElementById('rc-mes').value);
+  const wb=XLSX.utils.book_new();
+  const rows=ventas.map(v=>{
+    const cli=getClienteData(v.cliente);
+    return {
+      'Fecha':v.fecha,'Cliente':v.cliente,'CUIT':cli.cuit||'','Condición':cli.condicion||'',
+      'Localidad':cli.localidad||'','Provincia':cli.provincia||'',
+      'Producto':v.producto,'Cantidad':v.cant,'Total':v.total,
+      'Forma de Pago':v.fpago,'N° Factura':v.nroFactura,'Fecha Facturado':v.fechaFacturado||''
+    };
+  });
+  rows.push({'Fecha':'','Cliente':'','CUIT':'','Condición':'','Localidad':'','Provincia':'',
+    'Producto':'TOTAL','Cantidad':'','Total':ventas.reduce((s,v)=>s+v.total,0),
+    'Forma de Pago':'','N° Factura':'','Fecha Facturado':''});
   const ws=XLSX.utils.json_to_sheet(rows);
   XLSX.utils.book_append_sheet(wb,ws,'Reporte Contador');
   XLSX.writeFile(wb,'reporte_contador_'+meses[mes].toLowerCase()+'_2026.xlsx');
-  notify('✓ Excel contador generado');
+  notify('✓ Excel reporte contador generado');
 }
 
 // =========== PRECIOS ===========
