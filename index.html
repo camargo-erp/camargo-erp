@@ -2076,7 +2076,8 @@ function drawBarCanvas(canvasId, labels, datasets, opts={}) {
   const canvas=document.getElementById(canvasId);
   if(!canvas) return;
   const ctx=canvas.getContext('2d');
-  const W=canvas.offsetWidth||canvas.parentElement.offsetWidth||400;
+  let W=canvas.offsetWidth||canvas.parentElement?.offsetWidth||canvas.parentElement?.parentElement?.offsetWidth||400;
+  if(W<50) W=400;
   canvas.width=W; canvas.height=canvas.height||140;
   const H=canvas.height;
   const pad={top:10,right:10,bottom:30,left:50};
@@ -2124,7 +2125,8 @@ function drawLineCanvas(canvasId, labels, datasets) {
   const canvas=document.getElementById(canvasId);
   if(!canvas) return;
   const ctx=canvas.getContext('2d');
-  const W=canvas.offsetWidth||canvas.parentElement.offsetWidth||400;
+  let W=canvas.offsetWidth||canvas.parentElement?.offsetWidth||canvas.parentElement?.parentElement?.offsetWidth||400;
+  if(W<50) W=400;
   canvas.width=W; canvas.height=canvas.height||140;
   const H=canvas.height;
   const pad={top:10,right:10,bottom:30,left:50};
@@ -2168,7 +2170,10 @@ function drawLineCanvas(canvasId, labels, datasets) {
 
 function renderChartsMensual() {
   const md=getMonthlyData();
-  const labels=md.map(m=>m.label||MESES_ABREV[m.mes-1]);
+  // En modo 'all', m.mes es el año (2024/2025/2026) → usar m.label directamente
+  const labels = dashPeriodo==='all'
+    ? md.map(m=>String(m.label))
+    : md.map(m=>MESES_ABREV[(m.mes-1)] || String(m.label));
   // Actualizar títulos según modo
   const anio = dashPeriodo==='all' ? '' : ' '+document.getElementById('dash-anio-sel').value;
   const tipoLabel = dashPeriodo==='all' ? 'Anual' : 'Mensual';
@@ -2178,6 +2183,7 @@ function renderChartsMensual() {
   if(t1) t1.textContent='Evolución '+tipoLabel+' — Ventas'+anio;
   if(t2) t2.textContent='Evolución '+tipoLabel+' — Ganancia Neta'+anio;
   if(t3) t3.textContent='Minorista vs Mayorista — Evolución'+anio;
+  // Timeout mayor para asegurar que el DOM y los canvas tengan dimensiones
   setTimeout(()=>{
     drawBarCanvas('chart-ventas-mes',labels,[{data:md.map(m=>m.ventas),color:'#3d7fff'}]);
     drawBarCanvas('chart-gan-mes',labels,[{data:md.map(m=>m.gan),color:'#22c987'}]);
@@ -2186,7 +2192,7 @@ function renderChartsMensual() {
       {data:md.map(m=>m.mayor),color:'#00d4aa'}
     ]);
     drawBarCanvas('chart-ops-mes',labels,[{data:md.map(m=>m.ops),color:'#ffd166'}]);
-  },50);
+  },150);
 }
 
 // =========== VENTAS ===========
