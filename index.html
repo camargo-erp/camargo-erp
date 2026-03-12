@@ -2061,6 +2061,48 @@ function getMonthlyData() {
 
 const MESES_ABREV=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
+// ── Tooltip global ──────────────────────────────────────────────
+let _chartTooltip = null;
+function getChartTooltip() {
+  if(!_chartTooltip) {
+    _chartTooltip = document.createElement('div');
+    _chartTooltip.id = 'chart-tooltip';
+    _chartTooltip.style.cssText = `
+      position:fixed;pointer-events:none;z-index:9999;
+      background:rgba(15,20,40,0.97);border:1px solid #2a3a6e;
+      border-radius:10px;padding:10px 14px;font-family:DM Sans,sans-serif;
+      font-size:12px;color:#e0e6ff;box-shadow:0 4px 24px rgba(0,0,0,0.5);
+      min-width:160px;line-height:1.7;display:none;transition:opacity 0.1s;
+    `;
+    document.body.appendChild(_chartTooltip);
+  }
+  return _chartTooltip;
+}
+function showTooltip(html, mouseX, mouseY) {
+  const t = getChartTooltip();
+  t.innerHTML = html;
+  t.style.display = 'block';
+  const tw = t.offsetWidth, th = t.offsetHeight;
+  let x = mouseX + 14, y = mouseY - th/2;
+  if(x + tw > window.innerWidth - 10) x = mouseX - tw - 14;
+  if(y < 10) y = 10;
+  if(y + th > window.innerHeight - 10) y = window.innerHeight - th - 10;
+  t.style.left = x + 'px';
+  t.style.top  = y + 'px';
+}
+function hideTooltip() {
+  const t = getChartTooltip();
+  t.style.display = 'none';
+}
+function fmtTip(v) {
+  if(v>=1e6) return '$'+(v/1e6).toFixed(2)+'M';
+  if(v>=1e3) return '$'+Math.round(v/1e3).toLocaleString('es-AR')+'K';
+  return '$'+Math.round(v).toLocaleString('es-AR');
+}
+
+// ── Registro de datos de gráficos para tooltips ──────────────────
+const _chartData = {};
+
 function drawBarCanvas(canvasId, labels, datasets, opts={}) {
   const canvas=document.getElementById(canvasId);
   if(!canvas) return;
@@ -2090,6 +2132,9 @@ function drawBarCanvas(canvasId, labels, datasets, opts={}) {
   const barW=Math.min(barGroupW*0.4/datasets.length, 20);
   const groupPad=(barGroupW-barW*datasets.length)/2;
 
+  // Guardar geometría para tooltip
+  _chartData[canvasId] = {labels, datasets, pad, barGroupW, barW, groupPad, chartH, W, H, type:'bar'};
+
   datasets.forEach((ds,di)=>{
     ds.data.forEach((val,li)=>{
       const x=pad.left+li*barGroupW+groupPad+di*barW;
@@ -2102,12 +2147,49 @@ function drawBarCanvas(canvasId, labels, datasets, opts={}) {
     });
   });
 
-  // Labels
   ctx.fillStyle='#7a84a8';ctx.font='10px DM Sans';ctx.textAlign='center';
   labels.forEach((l,i)=>{
     const x=pad.left+i*barGroupW+barGroupW/2;
     ctx.fillText(l,x,H-8);
   });
+
+  // Registrar eventos mousemove/mouseleave
+  canvas.onmousemove = function(e) {
+    const rect = canvas.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
+    const d = _chartData[canvasId];
+    if(!d) return;
+    const idx = Math.floor((mx - d.pad.left) / d.barGroupW);
+    if(idx < 0 || idx >= d.labels.length) { hideTooltip(); return; }
+    const md = _chartMonthlyData;
+    const m = md ? md[idx] : null;
+    let html = `<div style="font-weight:600;color:#fff;margin-bottom:4px;border-bottom:1px solid #2a3a6e;padding-bottom:4px">${d.labels[idx]}</div>`;
+    if(m) {
+      const ticket = m.ops>0 ? Math.round(m.ventas/m.ops) : 0;
+      const lts = md ? (()=>{ const anio=parseInt(document.getElementById('dash-anio-sel')?.value||0); const mes=m.mes; return VENTAS.filter(v=>getAnioVenta(v.fecha)===(dashPeriodo==='all'?m.mes:anio)&&(dashPeriodo==='all'||getMesVenta(v.fecha)===mes)).reduce((s,v)=>s+v.cant,0); })() : 0;
+      if(canvasId==='chart-ventas-mes') {
+        html += `<div>💰 Ventas: <b style="color:#3d7fff">${fmtTip(m.ventas)}</b></div>`;
+        html += `<div>📦 Ops: <b>${m.ops}</b> · ${lts.toLocaleString('es-AR')} Lts</div>`;
+        html += `<div>🎫 Ticket prom: <b>${fmtTip(ticket)}</b></div>`;
+      } else if(canvasId==='chart-gan-mes') {
+        html += `<div>✅ Ganancia: <b style="color:#22c987">${fmtTip(m.gan)}</b></div>`;
+        html += `<div>📊 Margen: <b>${m.margen.toFixed(1)}%</b></div>`;
+        html += `<div>📦 Ops: <b>${m.ops}</b> · ${lts.toLocaleString('es-AR')} Lts</div>`;
+        html += `<div>🎫 Ticket prom: <b>${fmtTip(ticket)}</b></div>`;
+      } else if(canvasId==='chart-ops-mes') {
+        html += `<div>📦 Operaciones: <b style="color:#ffd166">${m.ops}</b></div>`;
+        html += `<div>📐 Cantidad: <b>${lts.toLocaleString('es-AR')} Lts</b></div>`;
+        html += `<div>💰 Ventas: <b>${fmtTip(m.ventas)}</b></div>`;
+        html += `<div>🎫 Ticket prom: <b>${fmtTip(ticket)}</b></div>`;
+      } else {
+        d.datasets.forEach(ds=>{ html += `<div style="color:${ds.color}">${fmtTip(ds.data[idx]||0)}</div>`; });
+      }
+    } else {
+      d.datasets.forEach(ds=>{ html += `<div style="color:${ds.color}">${fmtTip(ds.data[idx]||0)}</div>`; });
+    }
+    showTooltip(html, e.clientX, e.clientY);
+  };
+  canvas.onmouseleave = hideTooltip;
 }
 
 function drawLineCanvas(canvasId, labels, datasets) {
@@ -2134,6 +2216,9 @@ function drawLineCanvas(canvasId, labels, datasets) {
     const label=val>=1e6?(val/1e6).toFixed(1)+'M':val>=1e3?Math.round(val/1e3)+'K':Math.round(val);
     ctx.textAlign='right';ctx.fillText(label,pad.left-5,y+4);
   }
+
+  _chartData[canvasId] = {labels, datasets, pad, chartW, chartH, W, H, type:'line'};
+
   datasets.forEach(ds=>{
     ctx.beginPath();ctx.strokeStyle=ds.color;ctx.lineWidth=2;
     ds.data.forEach((val,i)=>{
@@ -2142,7 +2227,6 @@ function drawLineCanvas(canvasId, labels, datasets) {
       i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
     });
     ctx.stroke();
-    // Dots
     ds.data.forEach((val,i)=>{
       if(val===0) return;
       const x=pad.left+(i/(labels.length-1||1))*chartW;
@@ -2155,10 +2239,37 @@ function drawLineCanvas(canvasId, labels, datasets) {
     const x=pad.left+(i/(labels.length-1||1))*chartW;
     ctx.fillText(l,x,H-8);
   });
+
+  canvas.onmousemove = function(e) {
+    const rect = canvas.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
+    const d = _chartData[canvasId];
+    if(!d) return;
+    const idx = Math.round((mx - d.pad.left) / (d.chartW / (d.labels.length-1||1)));
+    if(idx < 0 || idx >= d.labels.length) { hideTooltip(); return; }
+    const md = _chartMonthlyData;
+    const m = md ? md[idx] : null;
+    let html = `<div style="font-weight:600;color:#fff;margin-bottom:4px;border-bottom:1px solid #2a3a6e;padding-bottom:4px">${d.labels[idx]}</div>`;
+    if(m) {
+      html += `<div><span style="color:#3d7fff">■</span> Minorista: <b style="color:#3d7fff">${fmtTip(m.minor)}</b></div>`;
+      html += `<div><span style="color:#00d4aa">■</span> Mayorista: <b style="color:#00d4aa">${fmtTip(m.mayor)}</b></div>`;
+      const tot = m.minor + m.mayor;
+      if(tot>0) html += `<div>📊 Minor: <b>${(m.minor/tot*100).toFixed(0)}%</b> / Mayor: <b>${(m.mayor/tot*100).toFixed(0)}%</b></div>`;
+      html += `<div>📦 Ops: <b>${m.ops}</b></div>`;
+    } else {
+      d.datasets.forEach((ds,di)=>{ html += `<div style="color:${ds.color}">${ds.label||'Serie '+(di+1)}: ${fmtTip(ds.data[idx]||0)}</div>`; });
+    }
+    showTooltip(html, e.clientX, e.clientY);
+  };
+  canvas.onmouseleave = hideTooltip;
 }
+
+// Almacenar datos mensuales para acceso desde tooltips
+let _chartMonthlyData = null;
 
 function renderChartsMensual() {
   const md=getMonthlyData();
+  _chartMonthlyData = md;
   // En modo 'all', m.mes es el año (2024/2025/2026) → usar m.label directamente
   const labels = dashPeriodo==='all'
     ? md.map(m=>String(m.label))
@@ -2172,7 +2283,6 @@ function renderChartsMensual() {
   if(t1) t1.textContent='Evolución '+tipoLabel+' — Ventas'+anio;
   if(t2) t2.textContent='Evolución '+tipoLabel+' — Ganancia Neta'+anio;
   if(t3) t3.textContent='Minorista vs Mayorista — Evolución'+anio;
-  // Timeout mayor para asegurar que el DOM y los canvas tengan dimensiones
   setTimeout(()=>{
     drawBarCanvas('chart-ventas-mes',labels,[{data:md.map(m=>m.ventas),color:'#3d7fff'}]);
     drawBarCanvas('chart-gan-mes',labels,[{data:md.map(m=>m.gan),color:'#22c987'}]);
