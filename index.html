@@ -1891,35 +1891,24 @@ function setDashPeriodo(p) {
   renderDashboard();
 }
 
-function getMesVenta(fecha){
-  if(!fecha) return 0;
-  const s = String(fecha);
-  if(s.includes('/')){
-    const p=s.split('/');
-    if(p[2] && p[2].length===4) return parseInt(p[1],10);
-    return parseInt(p[0],10);
-  }
-  if(s.includes('-')){
-    const p=s.split('-');
-    return parseInt(p[1],10);
-  }
-  return 0;
+function parseFechaVenta(fecha){
+  if(!fecha) return {anio:0,mes:0};
+  const s = String(fecha).trim();
+  // dd/mm/yyyy o d/m/yyyy
+  const m1 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(m1) return {anio:parseInt(m1[3]),mes:parseInt(m1[2])};
+  // yyyy-mm-dd (ISO)
+  const m2 = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m2) return {anio:parseInt(m2[1]),mes:parseInt(m2[2])};
+  // Intento Date() para formatos como "Mon Jan 01 2024 ..." o "January 1, 2024"
+  try {
+    const d = new Date(s);
+    if(!isNaN(d.getTime())) return {anio:d.getFullYear(),mes:d.getMonth()+1};
+  } catch(e){}
+  return {anio:0,mes:0};
 }
-
-function getAnioVenta(fecha){
-  if(!fecha) return 0;
-  const s = String(fecha);
-  if(s.includes('/')){
-    const p=s.split('/');
-    if(p[2] && p[2].length===4) return parseInt(p[2],10);
-    return 0;
-  }
-  if(s.includes('-')){
-    const p=s.split('-');
-    return parseInt(p[0],10);
-  }
-  return 0;
-}
+function getMesVenta(fecha){ return parseFechaVenta(fecha).mes; }
+function getAnioVenta(fecha){ return parseFechaVenta(fecha).anio; }
 
 function getVentasFiltradas() {
   if(dashPeriodo==='all') return VENTAS;
@@ -3059,13 +3048,24 @@ async function cargarDesdeSheets() {
       if(res.ventas?.length) {
         // Normalizar fechas a dd/mm/yyyy por si vienen en otro formato desde Sheets
         VENTAS = res.ventas.map(v => {
-          let f = String(v.fecha || '');
-          // Si viene como yyyy-mm-dd → convertir a dd/mm/yyyy
+          let f = String(v.fecha || '').trim();
+          // yyyy-mm-dd (ISO) → dd/mm/yyyy
           if(/^\d{4}-\d{2}-\d{2}/.test(f)) {
             const p = f.substring(0,10).split('-');
             f = p[2]+'/'+p[1]+'/'+p[0];
           }
-          // Si viene como d/m/yyyy (sin cero) → normalizar a dd/mm/yyyy
+          // Formato largo Date: "Mon Jan 01 2024 ..." o cualquier string parseable
+          else if(!/^\d{1,2}\/\d{1,2}\/\d{4}/.test(f) && f.length > 6) {
+            try {
+              const d = new Date(f);
+              if(!isNaN(d.getTime())) {
+                f = String(d.getDate()).padStart(2,'0')+'/'
+                  + String(d.getMonth()+1).padStart(2,'0')+'/'
+                  + d.getFullYear();
+              }
+            } catch(e){}
+          }
+          // d/m/yyyy (sin cero) → dd/mm/yyyy
           if(/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(f)) {
             const p = f.split('/');
             f = p[0].padStart(2,'0')+'/'+p[1].padStart(2,'0')+'/'+p[2];
