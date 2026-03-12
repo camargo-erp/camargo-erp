@@ -285,7 +285,7 @@
       <button class="filter-btn" onclick="setDashPeriodo('all')" id="btn-all">🗂 Todo</button>
       <select id="dash-anio-sel" style="padding:6px 12px;border-radius:20px;font-size:12px;width:auto;background:var(--surface2);border:1px solid var(--border);color:var(--text)" onchange="renderDashboard()">
         <option value="2026">2026</option>
-        <option value="2025">2025</option>
+        <option value="2025" selected>2025</option>
         <option value="2024">2024</option>
       </select>
       <select id="dash-mes-sel" style="display:none;padding:6px 12px;border-radius:20px;font-size:12px;width:auto;background:var(--surface2);border:1px solid var(--border);color:var(--text)" onchange="renderDashboard()">
@@ -3056,7 +3056,23 @@ async function cargarDesdeSheets() {
   try {
     const res = await gsCall('getAll');
     if(res.ok) {
-      if(res.ventas?.length)     VENTAS     = res.ventas;
+      if(res.ventas?.length) {
+        // Normalizar fechas a dd/mm/yyyy por si vienen en otro formato desde Sheets
+        VENTAS = res.ventas.map(v => {
+          let f = String(v.fecha || '');
+          // Si viene como yyyy-mm-dd → convertir a dd/mm/yyyy
+          if(/^\d{4}-\d{2}-\d{2}/.test(f)) {
+            const p = f.substring(0,10).split('-');
+            f = p[2]+'/'+p[1]+'/'+p[0];
+          }
+          // Si viene como d/m/yyyy (sin cero) → normalizar a dd/mm/yyyy
+          if(/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(f)) {
+            const p = f.split('/');
+            f = p[0].padStart(2,'0')+'/'+p[1].padStart(2,'0')+'/'+p[2];
+          }
+          return {...v, fecha: f};
+        });
+      }
       if(res.clientes?.length)   CLIENTES   = res.clientes;
       if(res.transportes?.length) TRANSPORTES = res.transportes;
       if(res.precios?.length)    PRECIOS    = res.precios;
