@@ -280,9 +280,15 @@
   <div class="section-header">
     <div class="section-title">Dashboard Gerencial</div>
     <div class="dash-filters">
-      <button class="filter-btn active" onclick="setDashPeriodo('year')" id="btn-year">Año 2026</button>
-      <button class="filter-btn" onclick="setDashPeriodo('month')" id="btn-month">Este Mes</button>
-      <select id="dash-mes-sel" style="display:none;padding:6px 12px;border-radius:20px;font-size:12px;width:auto" onchange="renderDashboard()">
+      <button class="filter-btn active" onclick="setDashPeriodo('year')" id="btn-year">📅 Año</button>
+      <button class="filter-btn" onclick="setDashPeriodo('month')" id="btn-month">📆 Mes</button>
+      <button class="filter-btn" onclick="setDashPeriodo('all')" id="btn-all">🗂 Todo</button>
+      <select id="dash-anio-sel" style="padding:6px 12px;border-radius:20px;font-size:12px;width:auto;background:var(--surface2);border:1px solid var(--border);color:var(--text)" onchange="renderDashboard()">
+        <option value="2026">2026</option>
+        <option value="2025">2025</option>
+        <option value="2024">2024</option>
+      </select>
+      <select id="dash-mes-sel" style="display:none;padding:6px 12px;border-radius:20px;font-size:12px;width:auto;background:var(--surface2);border:1px solid var(--border);color:var(--text)" onchange="renderDashboard()">
         <option value="1">Enero</option><option value="2">Febrero</option><option value="3" selected>Marzo</option>
         <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
         <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
@@ -306,17 +312,17 @@
   </div>
   <div class="grid2" id="dash-charts-evol">
     <div class="card">
-      <div class="card-title">Evolución Mensual — Ventas</div>
+      <div class="card-title" id="chart-title-ventas">Evolución Mensual — Ventas</div>
       <canvas id="chart-ventas-mes" height="140"></canvas>
     </div>
     <div class="card">
-      <div class="card-title">Evolución Mensual — Ganancia Neta</div>
+      <div class="card-title" id="chart-title-gan">Evolución Mensual — Ganancia Neta</div>
       <canvas id="chart-gan-mes" height="140"></canvas>
     </div>
   </div>
   <div class="grid2">
     <div class="card">
-      <div class="card-title">Minorista vs Mayorista — Evolución Mensual</div>
+      <div class="card-title" id="chart-title-canal">Minorista vs Mayorista — Evolución</div>
       <canvas id="chart-canales-mes" height="140"></canvas>
     </div>
     <div class="card">
@@ -777,33 +783,49 @@ function setDashPeriodo(p) {
   dashPeriodo = p;
   document.getElementById('btn-year').classList.toggle('active', p==='year');
   document.getElementById('btn-month').classList.toggle('active', p==='month');
+  document.getElementById('btn-all').classList.toggle('active', p==='all');
+  // Mostrar/ocultar selectores según modo
+  document.getElementById('dash-anio-sel').style.display = p==='all' ? 'none' : 'inline-block';
   document.getElementById('dash-mes-sel').style.display = p==='month' ? 'inline-block' : 'none';
   renderDashboard();
 }
 
 function getMesVenta(fecha){
-  // Soporta dd/mm/yyyy y yyyy-mm-dd y mm/dd/yyyy
   if(!fecha) return 0;
   const s = String(fecha);
   if(s.includes('/')){
     const p=s.split('/');
-    // dd/mm/yyyy → p[1] es mes
     if(p[2] && p[2].length===4) return parseInt(p[1],10);
-    // mm/dd/yyyy → p[0] es mes (fallback)
     return parseInt(p[0],10);
   }
   if(s.includes('-')){
     const p=s.split('-');
-    // yyyy-mm-dd → p[1] es mes
     return parseInt(p[1],10);
   }
   return 0;
 }
 
+function getAnioVenta(fecha){
+  if(!fecha) return 0;
+  const s = String(fecha);
+  if(s.includes('/')){
+    const p=s.split('/');
+    if(p[2] && p[2].length===4) return parseInt(p[2],10);
+    return 0;
+  }
+  if(s.includes('-')){
+    const p=s.split('-');
+    return parseInt(p[0],10);
+  }
+  return 0;
+}
+
 function getVentasFiltradas() {
-  if(dashPeriodo==='year') return VENTAS;
+  if(dashPeriodo==='all') return VENTAS;
+  const anio = parseInt(document.getElementById('dash-anio-sel').value);
+  if(dashPeriodo==='year') return VENTAS.filter(v=> getAnioVenta(v.fecha)===anio);
   const mes = parseInt(document.getElementById('dash-mes-sel').value);
-  return VENTAS.filter(v=> getMesVenta(v.fecha)===mes);
+  return VENTAS.filter(v=> getAnioVenta(v.fecha)===anio && getMesVenta(v.fecha)===mes);
 }
 
 function renderDashboard() {
@@ -822,7 +844,7 @@ function renderDashboard() {
 
   // Fila 1: métricas base
   document.getElementById('dash-kpis').innerHTML = `
-    <div class="kpi"><div class="kpi-label">Ventas ${dashPeriodo==='year'?'Año':'Mes'}</div>
+    <div class="kpi"><div class="kpi-label">Ventas ${dashPeriodo==='all'?'Total':dashPeriodo==='year'?'Año':'Mes'}</div>
       <div class="kpi-value accent">${fmt(totalVentas)}</div>
       <div class="kpi-sub">${ops} ops · ${lts.toLocaleString('es-AR')} Lts</div></div>
     <div class="kpi"><div class="kpi-label">Ganancia Neta</div>
@@ -830,7 +852,7 @@ function renderDashboard() {
       <div class="kpi-sub">Sobre $${Math.round(totalCosto/1e6*10)/10}M de costo</div></div>
     <div class="kpi"><div class="kpi-label">Costo Total</div>
       <div class="kpi-value">${fmt(totalCosto)}</div>
-      <div class="kpi-sub">${dashPeriodo==='year'?'Año 2026':'Mes seleccionado'}</div></div>
+      <div class="kpi-sub">${dashPeriodo==='all'?'Histórico completo':dashPeriodo==='year'?'Año '+document.getElementById('dash-anio-sel').value:'Mes seleccionado'}</div></div>
     <div class="kpi"><div class="kpi-label">Cuentas a Cobrar</div>
       <div class="kpi-value" style="color:var(--yellow)">${fmt(totalCuentas)}</div>
       <div class="kpi-sub">${vf.filter(v=>v.pagado==='No').length} ops sin cobrar</div></div>`;
@@ -914,13 +936,29 @@ function renderDashboard() {
 }
 
 function getMonthlyData() {
+  // Para modo 'all': mostrar evolución por año (2024, 2025, 2026)
+  if(dashPeriodo==='all') {
+    const anios=[2024,2025,2026];
+    return anios.map(a=>{
+      const vs=VENTAS.filter(v=>getAnioVenta(v.fecha)===a);
+      return {
+        mes:a, label:String(a),
+        ventas:vs.reduce((s,v)=>s+v.total,0),
+        gan:vs.reduce((s,v)=>s+v.gan,0),
+        ops:vs.length,
+        minor:vs.filter(v=>v.canal==='Minorista').reduce((s,v)=>s+v.total,0),
+        mayor:vs.filter(v=>v.canal==='Mayorista').reduce((s,v)=>s+v.total,0),
+        margen:vs.length>0?(vs.reduce((s,v)=>s+v.gan,0)/vs.reduce((s,v)=>s+v.total,0)*100):0,
+      };
+    });
+  }
+  // Para 'year' y 'month': mostrar los 12 meses del año seleccionado
+  const anio = parseInt(document.getElementById('dash-anio-sel').value);
   const meses=Array.from({length:12},(_,i)=>i+1);
   return meses.map(m=>{
-    const vs=VENTAS.filter(v=>{
-      const parts=v.fecha.split('/'); return parseInt(parts[1])===m;
-    });
+    const vs=VENTAS.filter(v=>getAnioVenta(v.fecha)===anio && getMesVenta(v.fecha)===m);
     return {
-      mes:m,
+      mes:m, label:MESES_ABREV[m-1],
       ventas:vs.reduce((s,v)=>s+v.total,0),
       gan:vs.reduce((s,v)=>s+v.gan,0),
       ops:vs.length,
@@ -1029,7 +1067,16 @@ function drawLineCanvas(canvasId, labels, datasets) {
 
 function renderChartsMensual() {
   const md=getMonthlyData();
-  const labels=md.map(m=>MESES_ABREV[m.mes-1]);
+  const labels=md.map(m=>m.label||MESES_ABREV[m.mes-1]);
+  // Actualizar títulos según modo
+  const anio = dashPeriodo==='all' ? '' : ' '+document.getElementById('dash-anio-sel').value;
+  const tipoLabel = dashPeriodo==='all' ? 'Anual' : 'Mensual';
+  const t1=document.getElementById('chart-title-ventas');
+  const t2=document.getElementById('chart-title-gan');
+  const t3=document.getElementById('chart-title-canal');
+  if(t1) t1.textContent='Evolución '+tipoLabel+' — Ventas'+anio;
+  if(t2) t2.textContent='Evolución '+tipoLabel+' — Ganancia Neta'+anio;
+  if(t3) t3.textContent='Minorista vs Mayorista — Evolución'+anio;
   setTimeout(()=>{
     drawBarCanvas('chart-ventas-mes',labels,[{data:md.map(m=>m.ventas),color:'#3d7fff'}]);
     drawBarCanvas('chart-gan-mes',labels,[{data:md.map(m=>m.gan),color:'#22c987'}]);
