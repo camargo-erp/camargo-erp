@@ -3237,7 +3237,15 @@ async function gsGuardarPrecios(precios) {
 
 // ACTUALIZAR estado de venta (entregado/pagado) en Sheets
 async function gsActualizarVenta(idx, campos) {
+  const venta = VENTAS[idx];
   setSyncStatus('sync');
+  // Si la venta es histórica (frozen=true), Sheets probablemente no la tiene
+  // → igual intentamos pero nunca mostramos error (queda guardado localmente)
+  if(venta && venta.frozen) {
+    gsCall('updateVenta', {idx, campos}); // fire & forget
+    setSyncStatus('ok');
+    return;
+  }
   const res = await gsCall('updateVenta', {idx, campos});
   setSyncStatus(res.ok ? 'ok' : 'error');
 }
