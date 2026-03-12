@@ -3046,32 +3046,37 @@ async function cargarDesdeSheets() {
     const res = await gsCall('getAll');
     if(res.ok) {
       if(res.ventas?.length) {
-        // Normalizar fechas a dd/mm/yyyy por si vienen en otro formato desde Sheets
-        VENTAS = res.ventas.map(v => {
+        // Normalizar fechas a dd/mm/yyyy
+        const ventasSheets = res.ventas.map(v => {
           let f = String(v.fecha || '').trim();
-          // yyyy-mm-dd (ISO) → dd/mm/yyyy
           if(/^\d{4}-\d{2}-\d{2}/.test(f)) {
             const p = f.substring(0,10).split('-');
             f = p[2]+'/'+p[1]+'/'+p[0];
-          }
-          // Formato largo Date: "Mon Jan 01 2024 ..." o cualquier string parseable
-          else if(!/^\d{1,2}\/\d{1,2}\/\d{4}/.test(f) && f.length > 6) {
+          } else if(!/^\d{1,2}\/\d{1,2}\/\d{4}/.test(f) && f.length > 6) {
             try {
               const d = new Date(f);
-              if(!isNaN(d.getTime())) {
-                f = String(d.getDate()).padStart(2,'0')+'/'
-                  + String(d.getMonth()+1).padStart(2,'0')+'/'
-                  + d.getFullYear();
-              }
+              if(!isNaN(d.getTime())) f = String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
             } catch(e){}
           }
-          // d/m/yyyy (sin cero) → dd/mm/yyyy
           if(/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(f)) {
             const p = f.split('/');
             f = p[0].padStart(2,'0')+'/'+p[1].padStart(2,'0')+'/'+p[2];
           }
           return {...v, fecha: f};
         });
+        // Si Sheets tiene menos de 500 ventas (histórico no subido),
+        // combinar: mantener el array local y reemplazar/agregar solo las de Sheets
+        if(ventasSheets.length < 500) {
+          // Construir clave única por fecha+cliente+total para detectar duplicados
+          const claveSheets = new Set(ventasSheets.map(v=>v.fecha+'|'+v.cliente+'|'+v.total));
+          // Filtrar del array local las que ya están en Sheets
+          const soloLocales = VENTAS.filter(v => !claveSheets.has(v.fecha+'|'+v.cliente+'|'+v.total));
+          // Combinar: locales históricos + actuales de Sheets
+          VENTAS = [...soloLocales, ...ventasSheets];
+        } else {
+          // Sheets tiene el histórico completo → usar directo
+          VENTAS = ventasSheets;
+        }
       }
       if(res.clientes?.length)   CLIENTES   = res.clientes;
       if(res.transportes?.length) TRANSPORTES = res.transportes;
