@@ -2241,11 +2241,10 @@ function imprimirRemito(idx) {
 </body>
 </html>`;
 
-  const w = window.open('', '_blank', 'width=794,height=1123');
-  w.document.open('text/html', 'replace');
-  w.document.write(html);
-  w.document.close();
-  setTimeout(()=>{ w.focus(); w.print(); }, 500);
+  const blob = new Blob([html], {type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  const w = window.open(url, '_blank', 'width=794,height=1123');
+  setTimeout(()=>{ w.focus(); w.print(); URL.revokeObjectURL(url); }, 600);
 }
 
 // =========== EDITAR CLIENTE ===========
