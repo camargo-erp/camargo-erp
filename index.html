@@ -2844,93 +2844,6 @@ function exportPendientesPDF() {
   </tr></thead><tbody>${filas}</tbody></table>
   <p class="total">Total: $${sinE.reduce((s,v)=>s+v.total,0).toLocaleString('es-AR')}</p>
   
-<!-- MODAL EDITAR VENTA -->
-<div class="modal-overlay" id="modal-editar-venta">
-  <div class="modal" style="max-width:640px">
-    <div class="modal-title">✏️ Editar Venta</div>
-    <div class="form-grid cols2" style="gap:12px">
-      <div class="form-group"><label>Fecha</label><input type="date" id="ev-fecha"></div>
-      <div class="form-group"><label>Canal</label>
-        <select id="ev-canal"><option value="Minorista">Minorista</option><option value="Mayorista">Mayorista</option></select>
-      </div>
-      <div class="form-group"><label>Cliente</label><input id="ev-cliente"></div>
-      <div class="form-group"><label>Producto</label><input id="ev-producto"></div>
-      <div class="form-group"><label>Cantidad</label><input type="number" id="ev-cant" oninput="actualizarPreviewEditar()"></div>
-      <div class="form-group"><label>Precio Unit.</label><input type="number" id="ev-precioU" oninput="actualizarPreviewEditar()"></div>
-      <div class="form-group"><label>Costo Unit.</label><input type="number" id="ev-costoU" oninput="actualizarPreviewEditar()"></div>
-      <div class="form-group"><label>Forma de Pago</label>
-        <select id="ev-fpago">
-          <option>Transferencia</option><option>Efectivo</option>
-          <option>Echeq</option><option>Cuenta corriente</option>
-        </select>
-      </div>
-      <div class="form-group"><label>Pagado</label>
-        <select id="ev-pagado"><option value="Sí">Sí</option><option value="No">No</option></select>
-      </div>
-      <div class="form-group"><label>Tipo Entrega</label>
-        <select id="ev-entrega">
-          <option>Propio</option><option>Envío transporte</option>
-          <option>Retiro cliente</option><option>Retiro transporte</option>
-        </select>
-      </div>
-      <div class="form-group"><label>Entregado</label>
-        <select id="ev-entregado"><option value="Sí">Sí</option><option value="No">No</option></select>
-      </div>
-      <div class="form-group"><label>N° Factura</label><input id="ev-nroFactura" placeholder="Opcional"></div>
-    </div>
-    <div class="form-group" style="margin-top:12px">
-      <div style="background:var(--surface);border-radius:8px;padding:12px;font-family:var(--mono);font-size:13px;display:flex;gap:24px">
-        <div>Total: <span id="ev-total-preview" style="color:var(--green);font-weight:600">$0</span></div>
-        <div>Costo: <span id="ev-costo-preview" style="color:var(--muted)">$0</span></div>
-        <div>Ganancia: <span id="ev-gan-preview" style="color:var(--accent2)">$0</span></div>
-      </div>
-    </div>
-    <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end">
-      <button class="btn btn-ghost" onclick="cerrarModal('modal-editar-venta')">Cancelar</button>
-      <button class="btn btn-primary" onclick="guardarEdicionVenta()">💾 Guardar Cambios</button>
-    </div>
-  </div>
-</div>
-
-
-<!-- MODAL EDITAR CLIENTE -->
-<div class="modal-overlay" id="modal-editar-cliente">
-  <div class="modal" style="max-width:640px">
-    <div class="modal-title">✏️ Editar Cliente</div>
-    <div class="form-grid cols2" style="gap:12px">
-      <div class="form-group"><label>Nombre *</label><input id="ec-nombre"></div>
-      <div class="form-group"><label>Canal *</label>
-        <select id="ec-canal"><option value="menor">Minorista</option><option value="mayor">Mayorista</option></select>
-      </div>
-      <div class="form-group"><label>CUIT / CUIL</label><input id="ec-cuit"></div>
-      <div class="form-group"><label>Condición *</label>
-        <select id="ec-condicion" required>
-          <option value="">— Seleccionar —</option>
-          <option value="Monotributo">Monotributo</option>
-          <option value="Responsable Inscripto">Responsable Inscripto</option>
-          <option value="Consumidor Final">Consumidor Final</option>
-          <option value="Otro">Otro</option>
-        </select>
-      </div>
-      <div class="form-group"><label>Teléfono</label><input id="ec-tel"></div>
-      <div class="form-group"><label>Mail</label><input id="ec-mail"></div>
-      <div class="form-group"><label>Provincia</label><input id="ec-provincia"></div>
-      <div class="form-group"><label>Localidad</label><input id="ec-localidad"></div>
-      <div class="form-group"><label>Dirección</label><input id="ec-dir"></div>
-      <div class="form-group"><label>Cond. Pago Habitual</label>
-        <select id="ec-pago"><option>transferencia</option><option>efectivo</option><option>Echeq</option><option>Cuenta corriente</option></select>
-      </div>
-      <div class="form-group" style="grid-column:1/-1"><label>Entrega Habitual</label>
-        <select id="ec-entrega"><option value="envio a cliente">Envío a cliente</option><option value="envio transporte">Envío transporte</option><option value="retiro transporte">Retiro transporte</option><option value="Retiro cliente">Retiro cliente</option><option value="Propio">Propio</option></select>
-      </div>
-    </div>
-    <div class="form-group" style="margin-top:12px"><label>Observaciones</label><textarea id="ec-obs" rows="2"></textarea></div>
-    <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end">
-      <button class="btn btn-ghost" onclick="cerrarModal('modal-editar-cliente')">Cancelar</button>
-      <button class="btn btn-primary" onclick="guardarEdicionCliente()">💾 Guardar Cambios</button>
-    </div>
-  </div>
-</div>
 
 </body></html>`;
   const w=window.open('','_blank');
@@ -3849,7 +3762,7 @@ function abrirModalCompra() {
   document.getElementById('nc-fpago').value    = 'Transferencia';
   document.getElementById('nc-nroDoc').value   = '';
   document.getElementById('nc-obs').value      = '';
-  document.getElementById('modal-compra').style.display='flex';
+  document.getElementById('modal-compra').classList.add('show');
 }
 
 function calcularTotalCompra() {
@@ -3955,93 +3868,6 @@ actualizarBadge();
 cargarDesdeSheets(); // Carga datos desde Sheets y luego renderiza
 </script>
 
-<!-- MODAL EDITAR VENTA -->
-<div class="modal-overlay" id="modal-editar-venta">
-  <div class="modal" style="max-width:640px">
-    <div class="modal-title">✏️ Editar Venta</div>
-    <div class="form-grid cols2" style="gap:12px">
-      <div class="form-group"><label>Fecha</label><input type="date" id="ev-fecha"></div>
-      <div class="form-group"><label>Canal</label>
-        <select id="ev-canal"><option value="Minorista">Minorista</option><option value="Mayorista">Mayorista</option></select>
-      </div>
-      <div class="form-group"><label>Cliente</label><input id="ev-cliente"></div>
-      <div class="form-group"><label>Producto</label><input id="ev-producto"></div>
-      <div class="form-group"><label>Cantidad</label><input type="number" id="ev-cant" oninput="actualizarPreviewEditar()"></div>
-      <div class="form-group"><label>Precio Unit.</label><input type="number" id="ev-precioU" oninput="actualizarPreviewEditar()"></div>
-      <div class="form-group"><label>Costo Unit.</label><input type="number" id="ev-costoU" oninput="actualizarPreviewEditar()"></div>
-      <div class="form-group"><label>Forma de Pago</label>
-        <select id="ev-fpago">
-          <option>Transferencia</option><option>Efectivo</option>
-          <option>Echeq</option><option>Cuenta corriente</option>
-        </select>
-      </div>
-      <div class="form-group"><label>Pagado</label>
-        <select id="ev-pagado"><option value="Sí">Sí</option><option value="No">No</option></select>
-      </div>
-      <div class="form-group"><label>Tipo Entrega</label>
-        <select id="ev-entrega">
-          <option>Propio</option><option>Envío transporte</option>
-          <option>Retiro cliente</option><option>Retiro transporte</option>
-        </select>
-      </div>
-      <div class="form-group"><label>Entregado</label>
-        <select id="ev-entregado"><option value="Sí">Sí</option><option value="No">No</option></select>
-      </div>
-      <div class="form-group"><label>N° Factura</label><input id="ev-nroFactura" placeholder="Opcional"></div>
-    </div>
-    <div class="form-group" style="margin-top:12px">
-      <div style="background:var(--surface);border-radius:8px;padding:12px;font-family:var(--mono);font-size:13px;display:flex;gap:24px">
-        <div>Total: <span id="ev-total-preview" style="color:var(--green);font-weight:600">$0</span></div>
-        <div>Costo: <span id="ev-costo-preview" style="color:var(--muted)">$0</span></div>
-        <div>Ganancia: <span id="ev-gan-preview" style="color:var(--accent2)">$0</span></div>
-      </div>
-    </div>
-    <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end">
-      <button class="btn btn-ghost" onclick="cerrarModal('modal-editar-venta')">Cancelar</button>
-      <button class="btn btn-primary" onclick="guardarEdicionVenta()">💾 Guardar Cambios</button>
-    </div>
-  </div>
-</div>
-
-
-<!-- MODAL EDITAR CLIENTE -->
-<div class="modal-overlay" id="modal-editar-cliente">
-  <div class="modal" style="max-width:640px">
-    <div class="modal-title">✏️ Editar Cliente</div>
-    <div class="form-grid cols2" style="gap:12px">
-      <div class="form-group"><label>Nombre *</label><input id="ec-nombre"></div>
-      <div class="form-group"><label>Canal *</label>
-        <select id="ec-canal"><option value="menor">Minorista</option><option value="mayor">Mayorista</option></select>
-      </div>
-      <div class="form-group"><label>CUIT / CUIL</label><input id="ec-cuit"></div>
-      <div class="form-group"><label>Condición *</label>
-        <select id="ec-condicion" required>
-          <option value="">— Seleccionar —</option>
-          <option value="Monotributo">Monotributo</option>
-          <option value="Responsable Inscripto">Responsable Inscripto</option>
-          <option value="Consumidor Final">Consumidor Final</option>
-          <option value="Otro">Otro</option>
-        </select>
-      </div>
-      <div class="form-group"><label>Teléfono</label><input id="ec-tel"></div>
-      <div class="form-group"><label>Mail</label><input id="ec-mail"></div>
-      <div class="form-group"><label>Provincia</label><input id="ec-provincia"></div>
-      <div class="form-group"><label>Localidad</label><input id="ec-localidad"></div>
-      <div class="form-group"><label>Dirección</label><input id="ec-dir"></div>
-      <div class="form-group"><label>Cond. Pago Habitual</label>
-        <select id="ec-pago"><option>transferencia</option><option>efectivo</option><option>Echeq</option><option>Cuenta corriente</option></select>
-      </div>
-      <div class="form-group" style="grid-column:1/-1"><label>Entrega Habitual</label>
-        <select id="ec-entrega"><option value="envio a cliente">Envío a cliente</option><option value="envio transporte">Envío transporte</option><option value="retiro transporte">Retiro transporte</option><option value="Retiro cliente">Retiro cliente</option><option value="Propio">Propio</option></select>
-      </div>
-    </div>
-    <div class="form-group" style="margin-top:12px"><label>Observaciones</label><textarea id="ec-obs" rows="2"></textarea></div>
-    <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end">
-      <button class="btn btn-ghost" onclick="cerrarModal('modal-editar-cliente')">Cancelar</button>
-      <button class="btn btn-primary" onclick="guardarEdicionCliente()">💾 Guardar Cambios</button>
-    </div>
-  </div>
-</div>
 
 </body>
 </html>
