@@ -162,6 +162,7 @@
   <div class="nav-tab" onclick="showPage('clientes')">👥 Clientes</div>
   <div class="nav-tab" onclick="showPage('transportes')">🚚 Transportes</div>
   <div class="nav-tab" onclick="showPage('reporte-contador')">📋 Reporte Contador</div>
+  <div class="nav-tab" onclick="showPage('compras')">🛒 Compras</div>
   <div class="nav-right">
     <span style="font-size:12px;color:var(--muted)" id="nav-fecha"></span>
   </div>
@@ -186,13 +187,20 @@
   <div class="section-header">
     <div class="section-title">📋 Reporte Contador</div>
     <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost btn-sm" onclick="imprimirReporteContador()">🖨️ Imprimir</button>
       <button class="btn btn-warn btn-sm" onclick="exportReporteContadorExcel()">📊 Descargar Excel</button>
     </div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
-    <div style="font-size:13px;color:var(--muted)">Filtrar por mes:</div>
+    <div style="font-size:13px;color:var(--muted)">Filtrar por:</div>
+    <select id="rc-anio" onchange="renderReporteContador()" style="padding:7px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px">
+      <option value="0">Todos los años</option>
+      <option value="2024">2024</option>
+      <option value="2025">2025</option>
+      <option value="2026" selected>2026</option>
+    </select>
     <select id="rc-mes" onchange="renderReporteContador()" style="padding:7px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px">
-      <option value="0">Todos</option>
+      <option value="0">Todos los meses</option>
       <option value="1">Enero</option><option value="2">Febrero</option><option value="3" selected>Marzo</option>
       <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
       <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
@@ -212,6 +220,85 @@
     </div>
     <div style="display:flex;justify-content:flex-end;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
       <div style="font-family:var(--mono);font-size:14px;color:var(--green)">Total: <span id="rc-total" style="font-weight:600">$0</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== COMPRAS ===== -->
+<div class="page" id="page-compras">
+  <div class="section-header">
+    <div class="section-title">🛒 Registro de Compras</div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" onclick="abrirModalCompra()">➕ Nueva Compra</button>
+      <button class="btn btn-warn btn-sm" onclick="exportComprasExcel()">📊 Excel</button>
+    </div>
+  </div>
+  <!-- Filtros -->
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+    <div style="font-size:13px;color:var(--muted)">Filtrar por:</div>
+    <select id="comp-anio" onchange="renderCompras()" style="padding:7px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px">
+      <option value="0">Todos los años</option>
+      <option value="2024">2024</option><option value="2025">2025</option><option value="2026" selected>2026</option>
+    </select>
+    <select id="comp-mes" onchange="renderCompras()" style="padding:7px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px">
+      <option value="0">Todos los meses</option>
+      <option value="1">Enero</option><option value="2">Febrero</option><option value="3" selected>Marzo</option>
+      <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
+      <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
+      <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+    </select>
+    <span id="comp-count" style="font-size:12px;color:var(--muted)"></span>
+  </div>
+  <!-- Tabla -->
+  <div class="card">
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Fecha</th><th>Proveedor</th><th>Producto</th>
+          <th style="text-align:right">Cantidad</th>
+          <th style="text-align:right">Precio Unit.</th>
+          <th style="text-align:right">Costo Total</th>
+          <th></th>
+        </tr></thead>
+        <tbody id="tabla-compras"></tbody>
+      </table>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+      <div style="font-family:var(--mono);font-size:14px;color:var(--accent)">Total: <span id="comp-total" style="font-weight:600">$0</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NUEVA COMPRA -->
+<div class="modal-overlay" id="modal-compra">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-title">🛒 Nueva Compra</div>
+    <div class="form-grid cols2" style="gap:12px">
+      <div class="form-group"><label>Proveedor *</label><input id="nc-proveedor" placeholder="Nombre del proveedor"></div>
+      <div class="form-group"><label>Fecha *</label><input type="date" id="nc-fecha"></div>
+      <div class="form-group" style="grid-column:1/-1"><label>Producto *</label><input id="nc-producto" placeholder="Descripción del producto"></div>
+      <div class="form-group"><label>Cantidad *</label><input type="number" id="nc-cantidad" min="0" step="any" oninput="calcularTotalCompra()"></div>
+      <div class="form-group"><label>Unidad</label>
+        <select id="nc-unidad">
+          <option value="Lts">Litros</option><option value="Kg">Kg</option>
+          <option value="Un">Unidades</option><option value="Tn">Toneladas</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Precio Unitario *</label><input type="number" id="nc-precioU" min="0" step="any" oninput="calcularTotalCompra()"></div>
+      <div class="form-group"><label>Costo Total</label>
+        <input type="number" id="nc-costoTotal" readonly style="background:var(--surface);color:var(--green);font-weight:600;font-family:var(--mono)">
+      </div>
+      <div class="form-group"><label>Forma de Pago</label>
+        <select id="nc-fpago">
+          <option>Transferencia</option><option>Efectivo</option><option>Cheque</option><option>Cuenta corriente</option>
+        </select>
+      </div>
+      <div class="form-group"><label>N° Remito/Factura</label><input id="nc-nroDoc" placeholder="Opcional"></div>
+      <div class="form-group" style="grid-column:1/-1"><label>Observaciones</label><input id="nc-obs" placeholder="Opcional"></div>
+    </div>
+    <div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="cerrarModal('modal-compra')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarCompra()">💾 Guardar Compra</button>
     </div>
   </div>
 </div>
@@ -1855,11 +1942,12 @@ function showPage(id) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
-  const tabs={'dashboard':0,'ventas':1,'nueva-venta':2,'pendientes':3,'precios':4,'clientes':5,'transportes':6,'reporte-contador':7};
+  const tabs={'dashboard':0,'ventas':1,'nueva-venta':2,'pendientes':3,'precios':4,'clientes':5,'transportes':6,'reporte-contador':7,'compras':8};
   document.querySelectorAll('.nav-tab')[tabs[id]]?.classList.add('active');
   if(id==='ventas') renderVentas();
   if(id==='pendientes') renderPendientes();
   if(id==='reporte-contador') renderReporteContador();
+  if(id==='compras') renderCompras();
   if(id==='precios') renderPrecios();
   if(id==='nueva-venta') initForm();
   if(id==='dashboard') renderDashboard();
@@ -2945,8 +3033,10 @@ function exportContadorExcel(){
 // =========== REPORTE CONTADOR (repositorio facturadas) ===========
 function getReporteContadorVentas(){
   const mes=parseInt(document.getElementById('rc-mes').value);
+  const anio=parseInt(document.getElementById('rc-anio')?.value||0);
   return VENTAS.filter(v=>{
     if(!v.facturado) return false;
+    if(anio!==0 && getAnioVenta(v.fecha)!==anio) return false;
     if(mes===0) return true;
     return getMesVenta(v.fecha)===mes;
   });
@@ -2975,6 +3065,81 @@ function renderReporteContador(){
   }).join('')||'<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:20px">Sin facturas registradas para este período</td></tr>';
   const total=ventas.reduce((s,v)=>s+v.total,0);
   document.getElementById('rc-total').textContent='$'+total.toLocaleString('es-AR');
+}
+
+function imprimirReporteContador(){
+  const ventas = getReporteContadorVentas();
+  const meses  = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const mes    = parseInt(document.getElementById('rc-mes').value);
+  const anio   = parseInt(document.getElementById('rc-anio')?.value||0);
+  const periodoLabel = (anio?anio:'Todos') + (mes?' — '+meses[mes]:'');
+  const total  = ventas.reduce((s,v)=>s+v.total,0);
+
+  const filas = ventas.map(v=>{
+    const cli = getClienteData(v.cliente);
+    return `<tr>
+      <td>${v.fecha}</td>
+      <td>${v.cliente}</td>
+      <td>${cli.cuit||'—'}</td>
+      <td>${cli.condicion||'—'}</td>
+      <td>${cli.localidad||'—'}</td>
+      <td>${cli.provincia||'—'}</td>
+      <td>${v.producto.substring(0,45)}${v.producto.length>45?'…':''}</td>
+      <td style="text-align:center">${v.cant}</td>
+      <td style="text-align:right">$${v.total.toLocaleString('es-AR')}</td>
+      <td>${v.fpago}</td>
+      <td>${v.nroFactura||''}</td>
+    </tr>`;
+  }).join('');
+
+  const w = window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <style>
+    @page { size: A4 landscape; margin: 10mm 12mm; }
+    * { box-sizing: border-box; margin:0; padding:0; }
+    body { font-family: Arial, sans-serif; font-size: 10px; color: #111; }
+    .encabezado { display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:8px; border-bottom:2px solid #111; padding-bottom:6px; }
+    .enc-empresa { font-size:16px; font-weight:900; text-transform:uppercase; letter-spacing:1px; }
+    .enc-sub { font-size:9px; color:#555; margin-top:2px; }
+    .enc-titulo { text-align:center; }
+    .enc-titulo h2 { font-size:14px; font-weight:700; text-transform:uppercase; letter-spacing:2px; }
+    .enc-periodo { font-size:11px; font-weight:600; color:#333; margin-top:3px; }
+    .enc-fecha { text-align:right; font-size:9px; color:#555; }
+    table { width:100%; border-collapse:collapse; margin-top:6px; }
+    thead tr { background:#1a3a6e; color:#fff; }
+    th { padding:5px 6px; text-align:left; font-size:9px; text-transform:uppercase; letter-spacing:.3px; font-weight:700; }
+    td { padding:4px 6px; border-bottom:1px solid #ddd; font-size:9.5px; }
+    tr:nth-child(even) td { background:#f5f7fa; }
+    .total-row { display:flex; justify-content:flex-end; margin-top:10px; border-top:2px solid #111; padding-top:6px; }
+    .total-box { font-size:13px; font-weight:700; }
+    .pie { text-align:center; margin-top:12px; font-size:8px; color:#888; border-top:1px solid #ddd; padding-top:4px; }
+    @media print { body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
+  </style></head><body>
+  <div class="encabezado">
+    <div>
+      <div class="enc-empresa">Camargo Distribuidora</div>
+      <div class="enc-sub">de Goñi Carlos Martin · CUIT 20-21738556-4</div>
+    </div>
+    <div class="enc-titulo">
+      <h2>Reporte Contador</h2>
+      <div class="enc-periodo">${periodoLabel}</div>
+    </div>
+    <div class="enc-fecha">Impreso: ${new Date().toLocaleDateString('es-AR')}</div>
+  </div>
+  <table>
+    <thead><tr>
+      <th>Fecha</th><th>Cliente</th><th>CUIT</th><th>Condición</th>
+      <th>Localidad</th><th>Provincia</th><th>Producto</th>
+      <th style="text-align:center">Cant.</th><th style="text-align:right">Total</th>
+      <th>F. Pago</th><th>N° Factura</th>
+    </tr></thead>
+    <tbody>${filas}</tbody>
+  </table>
+  <div class="total-row"><div class="total-box">TOTAL: $${total.toLocaleString('es-AR')}</div></div>
+  <div class="pie">Camargo Distribuidora · Reporte interno · ${periodoLabel}</div>
+  </body></html>`);
+  w.document.close();
+  setTimeout(()=>{ w.focus(); w.print(); }, 500);
 }
 
 function exportReporteContadorExcel(){
@@ -3188,6 +3353,7 @@ async function cargarDesdeSheets() {
           VENTAS = ventasSheets;
         }
       }
+      if(res.compras?.length)    COMPRAS    = res.compras;
       if(res.clientes?.length)   CLIENTES   = res.clientes;
       if(res.transportes?.length) TRANSPORTES = res.transportes;
       if(res.precios?.length)    PRECIOS    = res.precios;
@@ -3463,11 +3629,11 @@ function imprimirRemito(idx) {
 <head>
 <meta charset="UTF-8">
 <style>
-  @page { size: A4; margin: 12mm 14mm; }
+  @page { size: 170mm 220mm; margin: 6mm 8mm; }
   * { visibility: visible !important; display: revert; }
   body > * { display: block; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: Arial, sans-serif; font-size: 12px; color: #111; }
+  body { font-family: Arial, sans-serif; font-size: 10px; color: #111; }
 
   .remito-wrap { border: 2px solid #111; padding: 0; }
 
@@ -3475,11 +3641,11 @@ function imprimirRemito(idx) {
   .header { display: flex; border-bottom: 2px solid #111; }
   .header-left { padding: 12px 16px; flex: 1; border-right: 2px solid #111; }
   .header-right { padding: 12px 16px; flex: 1; }
-  .empresa-nombre { font-size: 20px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; line-height: 1.1; }
+  .empresa-nombre { font-size: 15px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; line-height: 1.1; }
   .empresa-sub { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #444; margin-top: 2px; }
   .empresa-dir { font-size: 11px; margin-top: 10px; text-align: center; }
   .empresa-categoria { font-size: 10px; font-weight: 700; text-align: center; margin-top: 4px; border-top: 1px solid #aaa; padding-top: 4px; letter-spacing: 1px; }
-  .remito-titulo { font-size: 22px; font-weight: 900; letter-spacing: 3px; margin-bottom: 8px; }
+  .remito-titulo { font-size: 17px; font-weight: 900; letter-spacing: 3px; margin-bottom: 8px; }
   .remito-num { font-size: 13px; margin-bottom: 6px; }
   .remito-num span { font-size: 13px; font-weight: 700; }
   .fecha-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 12px; }
@@ -3506,8 +3672,8 @@ function imprimirRemito(idx) {
 
   /* TOTAL */
   .total-row { display: flex; justify-content: flex-end; border-top: 2px solid #111; padding: 10px 16px; }
-  .total-box { font-size: 14px; font-weight: 700; }
-  .total-box span { font-size: 16px; }
+  .total-box { font-size: 12px; font-weight: 700; }
+  .total-box span { font-size: 13px; }
 
   /* FIRMAS */
   .firmas { display: flex; border-top: 2px solid #111; }
@@ -3618,7 +3784,7 @@ function imprimirRemito(idx) {
 
   const blob = new Blob([html], {type:'text/html'});
   const url = URL.createObjectURL(blob);
-  const w = window.open(url, '_blank', 'width=794,height=1123');
+  const w = window.open(url, '_blank', 'width=643,height=832');
   setTimeout(()=>{ w.focus(); w.print(); URL.revokeObjectURL(url); }, 600);
 }
 
@@ -3663,6 +3829,124 @@ function guardarEdicionCliente() {
   renderClientes();
   notify('✓ Cliente actualizado');
   editClienteIdx = -1;
+}
+
+// =========== COMPRAS ===========
+let COMPRAS = [];
+
+function abrirModalCompra() {
+  // Fecha de hoy por defecto
+  const hoy = new Date();
+  const yyyy = hoy.getFullYear();
+  const mm   = String(hoy.getMonth()+1).padStart(2,'0');
+  const dd   = String(hoy.getDate()).padStart(2,'0');
+  document.getElementById('nc-fecha').value    = `${yyyy}-${mm}-${dd}`;
+  document.getElementById('nc-proveedor').value= '';
+  document.getElementById('nc-producto').value = '';
+  document.getElementById('nc-cantidad').value = '';
+  document.getElementById('nc-precioU').value  = '';
+  document.getElementById('nc-costoTotal').value= '';
+  document.getElementById('nc-fpago').value    = 'Transferencia';
+  document.getElementById('nc-nroDoc').value   = '';
+  document.getElementById('nc-obs').value      = '';
+  document.getElementById('modal-compra').style.display='flex';
+}
+
+function calcularTotalCompra() {
+  const cant   = parseFloat(document.getElementById('nc-cantidad').value)  || 0;
+  const precio = parseFloat(document.getElementById('nc-precioU').value)   || 0;
+  const total  = cant * precio;
+  document.getElementById('nc-costoTotal').value = total ? total.toFixed(2) : '';
+}
+
+function guardarCompra() {
+  const proveedor = document.getElementById('nc-proveedor').value.trim();
+  const fechaRaw  = document.getElementById('nc-fecha').value;
+  const producto  = document.getElementById('nc-producto').value.trim();
+  const cant      = parseFloat(document.getElementById('nc-cantidad').value) || 0;
+  const precioU   = parseFloat(document.getElementById('nc-precioU').value)  || 0;
+  const unidad    = document.getElementById('nc-unidad').value;
+
+  if(!proveedor || !fechaRaw || !producto || !cant || !precioU) {
+    alert('Completá Proveedor, Fecha, Producto, Cantidad y Precio'); return;
+  }
+
+  // Convertir fecha de yyyy-mm-dd a dd/mm/yyyy
+  const [y,m,d] = fechaRaw.split('-');
+  const fecha = `${d}/${m}/${y}`;
+
+  const compra = {
+    fecha, proveedor, producto,
+    cant, unidad, precioU,
+    costoTotal: cant * precioU,
+    fpago:  document.getElementById('nc-fpago').value,
+    nroDoc: document.getElementById('nc-nroDoc').value.trim(),
+    obs:    document.getElementById('nc-obs').value.trim(),
+  };
+
+  COMPRAS.push(compra);
+  gsGuardarCompra(compra);
+  cerrarModal('modal-compra');
+  renderCompras();
+  notify('✓ Compra registrada');
+}
+
+function renderCompras() {
+  const anio = parseInt(document.getElementById('comp-anio')?.value || 0);
+  const mes  = parseInt(document.getElementById('comp-mes')?.value  || 0);
+
+  const filtradas = COMPRAS.filter(c => {
+    const p = c.fecha.split('/');
+    const ca = parseInt(p[2]||0), cm = parseInt(p[1]||0);
+    if(anio && ca !== anio) return false;
+    if(mes  && cm !== mes)  return false;
+    return true;
+  });
+
+  const tbody = document.getElementById('tabla-compras');
+  if(!tbody) return;
+  document.getElementById('comp-count').textContent = filtradas.length + ' compra' + (filtradas.length!==1?'s':'');
+
+  tbody.innerHTML = filtradas.length ? filtradas.map((c,i) => `
+    <tr>
+      <td>${c.fecha}</td>
+      <td><strong>${c.proveedor}</strong></td>
+      <td>${c.producto}</td>
+      <td style="text-align:right;font-family:var(--mono)">${c.cant.toLocaleString('es-AR')} ${c.unidad||''}</td>
+      <td style="text-align:right;font-family:var(--mono)">$${c.precioU.toLocaleString('es-AR')}</td>
+      <td style="text-align:right;font-family:var(--mono);font-weight:600;color:var(--accent)">$${c.costoTotal.toLocaleString('es-AR')}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="eliminarCompra(${COMPRAS.indexOf(c)})" style="color:var(--warn)">🗑️</button></td>
+    </tr>`).join('')
+  : '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">Sin compras registradas</td></tr>';
+
+  const total = filtradas.reduce((s,c)=>s+c.costoTotal,0);
+  document.getElementById('comp-total').textContent = '$'+total.toLocaleString('es-AR');
+}
+
+function eliminarCompra(idx) {
+  if(!confirm('¿Eliminar esta compra?')) return;
+  COMPRAS.splice(idx,1);
+  renderCompras();
+  notify('Compra eliminada');
+}
+
+function exportComprasExcel() {
+  if(!COMPRAS.length){ notify('Sin compras para exportar'); return; }
+  const rows = COMPRAS.map(c=>({
+    'Fecha':c.fecha,'Proveedor':c.proveedor,'Producto':c.producto,
+    'Cantidad':c.cant,'Unidad':c.unidad||'','Precio Unit.':c.precioU,
+    'Costo Total':c.costoTotal,'Forma de Pago':c.fpago,
+    'N° Doc':c.nroDoc||'','Obs':c.obs||''
+  }));
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb,ws,'Compras');
+  XLSX.writeFile(wb,'compras_camargo.xlsx');
+  notify('✓ Excel compras exportado');
+}
+
+async function gsGuardarCompra(compra) {
+  await gsCall('saveCompra', {compra});
 }
 
 // =========== INIT ===========
