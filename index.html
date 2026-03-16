@@ -303,6 +303,54 @@
   </div>
 </div>
 
+<!-- MODAL EDITAR VENTA -->
+<div class="modal-overlay" id="modal-editar-venta">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-title">✏️ Editar Venta</div>
+    <div class="form-grid cols2" style="gap:12px">
+      <div class="form-group"><label>Fecha</label><input type="date" id="ev-fecha"></div>
+      <div class="form-group"><label>Canal</label>
+        <select id="ev-canal"><option value="Minorista">Minorista</option><option value="Mayorista">Mayorista</option></select>
+      </div>
+      <div class="form-group"><label>Cliente</label><input id="ev-cliente"></div>
+      <div class="form-group"><label>Producto</label><input id="ev-producto"></div>
+      <div class="form-group"><label>Cantidad</label><input type="number" id="ev-cant" oninput="actualizarPreviewEditar()"></div>
+      <div class="form-group"><label>Precio Unit.</label><input type="number" id="ev-precioU" oninput="actualizarPreviewEditar()"></div>
+      <div class="form-group"><label>Costo Unit.</label><input type="number" id="ev-costoU" oninput="actualizarPreviewEditar()"></div>
+      <div class="form-group"><label>Forma de Pago</label>
+        <select id="ev-fpago">
+          <option>Transferencia</option><option>Efectivo</option>
+          <option>Echeq</option><option>Cuenta corriente</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Pagado</label>
+        <select id="ev-pagado"><option value="Sí">Sí</option><option value="No">No</option></select>
+      </div>
+      <div class="form-group"><label>Tipo Entrega</label>
+        <select id="ev-entrega">
+          <option>Propio</option><option>Envío transporte</option>
+          <option>Retiro cliente</option><option>Retiro transporte</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Entregado</label>
+        <select id="ev-entregado"><option value="Sí">Sí</option><option value="No">No</option></select>
+      </div>
+      <div class="form-group"><label>N° Factura</label><input id="ev-nroFactura" placeholder="Opcional"></div>
+    </div>
+    <div class="form-group" style="margin-top:12px">
+      <div style="background:var(--surface);border-radius:8px;padding:12px;font-family:var(--mono);font-size:13px;display:flex;gap:24px">
+        <div>Total: <span id="ev-total-preview" style="color:var(--green);font-weight:600">$0</span></div>
+        <div>Costo: <span id="ev-costo-preview" style="color:var(--muted)">$0</span></div>
+        <div>Ganancia: <span id="ev-gan-preview" style="color:var(--accent2)">$0</span></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="cerrarModal('modal-editar-venta')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarEdicionVenta()">💾 Guardar Cambios</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL NUEVO CLIENTE -->
 <div class="modal-overlay" id="modal-cliente">
   <div class="modal">
@@ -2906,53 +2954,7 @@ function imprimirPendientes(){
   </tr></thead><tbody>${filas}</tbody></table>
   <p class="total">Total: $${sinE.reduce((s,v)=>s+v.total,0).toLocaleString('es-AR')}</p>
   
-<!-- MODAL EDITAR VENTA -->
-<div class="modal-overlay" id="modal-editar-venta">
-  <div class="modal" style="max-width:640px">
-    <div class="modal-title">✏️ Editar Venta</div>
-    <div class="form-grid cols2" style="gap:12px">
-      <div class="form-group"><label>Fecha</label><input type="date" id="ev-fecha"></div>
-      <div class="form-group"><label>Canal</label>
-        <select id="ev-canal"><option value="Minorista">Minorista</option><option value="Mayorista">Mayorista</option></select>
-      </div>
-      <div class="form-group"><label>Cliente</label><input id="ev-cliente"></div>
-      <div class="form-group"><label>Producto</label><input id="ev-producto"></div>
-      <div class="form-group"><label>Cantidad</label><input type="number" id="ev-cant" oninput="actualizarPreviewEditar()"></div>
-      <div class="form-group"><label>Precio Unit.</label><input type="number" id="ev-precioU" oninput="actualizarPreviewEditar()"></div>
-      <div class="form-group"><label>Costo Unit.</label><input type="number" id="ev-costoU" oninput="actualizarPreviewEditar()"></div>
-      <div class="form-group"><label>Forma de Pago</label>
-        <select id="ev-fpago">
-          <option>Transferencia</option><option>Efectivo</option>
-          <option>Echeq</option><option>Cuenta corriente</option>
-        </select>
-      </div>
-      <div class="form-group"><label>Pagado</label>
-        <select id="ev-pagado"><option value="Sí">Sí</option><option value="No">No</option></select>
-      </div>
-      <div class="form-group"><label>Tipo Entrega</label>
-        <select id="ev-entrega">
-          <option>Propio</option><option>Envío transporte</option>
-          <option>Retiro cliente</option><option>Retiro transporte</option>
-        </select>
-      </div>
-      <div class="form-group"><label>Entregado</label>
-        <select id="ev-entregado"><option value="Sí">Sí</option><option value="No">No</option></select>
-      </div>
-      <div class="form-group"><label>N° Factura</label><input id="ev-nroFactura" placeholder="Opcional"></div>
-    </div>
-    <div class="form-group" style="margin-top:12px">
-      <div style="background:var(--surface);border-radius:8px;padding:12px;font-family:var(--mono);font-size:13px;display:flex;gap:24px">
-        <div>Total: <span id="ev-total-preview" style="color:var(--green);font-weight:600">$0</span></div>
-        <div>Costo: <span id="ev-costo-preview" style="color:var(--muted)">$0</span></div>
-        <div>Ganancia: <span id="ev-gan-preview" style="color:var(--accent2)">$0</span></div>
-      </div>
-    </div>
-    <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end">
-      <button class="btn btn-ghost" onclick="cerrarModal('modal-editar-venta')">Cancelar</button>
-      <button class="btn btn-primary" onclick="guardarEdicionVenta()">💾 Guardar Cambios</button>
-    </div>
-  </div>
-</div>
+
 
 
 <!-- MODAL EDITAR CLIENTE -->
