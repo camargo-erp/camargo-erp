@@ -346,6 +346,7 @@
     </div>
     <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end">
       <button class="btn btn-ghost" onclick="cerrarModal('modal-editar-venta')">Cancelar</button>
+      <button class="btn btn-warn btn-sm" onclick="eliminarVenta(editIdx)" style="margin-right:auto;color:#ff4d6a;background:rgba(255,77,106,0.1);border:1px solid rgba(255,77,106,0.3)">🗑️ Eliminar</button>
       <button class="btn btn-primary" onclick="guardarEdicionVenta()">💾 Guardar Cambios</button>
     </div>
   </div>
@@ -3702,6 +3703,20 @@ function actualizarPreviewEditar() {
   document.getElementById('ev-total-preview').textContent = '$'+total.toLocaleString('es-AR');
   document.getElementById('ev-costo-preview').textContent = '$'+costoT.toLocaleString('es-AR');
   document.getElementById('ev-gan-preview').textContent = '$'+gan.toLocaleString('es-AR');
+}
+
+function eliminarVenta(idx) {
+  if(idx < 0 || idx >= VENTAS.length) return;
+  const v = VENTAS[idx];
+  if(!confirm(`¿Eliminar la venta de ${v.cliente} por ${v.total.toLocaleString('es-AR')}?`)) return;
+  VENTAS.splice(idx, 1);
+  cerrarModal('modal-editar-venta');
+  renderVentas();
+  actualizarBadge();
+  renderDashboard();
+  // Eliminar también en Sheets
+  gsCall('deleteVenta', {idx});
+  notify('🗑️ Venta eliminada');
 }
 
 async function guardarEdicionVenta() {
