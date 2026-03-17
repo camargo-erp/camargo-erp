@@ -163,10 +163,23 @@
   <div class="nav-tab" onclick="showPage('transportes')">🚚 Transportes</div>
   <div class="nav-tab" onclick="showPage('reporte-contador')">📋 Reporte Contador</div>
   <div class="nav-tab" onclick="showPage('compras')">🛒 Compras</div>
-  <div class="nav-right">
+  <div class="nav-right" style="display:flex;align-items:center;gap:8px">
+    <div style="position:relative;cursor:pointer" onclick="toggleAlertas()" id="btn-alertas" title="Alertas">
+      <span style="font-size:18px">🔔</span>
+      <span id="badge-alertas" style="display:none;position:absolute;top:-4px;right:-4px;background:#ff4d6a;color:#fff;border-radius:50%;font-size:9px;font-weight:700;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-family:var(--mono)">0</span>
+    </div>
     <span style="font-size:12px;color:var(--muted)" id="nav-fecha"></span>
   </div>
 </nav>
+
+<!-- PANEL ALERTAS -->
+<div id="panel-alertas" style="display:none;position:fixed;top:56px;right:12px;width:340px;max-height:480px;overflow-y:auto;background:var(--surface2);border:1px solid var(--border);border-radius:12px;z-index:800;box-shadow:0 8px 32px rgba(0,0,0,0.4);font-family:DM Sans,sans-serif">
+  <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+    <div style="font-weight:700;font-size:14px">🔔 Alertas</div>
+    <div style="font-size:11px;color:var(--muted);cursor:pointer" onclick="toggleAlertas()">✕ Cerrar</div>
+  </div>
+  <div id="alertas-contenido" style="padding:10px"></div>
+</div>
 
 
 <div id="login-screen">
@@ -352,6 +365,17 @@
   </div>
 </div>
 
+<!-- MODAL DETALLE GENERAL -->
+<div class="modal-overlay" id="modal-detalle">
+  <div class="modal" style="max-width:700px;max-height:80vh;overflow-y:auto">
+    <div class="modal-title" id="modal-detalle-titulo">Detalle</div>
+    <div id="modal-detalle-contenido"></div>
+    <div style="margin-top:16px;display:flex;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="cerrarModal('modal-detalle')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL NUEVO CLIENTE -->
 <div class="modal-overlay" id="modal-cliente">
   <div class="modal">
@@ -471,6 +495,10 @@
   <div style="font-size:11px;font-weight:600;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin:24px 0 12px">Análisis Avanzado</div>
   <div class="grid3" id="dash-kpis-avanzados" style="margin-bottom:16px"></div>
   <div class="grid2" id="dash-kpis-avanzados2" style="margin-bottom:24px"></div>
+
+  <!-- MÁRGENES POR PRODUCTO -->
+  <div style="font-size:11px;font-weight:600;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin:8px 0 12px">Márgenes por Producto</div>
+  <div class="card" id="dash-margenes-producto" style="margin-bottom:24px"></div>
 </div>
 
 <!-- ===== VENTAS ===== -->
@@ -2314,7 +2342,7 @@ function renderKPIsAvanzados() {
           </div>
         </div>
         <div style="font-size:11px;color:var(--muted)">Rotación: <b style="color:${rotacion>='80'?'var(--green)':'var(--yellow)'}">${rotacion}%</b> vendido vs comprado</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:4px">Clientes únicos: <b>${clientesUnicos}</b> · Frec. prom: <b>${freqProm} ops/cliente</b></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">Clientes únicos: <b>${clientesUnicos}</b> · <span style='color:var(--accent);cursor:pointer;text-decoration:underline dotted' onclick='verFrecuenciaCompra()'>Frec. prom: <b>${freqProm} ops/cliente</b> →</span></div>
       </div>
     </div>`;
 
@@ -2339,7 +2367,7 @@ function renderKPIsAvanzados() {
     <div class="card">
       <div class="card-title" style="display:flex;justify-content:space-between">
         <span>⚠️ Pendientes Críticos <span style="color:var(--warn)">(+7 días sin entregar)</span></span>
-        <span style="font-size:11px;color:var(--muted)">${criticos.length} ops</span>
+        <span style="font-size:11px;color:var(--accent);cursor:pointer;text-decoration:underline dotted" onclick="verPendientesCriticos()">${criticos.length} ops — ver todos</span>
       </div>
       <div style="margin-top:10px">
         <div style="display:flex;gap:24px;margin-bottom:12px">
@@ -2353,9 +2381,9 @@ function renderKPIsAvanzados() {
             <div style="font-size:16px;font-weight:700;font-family:var(--mono);color:var(--accent2)">${fmt(ticketMayor)}</div>
             <div style="font-size:10px;color:var(--muted)">${mayor.length} ops</div>
           </div>
-          <div>
+          <div style="cursor:pointer" onclick="verClientesInactivos()" title="Ver detalle">
             <div style="font-size:11px;color:var(--muted)">😴 Clientes inactivos</div>
-            <div style="font-size:16px;font-weight:700;font-family:var(--mono);color:var(--yellow)">${inactivos.length}</div>
+            <div style="font-size:16px;font-weight:700;font-family:var(--mono);color:var(--yellow);text-decoration:underline dotted">${inactivos.length}</div>
             <div style="font-size:10px;color:var(--muted)">sin comprar 60+ días</div>
           </div>
         </div>
@@ -2373,6 +2401,70 @@ function renderKPIsAvanzados() {
             }).join('')}
           </div>` : `<div style="font-size:12px;color:var(--green);text-align:center;padding:8px">✅ Sin pendientes críticos</div>`}
       </div>
+    </div>`;
+  // Márgenes por producto
+  renderMargenesPorProducto(vf);
+}
+
+function renderMargenesPorProducto(vf) {
+  const el = document.getElementById('dash-margenes-producto');
+  if(!el) return;
+  if(!vf.length){ el.innerHTML='<div style="color:var(--muted);padding:16px">Sin datos</div>'; return; }
+
+  // Agrupar por producto
+  const byProd = {};
+  vf.forEach(v=>{
+    const prod = v.producto.length>40 ? v.producto.substring(0,40)+'…' : v.producto;
+    if(!byProd[prod]) byProd[prod]={ventas:0,gan:0,cant:0,ops:0,meses:{}};
+    byProd[prod].ventas+=v.total;
+    byProd[prod].gan+=v.gan;
+    byProd[prod].cant+=v.cant;
+    byProd[prod].ops++;
+    const mesKey=(v.fecha.split('/')||[])[1]+'/'+((v.fecha.split('/')||[])[2]||'');
+    if(!byProd[prod].meses[mesKey]) byProd[prod].meses[mesKey]={ventas:0,gan:0,ops:0};
+    byProd[prod].meses[mesKey].ventas+=v.total;
+    byProd[prod].meses[mesKey].gan+=v.gan;
+    byProd[prod].meses[mesKey].ops++;
+  });
+
+  const prods = Object.entries(byProd).sort((a,b)=>b[1].ventas-a[1].ventas);
+  const maxV = prods[0]?.[1]?.ventas||1;
+
+  const filas = prods.map(([nombre,d])=>{
+    const margen = d.ventas>0?(d.gan/d.ventas*100):0;
+    const color  = margen>=50?'var(--green)':margen>=30?'var(--accent2)':margen>=15?'var(--yellow)':'var(--warn)';
+    const ticket = d.ops>0?Math.round(d.ventas/d.ops):0;
+    return `<tr>
+      <td style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${nombre}"><b>${nombre}</b></td>
+      <td style="font-family:var(--mono);font-size:12px">${d.ops}</td>
+      <td style="font-family:var(--mono);font-size:12px">${d.cant.toLocaleString('es-AR')} Lts</td>
+      <td style="font-family:var(--mono);font-size:12px;color:var(--accent)">$${Math.round(d.ventas/1000)}K</td>
+      <td style="font-family:var(--mono);font-size:12px;color:var(--green)">$${Math.round(d.gan/1000)}K</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="height:6px;width:${(d.ventas/maxV*80).toFixed(0)}px;background:${color};border-radius:3px;min-width:4px"></div>
+          <span style="font-family:var(--mono);font-size:12px;font-weight:700;color:${color}">${margen.toFixed(1)}%</span>
+        </div>
+      </td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--muted)">$${ticket.toLocaleString('es-AR')}</td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="card-title">📦 Rentabilidad por Producto — ${dashPeriodo==='all'?'Histórico':dashPeriodo==='year'?document.getElementById('dash-anio-sel').value:'Mes seleccionado'}</div>
+    <div class="table-wrap" style="margin-top:12px">
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="color:var(--muted);font-size:10px;text-transform:uppercase">
+          <th style="padding:6px 8px">Producto</th>
+          <th style="text-align:center">Ops</th>
+          <th>Cantidad</th>
+          <th>Ventas</th>
+          <th>Ganancia</th>
+          <th>Margen</th>
+          <th>Ticket prom.</th>
+        </tr></thead>
+        <tbody>${filas}</tbody>
+      </table>
     </div>`;
 }
 
@@ -2677,8 +2769,15 @@ function renderVentas() {
       .some(id=>document.getElementById(id)?.value);
     cnt.textContent = hayFiltro ? `${filtradas.length} de ${VENTAS.length} ventas` : `${VENTAS.length} ventas`;
   }
-  tb.innerHTML=filtradas.map((v)=>{
-    // Buscar índice real en VENTAS por clave única (evita fallo de indexOf con objetos distintos)
+  // Ordenar de más reciente a más antigua
+  const filtradas_ord = [...filtradas].sort((a,b)=>{
+    const pa=a.fecha.split('/'), pb=b.fecha.split('/');
+    const da=new Date(parseInt(pa[2]),parseInt(pa[1])-1,parseInt(pa[0]));
+    const db=new Date(parseInt(pb[2]),parseInt(pb[1])-1,parseInt(pb[0]));
+    return db-da;
+  });
+  tb.innerHTML=filtradas_ord.map((v)=>{
+    // Buscar índice real en VENTAS por clave única
     const i = VENTAS.findIndex(x => x.fecha===v.fecha && x.cliente===v.cliente && x.total===v.total && x.producto===v.producto);
     return `
     <tr>
@@ -4099,10 +4198,245 @@ async function gsGuardarCompra(compra) {
   await gsCall('saveCompra', {compra});
 }
 
+// =========== ALERTAS ===========
+function toggleAlertas() {
+  const panel = document.getElementById('panel-alertas');
+  if(panel.style.display==='none') {
+    calcularAlertas();
+    panel.style.display='block';
+  } else {
+    panel.style.display='none';
+  }
+  // Cerrar al clickear fuera
+  setTimeout(()=>{
+    document.addEventListener('click', function cerrar(e){
+      if(!panel.contains(e.target) && e.target.id!=='btn-alertas' && !document.getElementById('btn-alertas').contains(e.target)){
+        panel.style.display='none';
+        document.removeEventListener('click',cerrar);
+      }
+    });
+  },100);
+}
+
+function calcularAlertas() {
+  const hoy = new Date();
+  const alertas = [];
+
+  // 1. Clientes sin comprar hace 30+ días (top compradores)
+  const byCliente = {};
+  VENTAS.forEach(v=>{
+    const p=v.fecha.split('/');
+    if(p.length===3){
+      const d=new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0]));
+      if(!byCliente[v.cliente]||d>byCliente[v.cliente].ultima) {
+        byCliente[v.cliente]={ultima:d, total:(byCliente[v.cliente]?.total||0)+v.total};
+      } else {
+        byCliente[v.cliente].total += v.total;
+      }
+    }
+  });
+  const hace30=new Date(); hace30.setDate(hace30.getDate()-30);
+  const inact30 = Object.entries(byCliente)
+    .filter(([,d])=>d.ultima<hace30 && d.total>500000)
+    .sort((a,b)=>b[1].total-a[1].total).slice(0,3);
+  if(inact30.length) {
+    inact30.forEach(([nombre,d])=>{
+      const dias=Math.floor((hoy-d.ultima)/86400000);
+      alertas.push({tipo:'warn', icono:'😴', msg:`<b>${nombre}</b> sin comprar hace <b>${dias} días</b>`, sub:`Facturado histórico: $${Math.round(d.total/1000)}K`});
+    });
+  }
+
+  // 2. Pendientes sin entregar +7 días
+  const criticos = VENTAS.filter(v=>{
+    if(v.entregado==='Sí') return false;
+    const p=v.fecha.split('/');
+    if(p.length!==3) return false;
+    const d=new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0]));
+    return (hoy-d)>7*24*60*60*1000;
+  });
+  if(criticos.length) {
+    alertas.push({tipo:'error', icono:'⚠️', msg:`<b>${criticos.length} entregas críticas</b> sin resolver (+7 días)`, sub:'Tocá para ver el detalle', accion:'verPendientesCriticos()'});
+  }
+
+  // 3. Ventas con margen menor al 10%
+  const bajoMargen = VENTAS.filter(v=>getAnioVenta(v.fecha)===new Date().getFullYear() && v.margen>0 && v.margen<0.10);
+  if(bajoMargen.length) {
+    alertas.push({tipo:'warn', icono:'📉', msg:`<b>${bajoMargen.length} ventas</b> con margen menor al 10% este año`, sub:`Total afectado: $${Math.round(bajoMargen.reduce((s,v)=>s+v.total,0)/1000)}K`});
+  }
+
+  // 4. Sin compras registradas este mes
+  const mesAct=hoy.getMonth()+1, anioAct=hoy.getFullYear();
+  const comprasMes=COMPRAS.filter(c=>{const p=c.fecha.split('/');return parseInt(p[2])===anioAct&&parseInt(p[1])===mesAct;});
+  if(!comprasMes.length) {
+    alertas.push({tipo:'info', icono:'🛒', msg:`Sin compras registradas en ${['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][mesAct]}`, sub:'Registrá tus compras para ver la rotación de stock'});
+  }
+
+  // Actualizar badge
+  const badge=document.getElementById('badge-alertas');
+  if(badge){
+    if(alertas.length>0){
+      badge.textContent=alertas.length;
+      badge.style.display='flex';
+    } else {
+      badge.style.display='none';
+    }
+  }
+
+  // Renderizar panel
+  const cont=document.getElementById('alertas-contenido');
+  if(!cont) return;
+  if(!alertas.length){
+    cont.innerHTML='<div style="text-align:center;padding:20px;color:var(--green)">✅ Todo en orden, sin alertas</div>';
+    return;
+  }
+  const colores={error:'rgba(255,77,106,0.12)',warn:'rgba(255,209,102,0.12)',info:'rgba(61,127,255,0.12)'};
+  const bordes={error:'#ff4d6a',warn:'#ffd166',info:'#3d7fff'};
+  cont.innerHTML=alertas.map(a=>`
+    <div style="background:${colores[a.tipo]};border-left:3px solid ${bordes[a.tipo]};border-radius:8px;padding:10px 12px;margin-bottom:8px;cursor:${a.accion?'pointer':'default'}"
+      ${a.accion?`onclick="${a.accion};document.getElementById('panel-alertas').style.display='none'"`:''}>
+      <div style="font-size:13px">${a.icono} ${a.msg}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:3px">${a.sub}</div>
+    </div>`).join('');
+}
+
+// =========== MODAL DETALLE ===========
+function abrirDetalle(titulo, contenidoHTML) {
+  document.getElementById('modal-detalle-titulo').textContent = titulo;
+  document.getElementById('modal-detalle-contenido').innerHTML = contenidoHTML;
+  document.getElementById('modal-detalle').classList.add('show');
+}
+
+function verPendientesCriticos() {
+  const hoy = new Date();
+  const criticos = VENTAS.map((v,i)=>({v,i})).filter(({v})=>{
+    if(v.entregado==='Sí') return false;
+    const p=v.fecha.split('/');
+    if(p.length!==3) return false;
+    const d=new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0]));
+    return (hoy-d)>7*24*60*60*1000;
+  }).sort((a,b)=>{
+    const pa=a.v.fecha.split('/'),pb=b.v.fecha.split('/');
+    return new Date(parseInt(pa[2]),parseInt(pa[1])-1,parseInt(pa[0]))-new Date(parseInt(pb[2]),parseInt(pb[1])-1,parseInt(pb[0]));
+  });
+
+  if(!criticos.length){
+    abrirDetalle('⚠️ Pendientes Críticos','<div style="text-align:center;padding:20px;color:var(--green)">✅ Sin pendientes críticos</div>');
+    return;
+  }
+
+  const filas = criticos.map(({v,i})=>{
+    const p=v.fecha.split('/');
+    const d=new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0]));
+    const dias=Math.floor((hoy-d)/86400000);
+    return `<tr>
+      <td style="color:var(--warn);font-weight:700">${dias}d</td>
+      <td>${v.fecha}</td>
+      <td><b>${v.cliente}</b></td>
+      <td style="font-family:var(--mono)">${v.cant} Lts</td>
+      <td style="font-family:var(--mono);color:var(--accent)">$${v.total.toLocaleString('es-AR')}</td>
+      <td>${v.entrega}</td>
+      <td><button class="btn btn-primary btn-sm" onclick="marcarEntregadoDesdeDetalle(${i})">✓ Entregar</button></td>
+    </tr>`;
+  }).join('');
+
+  abrirDetalle(`⚠️ Pendientes Críticos — ${criticos.length} ops`,`
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead><tr style="color:var(--muted);font-size:11px;text-transform:uppercase">
+        <th style="padding:6px">Días</th><th>Fecha</th><th>Cliente</th><th>Cant.</th><th>Total</th><th>Entrega</th><th></th>
+      </tr></thead>
+      <tbody>${filas}</tbody>
+    </table>`);
+}
+
+function marcarEntregadoDesdeDetalle(idx) {
+  VENTAS[idx].entregado = 'Sí';
+  gsActualizarVenta(idx, {entregado:'Sí'});
+  cerrarModal('modal-detalle');
+  actualizarBadge();
+  renderDashboard();
+  notify('✓ Marcado como entregado');
+}
+
+function verClientesInactivos() {
+  const hoy = new Date();
+  const hace60 = new Date(); hace60.setDate(hace60.getDate()-60);
+  const byCliente = {};
+  VENTAS.forEach(v=>{
+    const p=v.fecha.split('/');
+    if(p.length===3){
+      const d=new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0]));
+      if(!byCliente[v.cliente]) byCliente[v.cliente]={ultima:d,ops:0,total:0};
+      if(d>byCliente[v.cliente].ultima) byCliente[v.cliente].ultima=d;
+      byCliente[v.cliente].ops++;
+      byCliente[v.cliente].total+=v.total;
+    }
+  });
+  const inactivos=Object.entries(byCliente)
+    .filter(([,d])=>d.ultima<hace60)
+    .sort((a,b)=>a[1].ultima-b[1].ultima);
+
+  if(!inactivos.length){
+    abrirDetalle('😴 Clientes Inactivos','<div style="text-align:center;padding:20px;color:var(--green)">✅ Todos los clientes activos</div>');
+    return;
+  }
+
+  const filas=inactivos.map(([nombre,d])=>{
+    const dias=Math.floor((hoy-d.ultima)/86400000);
+    return `<tr>
+      <td><b>${nombre}</b></td>
+      <td style="color:var(--warn);font-weight:700">${dias} días</td>
+      <td>${d.ultima.toLocaleDateString('es-AR')}</td>
+      <td style="font-family:var(--mono)">${d.ops} ops</td>
+      <td style="font-family:var(--mono);color:var(--accent)">$${Math.round(d.total/1000)}K</td>
+    </tr>`;
+  }).join('');
+
+  abrirDetalle(`😴 Clientes Inactivos — ${inactivos.length}`,`
+    <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Sin compras en los últimos 60 días</p>
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead><tr style="color:var(--muted);font-size:11px;text-transform:uppercase">
+        <th style="padding:6px">Cliente</th><th>Inactivo hace</th><th>Última compra</th><th>Ops totales</th><th>Facturado</th>
+      </tr></thead>
+      <tbody>${filas}</tbody>
+    </table>`);
+}
+
+function verFrecuenciaCompra() {
+  const byCliente = {};
+  VENTAS.forEach(v=>{
+    if(!byCliente[v.cliente]) byCliente[v.cliente]={ops:0,total:0,fechas:[]};
+    byCliente[v.cliente].ops++;
+    byCliente[v.cliente].total+=v.total;
+    byCliente[v.cliente].fechas.push(v.fecha);
+  });
+  const lista=Object.entries(byCliente)
+    .map(([nombre,d])=>({nombre,ops:d.ops,total:d.total,ticketProm:Math.round(d.total/d.ops)}))
+    .sort((a,b)=>b.ops-a.ops);
+
+  const filas=lista.slice(0,30).map((c,i)=>`
+    <tr>
+      <td style="color:var(--muted);font-size:11px">${i+1}</td>
+      <td><b>${c.nombre}</b></td>
+      <td style="text-align:center;font-family:var(--mono);font-weight:700;color:var(--accent)">${c.ops}</td>
+      <td style="font-family:var(--mono);color:var(--green)">$${Math.round(c.total/1000)}K</td>
+      <td style="font-family:var(--mono)">$${c.ticketProm.toLocaleString('es-AR')}</td>
+    </tr>`).join('');
+
+  abrirDetalle('📊 Frecuencia de Compra por Cliente',`
+    <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Top 30 clientes por cantidad de operaciones — histórico completo</p>
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead><tr style="color:var(--muted);font-size:11px;text-transform:uppercase">
+        <th style="padding:6px">#</th><th>Cliente</th><th style="text-align:center">Ops</th><th>Facturado</th><th>Ticket prom.</th>
+      </tr></thead>
+      <tbody>${filas}</tbody>
+    </table>`);
+}
+
 // =========== INIT ===========
 document.getElementById('nav-fecha').textContent = new Date().toLocaleDateString('es-AR',{month:'long',year:'numeric'});
 actualizarBadge();
 cargarDesdeSheets(); // Carga datos desde Sheets y luego renderiza
+setTimeout(()=>calcularAlertas(), 3000); // Calcular alertas después de cargar
 </script>
 
 
