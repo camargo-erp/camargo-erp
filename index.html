@@ -162,7 +162,7 @@
   <div class="nav-tab" onclick="showPage('clientes')">👥 Clientes</div>
   <div class="nav-tab" onclick="showPage('transportes')">🚚 Transportes</div>
   <div class="nav-tab" onclick="showPage('reporte-contador')">📋 Reporte Contador</div>
-  <div class="nav-tab" onclick="showPage('compras')">🛒 Compras</div>
+  <div class="nav-tab" onclick="showPage('compras')">🛒 Compras</div><div class="nav-tab" onclick="showPage('arrayan')">🏭 Arrayan</div>
   <div class="nav-right" style="display:flex;align-items:center;gap:8px">
     <div style="position:relative;cursor:pointer" onclick="toggleAlertas()" id="btn-alertas" title="Alertas">
       <span style="font-size:18px">🔔</span>
@@ -316,7 +316,7 @@
   </div>
 </div>
 
-<!-- MODAL EDITAR VENTA -->
+<!-- ===== ARRAYAN ===== --><div class="page" id="page-arrayan"><div class="section-header"><div class="section-title">🏭 Cuenta Corriente — Arrayan</div><div style="display:flex;gap:8px"><button class="btn btn-warn btn-sm" onclick="exportArrayanExcel()">📊 Excel</button></div></div><div class="kpi-grid" id="arrayan-kpis" style="margin-bottom:24px"></div><div class="card"><div class="card-title">Movimientos — Créditos (pagos de clientes) y Débitos (compras en Arrayan)</div><div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Descripción</th><th style="text-align:right">Crédito</th><th style="text-align:right">Débito</th><th style="text-align:right">Saldo</th></tr></thead><tbody id="arrayan-body"></tbody></table></div></div></div><!-- MODAL EDITAR VENTA -->
 <div class="modal-overlay" id="modal-editar-venta">
   <div class="modal" style="max-width:640px">
     <div class="modal-title">✏️ Editar Venta</div>
@@ -577,7 +577,7 @@
     </div>
     <div style="font-size:11px;color:#c084fc;margin-top:8px">⚠️ El precio y costo ingresados aquí quedarán congelados en la venta. No modifican la tabla maestra.</div>
   </div>
-
+<div class="toggle-wrap" style="background:#0f1f1a;border-color:#1a4a3a;margin-bottom:14px"><label class="toggle"><input type="checkbox" id="toggle-arrayan"><span class="toggle-slider" style="background:#1a3a2a"></span></label><span class="toggle-label">🏭 <strong style="color:#00d4aa">Paga a Arrayan</strong> — El cliente transfiere directo a Arrayan. Queda como saldo a favor para retiro de mercadería.</span></div>
   <div class="grid2">
     <div class="card">
       <div class="card-title">Datos de la Venta</div>
@@ -2024,12 +2024,12 @@ function showPage(id) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
-  const tabs={'dashboard':0,'ventas':1,'nueva-venta':2,'pendientes':3,'precios':4,'clientes':5,'transportes':6,'reporte-contador':7,'compras':8};
+  const tabs={'dashboard':0,'ventas':1,'nueva-venta':2,'pendientes':3,'precios':4,'clientes':5,'transportes':6,'reporte-contador':7,'compras':8,'arrayan':9};
   document.querySelectorAll('.nav-tab')[tabs[id]]?.classList.add('active');
   if(id==='ventas') renderVentas();
   if(id==='pendientes') renderPendientes();
   if(id==='reporte-contador') renderReporteContador();
-  if(id==='compras') renderCompras();
+  if(id==='compras') renderCompras();if(id==='arrayan') renderArrayan();
   if(id==='precios') renderPrecios();
   if(id==='nueva-venta') initForm();
   if(id==='dashboard') renderDashboard();
@@ -2817,7 +2817,7 @@ function initForm() {
   const st=document.getElementById('nv-transporte');
   st.innerHTML='<option value="">—</option>'+TRANSPORTES.map(t=>`<option>${t.nombre}</option>`).join('');
   // Reset toggle
-  document.getElementById('toggle-especial').checked=false;
+  document.getElementById('toggle-especial').checked=false;document.getElementById('toggle-arrayan').checked=false;
   document.getElementById('especial-fields').classList.remove('show');
 }
 
@@ -3676,14 +3676,16 @@ async function guardarVenta() {
     cant,precioU:pc.precio,total,costoU:pc.costo,
     costoT:costoTotal,gan,margen:total>0?gan/total:0,
     fpago,pagado,entrega,entregado:'No',
-    frozen:true,especial:espe||false
-  };
-  VENTAS.unshift(venta);
-  actualizarBadge();
-  notify('✓ Venta guardada'+(espe?' con precio especial':''));
-  limpiarForm();
-  showPage('ventas');
-  await gsGuardarVenta(venta);
+    frozen:true,especial:espe||false,
+    arrayan:document.getElementById('toggle-arrayan').checked
+};
+VENTAS.unshift(venta);
+actualizarBadge();
+const _isArr=document.getElementById('toggle-arrayan').checked;
+notify('✓ Venta guardada'+(espe?' con precio especial':'')+(_isArr?' — 🏭 Arrayan':''));
+limpiarForm();
+showPage('ventas');
+await gsGuardarVenta(venta);
 }
 
 // Override guardarCliente
@@ -4432,7 +4434,7 @@ function verFrecuenciaCompra() {
     </table>`);
 }
 
-// =========== INIT ===========
+function renderArrayan(){const creditos=VENTAS.filter(v=>v.arrayan).map(v=>({fecha:v.fecha,tipo:'credito',desc:v.cliente+' — '+v.producto.substring(0,50)+' ('+v.cant+' Lts)',monto:v.total}));const debitos=COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')).map(c=>({fecha:c.fecha,tipo:'debito',desc:'Compra: '+c.producto+' ('+c.cant+' '+(c.unidad||'Lts')+') — '+c.proveedor,monto:c.costoTotal}));const movs=[...creditos,...debitos].sort((a,b)=>{const pa=a.fecha.split('/'),pb=b.fecha.split('/');return new Date(parseInt(pa[2]||0),parseInt(pa[1]||1)-1,parseInt(pa[0]||1))-new Date(parseInt(pb[2]||0),parseInt(pb[1]||1)-1,parseInt(pb[0]||1));});let saldo=0;const rows=movs.map(m=>{if(m.tipo==='credito')saldo+=m.monto;else saldo-=m.monto;const sc=saldo>=0?'var(--green)':'var(--red)';return '<tr><td>'+m.fecha+'</td><td><span class="chip '+(m.tipo==='credito'?'green':'red')+'">'+(m.tipo==='credito'?'➕ Crédito':'➖ Débito')+'</span></td><td style="font-size:12px">'+m.desc+'</td><td style="text-align:right;font-family:var(--mono);color:var(--green)">'+(m.tipo==='credito'?fmt(m.monto):'—')+'</td><td style="text-align:right;font-family:var(--mono);color:var(--red)">'+(m.tipo==='debito'?fmt(m.monto):'—')+'</td><td style="text-align:right;font-family:var(--mono);font-weight:700;color:'+sc+'">'+fmt(saldo)+'</td></tr>';});document.getElementById('arrayan-body').innerHTML=rows.length?rows.join(''):'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Sin movimientos. Registrá compras con proveedor <b>Arrayan</b> y marcá ventas con el toggle 🏭</td></tr>';const totalCred=creditos.reduce((s,m)=>s+m.monto,0);const totalDeb=debitos.reduce((s,m)=>s+m.monto,0);const sf=totalCred-totalDeb;const sc2=sf>=0?'var(--green)':'var(--red)';const saldoLabel=sf>=0?'A tu favor — Arrayan te debe mercadería':'Debés a Arrayan — retirá mercadería para saldar';document.getElementById('arrayan-kpis').innerHTML='<div class="kpi highlight2"><div class="kpi-label">💰 Saldo Actual</div><div class="kpi-value" style="color:'+sc2+'">'+fmt(Math.abs(sf))+'</div><div class="kpi-sub">'+saldoLabel+'</div></div><div class="kpi"><div class="kpi-label">➕ Total Créditos</div><div class="kpi-value accent">'+fmt(totalCred)+'</div><div class="kpi-sub">'+creditos.length+' pagos de clientes</div></div><div class="kpi"><div class="kpi-label">➖ Total Débitos</div><div class="kpi-value" style="color:var(--red)">'+fmt(totalDeb)+'</div><div class="kpi-sub">'+debitos.length+' compras en Arrayan</div></div><div class="kpi"><div class="kpi-label">📦 Movimientos</div><div class="kpi-value">'+movs.length+'</div><div class="kpi-sub">Total de operaciones</div></div>';}function exportArrayanExcel(){const cred=VENTAS.filter(v=>v.arrayan).map(v=>({'Fecha':v.fecha,'Tipo':'Credito','Descripcion':v.cliente+' - '+v.producto,'Credito ($)':v.total,'Debito ($)':'','Cantidad':v.cant,'Saldo':''}));const deb=COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')).map(c=>({'Fecha':c.fecha,'Tipo':'Debito','Descripcion':'Compra: '+c.producto+' ('+c.cant+' '+(c.unidad||'')+')', 'Credito ($)':'','Debito ($)':c.costoTotal,'Cantidad':c.cant,'Saldo':''}));const movs=[...cred,...deb].sort((a,b)=>{const pa=a['Fecha'].split('/'),pb=b['Fecha'].split('/');return new Date(parseInt(pa[2]),parseInt(pa[1])-1,parseInt(pa[0]))-new Date(parseInt(pb[2]),parseInt(pb[1])-1,parseInt(pb[0]));});let s=0;movs.forEach(m=>{s+=(parseFloat(m['Credito ($)'])||0)-(parseFloat(m['Debito ($)'])||0);m['Saldo']='$'+Math.round(s).toLocaleString('es-AR');});if(!movs.length){notify('Sin movimientos para exportar');return;}const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(movs),'Cuenta Corriente Arrayan');XLSX.writeFile(wb,'cuenta_corriente_arrayan.xlsx');notify('✓ Excel Arrayan exportado');}// =========== INIT ===========
 document.getElementById('nav-fecha').textContent = new Date().toLocaleDateString('es-AR',{month:'long',year:'numeric'});
 actualizarBadge();
 cargarDesdeSheets(); // Carga datos desde Sheets y luego renderiza
