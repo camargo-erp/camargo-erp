@@ -625,7 +625,7 @@
     </div>
     <div style="font-size:11px;color:#c084fc;margin-top:8px">⚠️ El precio y costo ingresados aquí quedarán congelados en la venta. No modifican la tabla maestra.</div>
   </div>
-<div class="toggle-wrap" style="background:#0f1f1a;border-color:#1a4a3a;margin-bottom:14px"><label class="toggle"><input type="checkbox" id="toggle-arrayan"><span class="toggle-slider" style="background:#1a3a2a"></span></label><span class="toggle-label">🏭 <strong style="color:#00d4aa">Paga a Arrayan</strong> — El cliente transfiere directo a Arrayan. Queda como saldo a favor para retiro de mercadería.</span></div>
+<div class="toggle-wrap" style="background:#0f1f1a;border-color:#1a4a3a;margin-bottom:14px;opacity:0.5;transition:opacity .2s" id="toggle-arrayan-wrap"><label class="toggle"><input type="checkbox" id="toggle-arrayan" onchange="toggleArrayanChange()"><span class="toggle-slider" style="background:#1a3a2a"></span></label><span class="toggle-label">🏭 <strong style="color:#00d4aa">Paga a Arrayan</strong> — El cliente transfiere directo a Arrayan. Queda como saldo a favor para retiro de mercadería.</span></div>
   <div class="grid2">
     <div class="card">
       <div class="card-title">Datos de la Venta</div>
@@ -653,8 +653,8 @@
       </div>
       <div class="form-grid" style="margin-bottom:14px">
         <div class="form-group"><label>Forma de Pago</label>
-          <select id="nv-fpago">
-            <option>Transferencia</option><option>Efectivo</option><option>Echeq</option><option>Cuenta corriente</option>
+          <select id="nv-fpago" onchange="toggleFpagoArrayan()">
+            <option>Transferencia</option><option>Efectivo</option><option>Echeq</option>
           </select>
         </div>
         <div class="form-group"><label>Pagado</label>
@@ -2869,6 +2869,27 @@ function initForm() {
   document.getElementById('especial-fields').classList.remove('show');
 }
 
+function toggleArrayanChange() {
+  const on = document.getElementById('toggle-arrayan').checked;
+  const wrap = document.getElementById('toggle-arrayan-wrap');
+  wrap.style.opacity = on ? '1' : '0.5';
+  // Si está ON, agregar cuenta corriente al select de forma de pago
+  const fpago = document.getElementById('nv-fpago');
+  const yaExiste = Array.from(fpago.options).some(o => o.value === 'Cuenta corriente');
+  if(on && !yaExiste) {
+    const opt = document.createElement('option');
+    opt.value = 'Cuenta corriente';
+    opt.text = 'Cuenta corriente Arrayan';
+    fpago.appendChild(opt);
+  } else if(!on) {
+    Array.from(fpago.options).forEach(o => {
+      if(o.value === 'Cuenta corriente') fpago.removeChild(o);
+    });
+  }
+}
+
+function toggleFpagoArrayan() {}
+
 function togglePrecioEspecial() {
   const on=document.getElementById('toggle-especial').checked;
   document.getElementById('especial-fields').classList.toggle('show',on);
@@ -2975,6 +2996,12 @@ function limpiarForm(){
     .forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('toggle-especial').checked=false;
   document.getElementById('especial-fields').classList.remove('show');
+  // Reset toggle arrayan
+  document.getElementById('toggle-arrayan').checked=false;
+  document.getElementById('toggle-arrayan-wrap').style.opacity='0.5';
+  // Quitar cuenta corriente del fpago si estaba
+  const fpago=document.getElementById('nv-fpago');
+  Array.from(fpago.options).forEach(o=>{if(o.value==='Cuenta corriente')fpago.removeChild(o);});
   calcularPrecio();
 }
 
@@ -3187,7 +3214,7 @@ function getContadorVentas(){
   const transfOk=document.getElementById('cont-transf').checked;
   const echeqOk=document.getElementById('cont-echeq').checked;
   return VENTAS.filter(v=>{
-    if(getAnioVenta(v.fecha)!==2026) return false; // solo 2026
+    if(getAnioVenta(v.fecha)!==new Date().getFullYear()) return false; // solo año actual
     if(getMesVenta(v.fecha)!==mes) return false;
     if(v.facturado) return false;
     const fp=(v.fpago||'').toLowerCase().trim();
@@ -3244,11 +3271,10 @@ function confirmarFactura(vidx){
   VENTAS[vidx].facturado=true;
   VENTAS[vidx].fechaFacturado=new Date().toLocaleDateString('es-AR');
   // Guardar en Sheets
-  apiCall({action:'updateVenta',idx:vidx,campos:{nroFactura:nro,facturado:true,fechaFacturado:VENTAS[vidx].fechaFacturado}});
+  gsCall('updateVenta',{idx:vidx,campos:{nroFactura:nro,facturado:true,fechaFacturado:VENTAS[vidx].fechaFacturado}});
   notify('✓ Factura '+nro+' registrada — pasó al Reporte Contador');
   renderContador();
-  // actualizar badge general
-  updateBadge();
+  actualizarBadge();
 }
 
 function exportContadorExcel(){
@@ -3583,11 +3609,11 @@ async function cargarDesdeSheets() {
         });
         // Si Sheets tiene menos de 500 ventas (histórico no subido),
         // combinar: mantener el array local y reemplazar/agregar solo las de Sheets
-        if(ventasSheets.length < 500) {
+        if(ventasSheets.length < 5000) {
           // Construir clave única por fecha+cliente+total para detectar duplicados
-          const claveSheets = new Set(ventasSheets.map(v=>v.fecha+'|'+v.cliente+'|'+v.total));
+          const claveSheets = new Set(ventasSheets.map(v=>v.fecha+'|'+v.cliente+'|'+v.total+'|'+v.cant));
           // Filtrar del array local las que ya están en Sheets
-          const soloLocales = VENTAS.filter(v => !claveSheets.has(v.fecha+'|'+v.cliente+'|'+v.total));
+          const soloLocales = VENTAS.filter(v => !claveSheets.has(v.fecha+'|'+v.cliente+'|'+v.total+'|'+v.cant));
           // Combinar: locales históricos + actuales de Sheets
           VENTAS = [...soloLocales, ...ventasSheets];
         } else {
@@ -3597,7 +3623,16 @@ async function cargarDesdeSheets() {
       }
       if(res.compras?.length)    COMPRAS    = res.compras;
       if(res.clientes?.length)   CLIENTES   = res.clientes;
-      if(res.transportes?.length) TRANSPORTES = res.transportes;
+      if(res.transportes?.length) {
+        // Combinar: usar Sheets si tiene más que el hardcoded, sino combinar
+        if(res.transportes.length >= TRANSPORTES.length) {
+          TRANSPORTES = res.transportes;
+        } else {
+          // Agregar los de Sheets que no estén ya
+          const nombresLocales = new Set(TRANSPORTES.map(t=>t.nombre));
+          res.transportes.forEach(t=>{ if(!nombresLocales.has(t.nombre)) TRANSPORTES.push(t); });
+        }
+      }
       if(res.precios?.length)    PRECIOS    = res.precios;
       setSyncStatus('ok');
       actualizarBadge();
@@ -4262,8 +4297,10 @@ function renderCompras() {
 
 function eliminarCompra(idx) {
   if(!confirm('¿Eliminar esta compra?')) return;
+  gsCall('deleteCompra', {idx});
   COMPRAS.splice(idx,1);
   renderCompras();
+  renderArrayan();
   notify('Compra eliminada');
 }
 
