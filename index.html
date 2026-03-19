@@ -557,8 +557,22 @@
   </div>
   <div class="frozen-banner">🔒 Los precios de ventas registradas están <strong>&nbsp;congelados</strong>. Cambiar la tabla maestra no afecta operaciones históricas.</div>
   <!-- FILTROS -->
-  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:center">
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center">
     <div style="font-size:12px;color:var(--muted);font-weight:500">Filtrar:</div>
+    <select id="flt-anio" onchange="renderVentas()" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px">
+      <option value="">Año: Todos</option>
+      <option value="2024">2024</option>
+      <option value="2025">2025</option>
+      <option value="2026" selected>2026</option>
+    </select>
+    <select id="flt-mes" onchange="renderVentas()" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px">
+      <option value="">Mes: Todos</option>
+      <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option>
+      <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
+      <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
+      <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+    </select>
+    <input id="flt-cliente" oninput="renderVentas()" placeholder="🔍 Cliente..." style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;width:160px">
     <select id="flt-fpago" onchange="renderVentas()" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px">
       <option value="">Forma Pago: Todas</option>
       <option>Transferencia</option><option>Efectivo</option>
@@ -730,7 +744,13 @@
   <!-- Panel A Facturar -->
   <div id="panel-contador" style="display:none">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
-      <div style="font-size:13px;color:var(--muted)">Mes:</div>
+      <div style="font-size:13px;color:var(--muted)">Año:</div>
+      <select id="cont-anio" onchange="renderContador()" style="padding:7px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px">
+        <option value="2024">2024</option>
+        <option value="2025">2025</option>
+        <option value="2026" selected>2026</option>
+      </select>
+    <div style="font-size:13px;color:var(--muted)">Mes:</div>
       <select id="cont-mes" onchange="renderContador()" style="padding:7px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px">
         <option value="1">Enero</option><option value="2">Febrero</option><option value="3" selected>Marzo</option>
         <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
@@ -2787,21 +2807,27 @@ function renderChartsMensual() {
 
 // =========== VENTAS ===========
 function getVentasFiltradas_tabla() {
-  const fpago  = document.getElementById('flt-fpago')?.value  || '';
-  const pagado = document.getElementById('flt-pagado')?.value || '';
-  const entrega    = document.getElementById('flt-entrega')?.value    || '';
-  const entregado  = document.getElementById('flt-entregado')?.value  || '';
+  const anio      = parseInt(document.getElementById('flt-anio')?.value  || 0);
+  const mes       = parseInt(document.getElementById('flt-mes')?.value   || 0);
+  const cliente   = (document.getElementById('flt-cliente')?.value || '').toLowerCase().trim();
+  const fpago     = document.getElementById('flt-fpago')?.value    || '';
+  const pagado    = document.getElementById('flt-pagado')?.value   || '';
+  const entrega   = document.getElementById('flt-entrega')?.value  || '';
+  const entregado = document.getElementById('flt-entregado')?.value|| '';
   return VENTAS.filter(v=>{
-    if(fpago     && v.fpago     !== fpago)     return false;
-    if(pagado    && v.pagado    !== pagado)    return false;
-    if(entrega   && v.entrega   !== entrega)   return false;
-    if(entregado && v.entregado !== entregado) return false;
+    if(anio      && getAnioVenta(v.fecha) !== anio)                        return false;
+    if(mes       && getMesVenta(v.fecha)  !== mes)                         return false;
+    if(cliente   && !(v.cliente||'').toLowerCase().includes(cliente))      return false;
+    if(fpago     && v.fpago     !== fpago)                                 return false;
+    if(pagado    && v.pagado    !== pagado)                                 return false;
+    if(entrega   && v.entrega   !== entrega)                               return false;
+    if(entregado && v.entregado !== entregado)                             return false;
     return true;
   });
 }
 
 function limpiarFiltrosVentas() {
-  ['flt-fpago','flt-pagado','flt-entrega','flt-entregado'].forEach(id=>{
+  ['flt-anio','flt-mes','flt-cliente','flt-fpago','flt-pagado','flt-entrega','flt-entregado'].forEach(id=>{
     const el=document.getElementById(id);
     if(el) el.value='';
   });
@@ -2813,8 +2839,8 @@ function renderVentas() {
   const filtradas = getVentasFiltradas_tabla();
   const cnt = document.getElementById('flt-count');
   if(cnt) {
-    const hayFiltro = ['flt-fpago','flt-pagado','flt-entrega','flt-entregado']
-      .some(id=>document.getElementById(id)?.value);
+    const hayFiltro = ['flt-anio','flt-mes','flt-cliente','flt-fpago','flt-pagado','flt-entrega','flt-entregado']
+      .some(id=>{ const el=document.getElementById(id); return el && (el.value||'')!=='' && el.value!=='2026'; });
     cnt.textContent = hayFiltro ? `${filtradas.length} de ${VENTAS.length} ventas` : `${VENTAS.length} ventas`;
   }
   // Ordenar de más reciente a más antigua
@@ -3210,11 +3236,12 @@ function exportPendientesPDF() {
 
 // =========== A FACTURAR (en Pendientes) ===========
 function getContadorVentas(){
+  const anio=parseInt(document.getElementById('cont-anio')?.value||new Date().getFullYear());
   const mes=parseInt(document.getElementById('cont-mes').value);
   const transfOk=document.getElementById('cont-transf').checked;
   const echeqOk=document.getElementById('cont-echeq').checked;
   return VENTAS.filter(v=>{
-    if(getAnioVenta(v.fecha)!==new Date().getFullYear()) return false; // solo año actual
+    if(getAnioVenta(v.fecha)!==anio) return false;
     if(getMesVenta(v.fecha)!==mes) return false;
     if(v.facturado) return false;
     const fp=(v.fpago||'').toLowerCase().trim();
@@ -3267,11 +3294,20 @@ function confirmarFactura(vidx){
   const nfac=document.getElementById('nfac-'+vidx);
   const nro=(nfac?nfac.value:'').trim();
   if(!nro){notify('⚠ Ingresá el número de factura primero','warn');nfac&&nfac.focus();return;}
-  VENTAS[vidx].nroFactura=nro;
-  VENTAS[vidx].facturado=true;
-  VENTAS[vidx].fechaFacturado=new Date().toLocaleDateString('es-AR');
-  // Guardar en Sheets
-  gsCall('updateVenta',{idx:vidx,campos:{nroFactura:nro,facturado:true,fechaFacturado:VENTAS[vidx].fechaFacturado}});
+  const v = VENTAS[vidx];
+  v.nroFactura=nro;
+  v.facturado=true;
+  v.fechaFacturado=new Date().toLocaleDateString('es-AR');
+  // Guardar en Sheets pasando clave única para encontrar la fila correcta
+  gsCall('updateVenta',{idx:vidx,campos:{
+    nroFactura:nro,
+    facturado:true,
+    fechaFacturado:v.fechaFacturado,
+    _fecha:v.fecha,
+    _cliente:v.cliente,
+    _total:v.total,
+    _cant:v.cant
+  }});
   notify('✓ Factura '+nro+' registrada — pasó al Reporte Contador');
   renderContador();
   actualizarBadge();
@@ -3682,15 +3718,16 @@ async function gsGuardarPrecios(precios) {
 async function gsActualizarVenta(idx, campos) {
   const venta = VENTAS[idx];
   setSyncStatus('sync');
-  // Si la venta es histórica (frozen=true), Sheets probablemente no la tiene
-  // → igual intentamos pero nunca mostramos error (queda guardado localmente)
-  if(venta && venta.frozen) {
-    gsCall('updateVenta', {idx, campos}); // fire & forget
-    setSyncStatus('ok');
-    return;
-  }
-  const res = await gsCall('updateVenta', {idx, campos});
-  setSyncStatus(res.ok ? 'ok' : 'error');
+  // Pasar siempre clave única para encontrar la fila correcta en Sheets
+  const camposConClave = {
+    ...campos,
+    _fecha: venta.fecha,
+    _cliente: venta.cliente,
+    _total: venta.total,
+    _cant: venta.cant
+  };
+  const res = await gsCall('updateVenta', {idx, campos: camposConClave});
+  setSyncStatus(res && res.ok ? 'ok' : 'error');
 }
 
 // =========== PARCHEAR FUNCIONES PARA GUARDAR EN SHEETS ===========
