@@ -323,7 +323,7 @@
   </div>
 </div>
 
-<!-- ===== ARRAYAN ===== --><div class="page" id="page-arrayan"><div class="section-header"><div class="section-title">🏭 Cuenta Corriente — Arrayan</div><div style="display:flex;gap:8px"><button class="btn btn-warn btn-sm" onclick="exportArrayanExcel()">📊 Excel</button></div></div><div class="kpi-grid" id="arrayan-kpis" style="margin-bottom:24px"></div><div class="card"><div class="card-title">Movimientos — Créditos (pagos de clientes) y Débitos (compras en Arrayan)</div><div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Descripción</th><th style="text-align:right">Crédito</th><th style="text-align:right">Débito</th><th style="text-align:right">Saldo</th></tr></thead><tbody id="arrayan-body"></tbody></table></div></div></div><!-- MODAL EDITAR VENTA -->
+<!-- ===== ARRAYAN ===== --><div class="page" id="page-arrayan"><div class="section-header"><div class="section-title">🏭 Cuenta Corriente — Arrayan</div><div style="display:flex;gap:8px"><button class="btn btn-warn btn-sm" onclick="exportArrayanExcel()">📊 Excel</button></div></div><div class="kpi-grid" id="arrayan-kpis" style="margin-bottom:24px"></div><div class="card" id="arrayan-escala" style="margin-bottom:16px"></div><div class="card"><div class="card-title">Movimientos — Créditos (pagos de clientes) y Débitos (compras en Arrayan)</div><div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Descripción</th><th style="text-align:right">Crédito</th><th style="text-align:right">Débito</th><th style="text-align:right">Saldo</th></tr></thead><tbody id="arrayan-body"></tbody></table></div></div></div><!-- MODAL EDITAR VENTA -->
 <div class="modal-overlay" id="modal-editar-venta">
   <div class="modal" style="max-width:640px">
     <div class="modal-title">✏️ Editar Venta</div>
@@ -4512,8 +4512,118 @@ function verFrecuenciaCompra() {
       <tbody>${filas}</tbody>
     </table>`);
 }
+const ESCALA_ARRAYAN = [
+  {hasta:5000,  pct:0.05},
+  {hasta:10000, pct:0.03},
+  {hasta:15000, pct:0.025},
+  {hasta:20000, pct:0.02},
+  {hasta:25000, pct:0.017},
+];
+const PRECIO_LISTA_ARRAYAN = {
+  'cereal':  1300,
+  'etilico': 1250,
+};
 
-function renderArrayan(){const creditos=VENTAS.filter(v=>v.arrayan).map(v=>({fecha:v.fecha,tipo:'credito',desc:v.cliente+' — '+v.producto.substring(0,50)+' ('+v.cant+' Lts)',monto:v.total}));const debitos=COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')).map(c=>({fecha:c.fecha,tipo:'debito',desc:'Compra: '+c.producto+' ('+c.cant+' '+(c.unidad||'Lts')+') — '+c.proveedor,monto:c.costoTotal}));const movs=[...creditos,...debitos].sort((a,b)=>{const pa=a.fecha.split('/'),pb=b.fecha.split('/');return new Date(parseInt(pa[2]||0),parseInt(pa[1]||1)-1,parseInt(pa[0]||1))-new Date(parseInt(pb[2]||0),parseInt(pb[1]||1)-1,parseInt(pb[0]||1));});let saldo=0;const rows=movs.map(m=>{if(m.tipo==='credito')saldo+=m.monto;else saldo-=m.monto;const sc=saldo>=0?'var(--green)':'var(--red)';return '<tr><td>'+m.fecha+'</td><td><span class="chip '+(m.tipo==='credito'?'green':'red')+'">'+(m.tipo==='credito'?'➕ Crédito':'➖ Débito')+'</span></td><td style="font-size:12px">'+m.desc+'</td><td style="text-align:right;font-family:var(--mono);color:var(--green)">'+(m.tipo==='credito'?fmt(m.monto):'—')+'</td><td style="text-align:right;font-family:var(--mono);color:var(--red)">'+(m.tipo==='debito'?fmt(m.monto):'—')+'</td><td style="text-align:right;font-family:var(--mono);font-weight:700;color:'+sc+'">'+fmt(saldo)+'</td></tr>';});document.getElementById('arrayan-body').innerHTML=rows.length?rows.join(''):'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Sin movimientos. Registrá compras con proveedor <b>Arrayan</b> y marcá ventas con el toggle 🏭</td></tr>';const totalCred=creditos.reduce((s,m)=>s+m.monto,0);const totalDeb=debitos.reduce((s,m)=>s+m.monto,0);const sf=totalCred-totalDeb;const sc2=sf>=0?'var(--green)':'var(--red)';const saldoLabel=sf>=0?'A tu favor — Arrayan te debe mercadería':'Debés a Arrayan — retirá mercadería para saldar';document.getElementById('arrayan-kpis').innerHTML='<div class="kpi highlight2"><div class="kpi-label">💰 Saldo Actual</div><div class="kpi-value" style="color:'+sc2+'">'+fmt(Math.abs(sf))+'</div><div class="kpi-sub">'+saldoLabel+'</div></div><div class="kpi"><div class="kpi-label">➕ Total Créditos</div><div class="kpi-value accent">'+fmt(totalCred)+'</div><div class="kpi-sub">'+creditos.length+' pagos de clientes</div></div><div class="kpi"><div class="kpi-label">➖ Total Débitos</div><div class="kpi-value" style="color:var(--red)">'+fmt(totalDeb)+'</div><div class="kpi-sub">'+debitos.length+' compras en Arrayan</div></div><div class="kpi"><div class="kpi-label">📦 Movimientos</div><div class="kpi-value">'+movs.length+'</div><div class="kpi-sub">Total de operaciones</div></div>';}function exportArrayanExcel(){const cred=VENTAS.filter(v=>v.arrayan).map(v=>({'Fecha':v.fecha,'Tipo':'Credito','Descripcion':v.cliente+' - '+v.producto,'Credito ($)':v.total,'Debito ($)':'','Cantidad':v.cant,'Saldo':''}));const deb=COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')).map(c=>({'Fecha':c.fecha,'Tipo':'Debito','Descripcion':'Compra: '+c.producto+' ('+c.cant+' '+(c.unidad||'')+')', 'Credito ($)':'','Debito ($)':c.costoTotal,'Cantidad':c.cant,'Saldo':''}));const movs=[...cred,...deb].sort((a,b)=>{const pa=a['Fecha'].split('/'),pb=b['Fecha'].split('/');return new Date(parseInt(pa[2]),parseInt(pa[1])-1,parseInt(pa[0]))-new Date(parseInt(pb[2]),parseInt(pb[1])-1,parseInt(pb[0]));});let s=0;movs.forEach(m=>{s+=(parseFloat(m['Credito ($)'])||0)-(parseFloat(m['Debito ($)'])||0);m['Saldo']='$'+Math.round(s).toLocaleString('es-AR');});if(!movs.length){notify('Sin movimientos para exportar');return;}const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(movs),'Cuenta Corriente Arrayan');XLSX.writeFile(wb,'cuenta_corriente_arrayan.xlsx');notify('✓ Excel Arrayan exportado');}// =========== INIT ===========
+function getPctArrayan(lts) {
+  for(const e of ESCALA_ARRAYAN) {
+    if(lts <= e.hasta) return e.pct;
+  }
+  return ESCALA_ARRAYAN[ESCALA_ARRAYAN.length-1].pct;
+}
+
+function renderEscalaArrayan() {
+  const hoy = new Date();
+  const mesActual = hoy.getMonth()+1;
+  const anioActual = hoy.getFullYear();
+
+  // Compras de Arrayan del mes actual
+  const comprasMes = COMPRAS.filter(c => {
+    if(!(c.proveedor||'').toLowerCase().includes('arrayan')) return false;
+    const p = c.fecha.split('/');
+    return parseInt(p[2])===anioActual && parseInt(p[1])===mesActual;
+  });
+
+  if(!comprasMes.length) {
+    document.getElementById('arrayan-escala').innerHTML =
+      '<div style="color:var(--muted);text-align:center;padding:16px">Sin compras este mes</div>';
+    return;
+  }
+
+  // Total litros del mes
+  const totalLts = comprasMes.reduce((s,c)=>s+c.cant, 0);
+  const pctActual = getPctArrayan(totalLts);
+  const precioListaCereal  = PRECIO_LISTA_ARRAYAN.cereal;
+  const precioListaEtilico = PRECIO_LISTA_ARRAYAN.etilico;
+
+  // Total pagado real
+  const totalPagado = comprasMes.reduce((s,c)=>s+c.costoTotal, 0);
+
+  // Recálculo: precio correcto según rango actual
+  const totalCorrecto = comprasMes.reduce((s,c)=>{
+    const esCereal = (c.producto||'').toLowerCase().includes('cereal') || (c.producto||'').toLowerCase().includes('tri');
+    const lista = esCereal ? precioListaCereal : precioListaEtilico;
+    const precioCorr = lista * (1 + pctActual);
+    return s + c.cant * precioCorr;
+  }, 0);
+
+  const ajuste = totalPagado - totalCorrecto;
+
+  // Filas
+  const filas = comprasMes.map(c => {
+    const esCereal = (c.producto||'').toLowerCase().includes('cereal') || (c.producto||'').toLowerCase().includes('tri');
+    const lista = esCereal ? precioListaCereal : precioListaEtilico;
+    const pctMomento = getPctArrayan(comprasMes.slice(0, comprasMes.indexOf(c)+1).reduce((s,x)=>s+x.cant,0));
+    const precioCorr = lista * (1 + pctActual);
+    return `<tr>
+      <td>${c.fecha}</td>
+      <td style="font-family:var(--mono)">${c.cant.toLocaleString('es-AR')} Lts</td>
+      <td>${c.producto}</td>
+      <td style="font-family:var(--mono)">$${c.precioU.toLocaleString('es-AR')}</td>
+      <td style="font-family:var(--mono);color:var(--accent)">$${c.costoTotal.toLocaleString('es-AR')}</td>
+      <td style="font-family:var(--mono);color:var(--green)">$${Math.round(precioCorr).toLocaleString('es-AR')}</td>
+    </tr>`;
+  }).join('');
+
+  const meses=['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+  document.getElementById('arrayan-escala').innerHTML = `
+    <div class="card-title">📊 Escala de Volumen — ${meses[mesActual]} ${anioActual}</div>
+    <div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap">
+      <div style="background:var(--surface2);border-radius:8px;padding:12px 16px;flex:1;min-width:140px">
+        <div style="font-size:11px;color:var(--muted)">Total litros mes</div>
+        <div style="font-size:20px;font-weight:700;font-family:var(--mono)">${totalLts.toLocaleString('es-AR')} Lts</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:8px;padding:12px 16px;flex:1;min-width:140px">
+        <div style="font-size:11px;color:var(--muted)">Rango actual</div>
+        <div style="font-size:20px;font-weight:700;color:var(--accent)">${(pctActual*100).toFixed(1)}%</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:8px;padding:12px 16px;flex:1;min-width:140px">
+        <div style="font-size:11px;color:var(--muted)">Total pagado</div>
+        <div style="font-size:20px;font-weight:700;font-family:var(--mono)">$${Math.round(totalPagado).toLocaleString('es-AR')}</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:8px;padding:12px 16px;flex:1;min-width:140px;border:1px solid ${ajuste>0?'#22c987':'#ff4d6a'}">
+        <div style="font-size:11px;color:var(--muted)">${ajuste>=0?'✅ A tu favor':'⚠️ Debés'}</div>
+        <div style="font-size:20px;font-weight:700;color:${ajuste>=0?'var(--green)':'var(--red)'};font-family:var(--mono)">$${Math.round(Math.abs(ajuste)).toLocaleString('es-AR')}</div>
+      </div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead><tr style="color:var(--muted);font-size:11px;text-transform:uppercase;border-bottom:1px solid var(--border)">
+        <th style="padding:8px">Fecha</th>
+        <th>Cantidad</th>
+        <th>Producto</th>
+        <th>Precio pagado</th>
+        <th>Total pagado</th>
+        <th>Precio correcto (${(pctActual*100).toFixed(1)}%)</th>
+      </tr></thead>
+      <tbody>${filas}</tbody>
+    </table>
+    <div style="display:flex;justify-content:flex-end;gap:24px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);font-family:var(--mono);font-size:13px">
+      <div>Total correcto: <b style="color:var(--green)">$${Math.round(totalCorrecto).toLocaleString('es-AR')}</b></div>
+      <div>Total pagado: <b>$${Math.round(totalPagado).toLocaleString('es-AR')}</b></div>
+      <div>${ajuste>=0?'✅ A tu favor':'⚠️ Diferencia'}: <b style="color:${ajuste>=0?'var(--green)':'var(--red)'}">$${Math.round(Math.abs(ajuste)).toLocaleString('es-AR')}</b></div>
+    </div>`;
+}
+function renderArrayan(){const creditos=VENTAS.filter(v=>v.arrayan).map(v=>({fecha:v.fecha,tipo:'credito',desc:v.cliente+' — '+v.producto.substring(0,50)+' ('+v.cant+' Lts)',monto:v.total}));const debitos=COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')).map(c=>({fecha:c.fecha,tipo:'debito',desc:'Compra: '+c.producto+' ('+c.cant+' '+(c.unidad||'Lts')+') — '+c.proveedor,monto:c.costoTotal}));const movs=[...creditos,...debitos].sort((a,b)=>{const pa=a.fecha.split('/'),pb=b.fecha.split('/');return new Date(parseInt(pa[2]||0),parseInt(pa[1]||1)-1,parseInt(pa[0]||1))-new Date(parseInt(pb[2]||0),parseInt(pb[1]||1)-1,parseInt(pb[0]||1));});let saldo=0;const rows=movs.map(m=>{if(m.tipo==='credito')saldo+=m.monto;else saldo-=m.monto;const sc=saldo>=0?'var(--green)':'var(--red)';return '<tr><td>'+m.fecha+'</td><td><span class="chip '+(m.tipo==='credito'?'green':'red')+'">'+(m.tipo==='credito'?'➕ Crédito':'➖ Débito')+'</span></td><td style="font-size:12px">'+m.desc+'</td><td style="text-align:right;font-family:var(--mono);color:var(--green)">'+(m.tipo==='credito'?fmt(m.monto):'—')+'</td><td style="text-align:right;font-family:var(--mono);color:var(--red)">'+(m.tipo==='debito'?fmt(m.monto):'—')+'</td><td style="text-align:right;font-family:var(--mono);font-weight:700;color:'+sc+'">'+fmt(saldo)+'</td></tr>';});document.getElementById('arrayan-body').innerHTML=rows.length?rows.join(''):'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Sin movimientos. Registrá compras con proveedor <b>Arrayan</b> y marcá ventas con el toggle 🏭</td></tr>';const totalCred=creditos.reduce((s,m)=>s+m.monto,0);const totalDeb=debitos.reduce((s,m)=>s+m.monto,0);const sf=totalCred-totalDeb;const sc2=sf>=0?'var(--green)':'var(--red)';const saldoLabel=sf>=0?'A tu favor — Arrayan te debe mercadería':'Debés a Arrayan — retirá mercadería para saldar';document.getElementById('arrayan-kpis').innerHTML='<div class="kpi highlight2"><div class="kpi-label">💰 Saldo Actual</div><div class="kpi-value" style="color:'+sc2+'">'+fmt(Math.abs(sf))+'</div><div class="kpi-sub">'+saldoLabel+'</div></div><div class="kpi"><div class="kpi-label">➕ Total Créditos</div><div class="kpi-value accent">'+fmt(totalCred)+'</div><div class="kpi-sub">'+creditos.length+' pagos de clientes</div></div><div class="kpi"><div class="kpi-label">➖ Total Débitos</div><div class="kpi-value" style="color:var(--red)">'+fmt(totalDeb)+'</div><div class="kpi-sub">'+debitos.length+' compras en Arrayan</div></div><div class="kpi"><div class="kpi-label">📦 Movimientos</div><div class="kpi-value">'+movs.length+'</div><div class="kpi-sub">Total de operaciones</div></div>';renderEscalaArrayan();}function exportArrayanExcel(){const cred=VENTAS.filter(v=>v.arrayan).map(v=>({'Fecha':v.fecha,'Tipo':'Credito','Descripcion':v.cliente+' - '+v.producto,'Credito ($)':v.total,'Debito ($)':'','Cantidad':v.cant,'Saldo':''}));const deb=COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')).map(c=>({'Fecha':c.fecha,'Tipo':'Debito','Descripcion':'Compra: '+c.producto+' ('+c.cant+' '+(c.unidad||'')+')', 'Credito ($)':'','Debito ($)':c.costoTotal,'Cantidad':c.cant,'Saldo':''}));const movs=[...cred,...deb].sort((a,b)=>{const pa=a['Fecha'].split('/'),pb=b['Fecha'].split('/');return new Date(parseInt(pa[2]),parseInt(pa[1])-1,parseInt(pa[0]))-new Date(parseInt(pb[2]),parseInt(pb[1])-1,parseInt(pb[0]));});let s=0;movs.forEach(m=>{s+=(parseFloat(m['Credito ($)'])||0)-(parseFloat(m['Debito ($)'])||0);m['Saldo']='$'+Math.round(s).toLocaleString('es-AR');});if(!movs.length){notify('Sin movimientos para exportar');return;}const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(movs),'Cuenta Corriente Arrayan');XLSX.writeFile(wb,'cuenta_corriente_arrayan.xlsx');notify('✓ Excel Arrayan exportado');}// =========== INIT ===========
 document.getElementById('nav-fecha').textContent = new Date().toLocaleDateString('es-AR',{month:'long',year:'numeric'});
 actualizarBadge();
 cargarDesdeSheets(); // Carga datos desde Sheets y luego renderiza
