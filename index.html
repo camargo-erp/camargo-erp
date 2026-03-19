@@ -4071,12 +4071,12 @@ function abrirEditarCliente(idx) {
   document.getElementById('modal-editar-cliente').classList.add('show');
 }
 
-function guardarEdicionCliente() {
+async function guardarEdicionCliente() {
   const condicion = document.getElementById('ec-condicion').value;
   if(!condicion){ alert('La condición es obligatoria'); return; }
+  const nombreOriginal = CLIENTES[editClienteIdx].nombre;
   const c = CLIENTES[editClienteIdx];
-  CLIENTES[editClienteIdx] = {
-    ...c,
+  const campos = {
     nombre:    document.getElementById('ec-nombre').value.trim(),
     canal:     document.getElementById('ec-canal').value,
     cuit:      document.getElementById('ec-cuit').value.trim(),
@@ -4090,10 +4090,15 @@ function guardarEdicionCliente() {
     entrega:   document.getElementById('ec-entrega').value,
     obs:       document.getElementById('ec-obs').value,
   };
+  CLIENTES[editClienteIdx] = {...c, ...campos};
   cerrarModal('modal-editar-cliente');
   renderClientes();
   notify('✓ Cliente actualizado');
   editClienteIdx = -1;
+  // Sincronizar con Sheets
+  setSyncStatus('sync');
+  const res = await gsCall('updateCliente', {nombre: nombreOriginal, campos});
+  setSyncStatus(res.ok ? 'ok' : 'error');
 }
 
 // =========== COMPRAS ===========
