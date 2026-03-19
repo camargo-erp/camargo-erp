@@ -3451,7 +3451,7 @@ function renderClientes(){
       <td><strong>${c.nombre}</strong></td>
       <td><span class="chip ${c.canal==='mayor'?'blue':'gray'}">${c.canal==='mayor'?'Mayorista':'Minorista'}</span></td>
       <td style="font-family:var(--mono);color:var(--muted)">${c.cuit||'—'}</td>
-      <td>${c.condicion?'<span class="chip gray" style="font-size:11px">'+c.condicion+'</span>':'<span style="color:var(--red);font-size:11px">⚠ Sin datos</span>'}</td>
+      <td>${c.condicion&&c.condicion!==c.nombre?'<span class="chip gray" style="font-size:11px">'+c.condicion+'</span>':'<span style="color:var(--red);font-size:11px">⚠ Sin datos</span>'}</td>
       <td>${c.contacto||'—'}</td>
       <td>${c.tel||'—'}</td>
       <td>${c.localidad||'—'}</td>
@@ -3777,6 +3777,7 @@ async function marcarCobrado(idx){
 
 // =========== EDITAR VENTA ===========
 let editIdx = -1;
+let editClienteIdx = -1;
 
 function abrirEditar(idx) {
   editIdx = idx;
