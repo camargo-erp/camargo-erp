@@ -302,9 +302,16 @@
         <input type="number" id="nc-costoTotal" readonly style="background:var(--surface);color:var(--green);font-weight:600;font-family:var(--mono)">
       </div>
       <div class="form-group"><label>Forma de Pago</label>
-        <select id="nc-fpago">
-          <option>Transferencia</option><option>Efectivo</option><option>Cheque</option><option>Cuenta corriente</option>
-        </select>
+        <select id="nc-fpago" onchange="checkSaldoArrayan()">
+  <option>Transferencia</option><option>Efectivo</option><option>Cheque</option><option>Cuenta corriente</option>
+</select>
+<div id="aviso-cta-cte" style="display:none;background:#2d1a0a;border:1px solid #8b4513;border-radius:8px;padding:12px;margin-top:8px;font-size:12px;color:var(--yellow)"></div>
+<div id="diferencia-fpago" style="display:none;margin-top:8px">
+  <div style="font-size:12px;color:var(--muted);margin-bottom:6px">¿Cómo pagás la diferencia?</div>
+  <select id="nc-fpago-diferencia" style="width:100%;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:13px">
+    <option>Efectivo</option><option>Transferencia</option>
+  </select>
+</div>
       </div>
       <div class="form-group"><label>N° Remito/Factura</label><input id="nc-nroDoc" placeholder="Opcional"></div>
       <div class="form-group" style="grid-column:1/-1"><label>Observaciones</label><input id="nc-obs" placeholder="Opcional"></div>
@@ -4108,11 +4115,53 @@ function abrirModalCompra() {
   document.getElementById('modal-compra').classList.add('show');
 }
 
+function checkSaldoArrayan() {
+  const fpago = document.getElementById('nc-fpago').value;
+  const aviso = document.getElementById('aviso-cta-cte');
+  const difDiv = document.getElementById('diferencia-fpago');
+  
+  if(fpago !== 'Cuenta corriente') {
+    aviso.style.display = 'none';
+    difDiv.style.display = 'none';
+    return;
+  }
+
+  // Calcular saldo actual Arrayan
+  const creditos = VENTAS.filter(v=>v.arrayan).reduce((s,v)=>s+v.total, 0);
+  const debitos  = COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')).reduce((s,c)=>s+c.costoTotal, 0);
+  const saldo    = creditos - debitos;
+
+  const costoTotal = parseFloat(document.getElementById('nc-costoTotal').value) || 0;
+
+  if(costoTotal === 0) {
+    aviso.style.display = 'none';
+    difDiv.style.display = 'none';
+    return;
+  }
+
+  if(saldo >= costoTotal) {
+    aviso.style.display = 'block';
+    aviso.style.background = '#1a3d2e';
+    aviso.style.borderColor = '#22c987';
+    aviso.style.color = '#22c987';
+    aviso.innerHTML = `✅ Saldo Arrayan suficiente: <strong>${fmt(saldo)}</strong> — se descuentan <strong>${fmt(costoTotal)}</strong>`;
+    difDiv.style.display = 'none';
+  } else {
+    const diferencia = costoTotal - saldo;
+    aviso.style.display = 'block';
+    aviso.style.background = '#2d1a0a';
+    aviso.style.borderColor = '#8b4513';
+    aviso.style.color = 'var(--yellow)';
+    aviso.innerHTML = `⚠️ Saldo Arrayan: <strong>${fmt(saldo)}</strong> — Esta compra: <strong>${fmt(costoTotal)}</strong> — Te faltan: <strong>${fmt(diferencia)}</strong>`;
+    difDiv.style.display = 'block';
+  }
+}
 function calcularTotalCompra() {
   const cant   = parseFloat(document.getElementById('nc-cantidad').value)  || 0;
   const precio = parseFloat(document.getElementById('nc-precioU').value)   || 0;
   const total  = cant * precio;
   document.getElementById('nc-costoTotal').value = total ? total.toFixed(2) : '';
+  checkSaldoArrayan();
 }
 
 function guardarCompra() {
@@ -4122,20 +4171,41 @@ function guardarCompra() {
   const cant      = parseFloat(document.getElementById('nc-cantidad').value) || 0;
   const precioU   = parseFloat(document.getElementById('nc-precioU').value)  || 0;
   const unidad    = document.getElementById('nc-unidad').value;
+  const fpago     = document.getElementById('nc-fpago').value;
 
   if(!proveedor || !fechaRaw || !producto || !cant || !precioU) {
     alert('Completá Proveedor, Fecha, Producto, Cantidad y Precio'); return;
   }
 
-  // Convertir fecha de yyyy-mm-dd a dd/mm/yyyy
   const partes = fechaRaw.split('-');
-const fecha = partes[2].padStart(2,'0') + '/' + partes[1].padStart(2,'0') + '/' + partes[0];
+  const fecha = partes[2].padStart(2,'0') + '/' + partes[1].padStart(2,'0') + '/' + partes[0];
+  const costoTotal = cant * precioU;
+  const esArrayan = proveedor.toLowerCase().includes('arrayan');
+
+  // Calcular saldo Arrayan si paga con cuenta corriente
+  let fpagoFinal = fpago;
+  let fpagoMixto = null;
+  let montoCcteCorriente = costoTotal;
+  let montoDiferencia = 0;
+
+  if(fpago === 'Cuenta corriente' && esArrayan) {
+    const creditos = VENTAS.filter(v=>v.arrayan).reduce((s,v)=>s+v.total, 0);
+    const debitos  = COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')).reduce((s,c)=>s+c.costoTotal, 0);
+    const saldo    = creditos - debitos;
+
+    if(saldo < costoTotal) {
+      montoCcteCorriente = saldo;
+      montoDiferencia    = costoTotal - saldo;
+      fpagoMixto         = document.getElementById('nc-fpago-diferencia').value;
+      fpagoFinal         = `Cta cte $${Math.round(saldo).toLocaleString('es-AR')} + ${fpagoMixto} $${Math.round(montoDiferencia).toLocaleString('es-AR')}`;
+    }
+  }
 
   const compra = {
     fecha, proveedor, producto,
     cant, unidad, precioU,
-    costoTotal: cant * precioU,
-    fpago:  document.getElementById('nc-fpago').value,
+    costoTotal,
+    fpago: fpagoFinal,
     nroDoc: document.getElementById('nc-nroDoc').value.trim(),
     obs:    document.getElementById('nc-obs').value.trim(),
   };
@@ -4145,6 +4215,10 @@ const fecha = partes[2].padStart(2,'0') + '/' + partes[1].padStart(2,'0') + '/' 
   renderCompras();
   notify('✓ Compra registrada');
   gsGuardarCompra(compra).catch(()=>notify('⚠️ Error al sincronizar compra','#ff4d6a'));
+
+  // Cerrar aviso
+  document.getElementById('aviso-cta-cte').style.display='none';
+  document.getElementById('diferencia-fpago').style.display='none';
 }
 
 function renderCompras() {
