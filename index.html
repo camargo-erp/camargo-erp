@@ -3645,17 +3645,14 @@ async function cargarDesdeSheets() {
         });
         // Si Sheets tiene menos de 500 ventas (histórico no subido),
         // combinar: mantener el array local y reemplazar/agregar solo las de Sheets
-        if(ventasSheets.length < 5000) {
-          // Construir clave única por fecha+cliente+total para detectar duplicados
-          const claveSheets = new Set(ventasSheets.map(v=>v.fecha+'|'+v.cliente+'|'+v.total+'|'+v.cant));
-          // Filtrar del array local las que ya están en Sheets
-          const soloLocales = VENTAS.filter(v => !claveSheets.has(v.fecha+'|'+v.cliente+'|'+v.total+'|'+v.cant));
-          // Combinar: locales históricos + actuales de Sheets
-          VENTAS = [...soloLocales, ...ventasSheets];
-        } else {
-          // Sheets tiene el histórico completo → usar directo
-          VENTAS = ventasSheets;
-        }
+        // ESTRATEGIA: Sheets es la fuente de verdad.
+        // Mantener del array local solo ventas de años que Sheets NO cubre.
+        const aniosSheets = new Set(ventasSheets.map(v => getAnioVenta(v.fecha)).filter(a => a > 0));
+        const soloLocalesHistoricos = VENTAS.filter(v => {
+          const anio = getAnioVenta(v.fecha);
+          return !aniosSheets.has(anio);
+        });
+        VENTAS = [...soloLocalesHistoricos, ...ventasSheets];
       }
       if(res.compras?.length)    COMPRAS    = res.compras;
       if(res.clientes?.length)   CLIENTES   = res.clientes;
