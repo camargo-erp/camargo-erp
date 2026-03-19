@@ -2909,7 +2909,7 @@ function guardarVenta() {
   const total=subtotal+envioTotal;
   const gan=total-costoTotal;
   VENTAS.unshift({
-    fecha:new Date(fecha).toLocaleDateString('es-AR'),
+    fecha: (()=>{ const [y,m,d]=fecha.split('-'); return d.padStart(2,'0')+'/'+m.padStart(2,'0')+'/'+y; })(),
     canal:canal||'Minorista',cliente,producto:prod,
     cant,precioU:pc.precio,total,costoU:pc.costo,
     costoT:costoTotal,gan,margen:total>0?gan/total:0,
@@ -2936,7 +2936,7 @@ function getClienteData(nombre){
 }
 
 function renderPendientes() {
-  const sinEntregar=VENTAS.filter(v=>v.entregado==='No');
+  const sinEntregar=VENTAS.filter(v=>v.entregado!=='Sí');
   const sinCobrar=VENTAS.filter(v=>v.pagado==='No');
   document.getElementById('cnt-entregas').textContent=sinEntregar.length;
   document.getElementById('cnt-cobros').textContent=sinCobrar.length;
@@ -4136,10 +4136,10 @@ function guardarCompra() {
   };
 
   COMPRAS.push(compra);
-  gsGuardarCompra(compra);
   cerrarModal('modal-compra');
   renderCompras();
   notify('✓ Compra registrada');
+  gsGuardarCompra(compra).catch(()=>notify('⚠️ Error al sincronizar compra','#ff4d6a'));
 }
 
 function renderCompras() {
