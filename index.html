@@ -386,6 +386,44 @@
   </div>
 </div>
 
+<!-- MODAL EDITAR CLIENTE -->
+<div class="modal-overlay" id="modal-editar-cliente">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-title">✏️ Editar Cliente</div>
+    <div class="form-grid cols2" style="gap:12px">
+      <div class="form-group"><label>Nombre *</label><input id="ec-nombre"></div>
+      <div class="form-group"><label>Canal *</label>
+        <select id="ec-canal"><option value="menor">Minorista</option><option value="mayor">Mayorista</option></select>
+      </div>
+      <div class="form-group"><label>CUIT / CUIL</label><input id="ec-cuit"></div>
+      <div class="form-group"><label>Condición *</label>
+        <select id="ec-condicion" required>
+          <option value="">— Seleccionar —</option>
+          <option value="Monotributo">Monotributo</option>
+          <option value="Responsable Inscripto">Responsable Inscripto</option>
+          <option value="Consumidor Final">Consumidor Final</option>
+          <option value="Otro">Otro</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Teléfono</label><input id="ec-tel"></div>
+      <div class="form-group"><label>Mail</label><input id="ec-mail"></div>
+      <div class="form-group"><label>Provincia</label><input id="ec-provincia"></div>
+      <div class="form-group"><label>Localidad</label><input id="ec-localidad"></div>
+      <div class="form-group"><label>Dirección</label><input id="ec-dir"></div>
+      <div class="form-group"><label>Cond. Pago Habitual</label>
+        <select id="ec-pago"><option>transferencia</option><option>efectivo</option><option>Echeq</option><option>Cuenta corriente</option></select>
+      </div>
+      <div class="form-group" style="grid-column:1/-1"><label>Entrega Habitual</label>
+        <select id="ec-entrega"><option value="envio a cliente">Envío a cliente</option><option value="envio transporte">Envío transporte</option><option value="retiro transporte">Retiro transporte</option><option value="Retiro cliente">Retiro cliente</option><option value="Propio">Propio</option></select>
+      </div>
+    </div>
+    <div class="form-group" style="margin-top:12px"><label>Observaciones</label><textarea id="ec-obs" rows="2"></textarea></div>
+    <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="cerrarModal('modal-editar-cliente')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarEdicionCliente()">💾 Guardar Cambios</button>
+    </div>
+  </div>
+</div>  
 <!-- MODAL NUEVO CLIENTE -->
 <div class="modal-overlay" id="modal-cliente">
   <div class="modal">
