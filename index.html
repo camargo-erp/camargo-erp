@@ -349,6 +349,9 @@
         <select id="ev-entregado"><option value="Sí">Sí</option><option value="No">No</option></select>
       </div>
       <div class="form-group"><label>N° Factura</label><input id="ev-nroFactura" placeholder="Opcional"></div>
+      <div class="form-group" style="grid-column:1/-1"><label>🏭 Paga a Arrayan</label>
+        <select id="ev-arrayan"><option value="false">No</option><option value="true">Sí</option></select>
+      </div>
     </div>
     <div class="form-group" style="margin-top:12px">
       <div style="background:var(--surface);border-radius:8px;padding:12px;font-family:var(--mono);font-size:13px;display:flex;gap:24px">
@@ -3790,6 +3793,7 @@ function abrirEditar(idx) {
   set('ev-entrega', v.entrega);
   set('ev-entregado', v.entregado);
   set('ev-nroFactura', v.nroFactura||'');
+  set('ev-arrayan', v.arrayan ? 'true' : 'false');
   actualizarPreviewEditar();
   modal.classList.add('show');
 }
@@ -3844,6 +3848,7 @@ async function guardarEdicionVenta() {
     entrega: document.getElementById('ev-entrega').value,
     entregado: document.getElementById('ev-entregado').value,
     nroFactura: document.getElementById('ev-nroFactura').value,
+    arrayan: document.getElementById('ev-arrayan').value === 'true',
   };
   // Actualizar en memoria
   VENTAS[editIdx] = {...VENTAS[editIdx], ...campos};
