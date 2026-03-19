@@ -4128,8 +4128,8 @@ function guardarCompra() {
   }
 
   // Convertir fecha de yyyy-mm-dd a dd/mm/yyyy
-  const [y,m,d] = fechaRaw.split('-');
-  const fecha = `${d}/${m}/${y}`;
+  const partes = fechaRaw.split('-');
+const fecha = partes[2].padStart(2,'0') + '/' + partes[1].padStart(2,'0') + '/' + partes[0];
 
   const compra = {
     fecha, proveedor, producto,
