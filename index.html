@@ -5006,3 +5006,13 @@ function renderArrayan() {
 
   renderEscalaArrayan();
 }
+function exportArrayanExcel(){const cred=VENTAS.filter(v=>v.arrayan).map(v=>({'Fecha':v.fecha,'Tipo':'Credito','Descripcion':v.cliente+' - '+v.producto,'Credito ($)':v.total,'Debito ($)':'','Cantidad':v.cant,'Saldo':''}));const deb=COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')).map(c=>({'Fecha':c.fecha,'Tipo':'Debito','Descripcion':'Compra: '+c.producto+' ('+c.cant+' '+(c.unidad||'')+')', 'Credito ($)':'','Debito ($)':c.costoTotal,'Cantidad':c.cant,'Saldo':''}));const movs=[...cred,...deb].sort((a,b)=>{const pa=a['Fecha'].split('/'),pb=b['Fecha'].split('/');return new Date(parseInt(pa[2]),parseInt(pa[1])-1,parseInt(pa[0]))-new Date(parseInt(pb[2]),parseInt(pb[1])-1,parseInt(pb[0]));});let s=0;movs.forEach(m=>{s+=(parseFloat(m['Credito ($)'])||0)-(parseFloat(m['Debito ($)'])||0);m['Saldo']='$'+Math.round(s).toLocaleString('es-AR');});if(!movs.length){notify('Sin movimientos para exportar');return;}const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(movs),'Cuenta Corriente Arrayan');XLSX.writeFile(wb,'cuenta_corriente_arrayan.xlsx');notify('✓ Excel Arrayan exportado');}// =========== INIT ===========
+document.getElementById('nav-fecha').textContent = new Date().toLocaleDateString('es-AR',{month:'long',year:'numeric'});
+actualizarBadge();
+cargarDesdeSheets(); // Carga datos desde Sheets y luego renderiza
+setTimeout(()=>calcularAlertas(), 3000); // Calcular alertas después de cargar
+</script>
+
+
+</body>
+</html>
