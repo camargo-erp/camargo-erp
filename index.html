@@ -769,9 +769,15 @@
       <div class="table-wrap">
         <table>
           <thead><tr>
-            <th>Fecha</th><th>Cliente</th><th>CUIT</th><th>Condición</th><th>Localidad</th><th>Provincia</th>
-            <th>Producto</th><th>Cant.</th><th style="text-align:right">Total</th><th>F. Pago</th>
-            <th style="min-width:160px">N° Factura</th><th></th>
+            <th style="font-size:11px;padding:4px 6px">Fecha</th>
+            <th style="font-size:11px;padding:4px 6px">Cliente</th>
+            <th style="font-size:11px;padding:4px 6px">CUIT</th>
+            <th style="font-size:11px;padding:4px 6px">Cond.</th>
+            <th style="font-size:11px;padding:4px 6px">Cant.</th>
+            <th style="font-size:11px;padding:4px 6px;text-align:right">Total</th>
+            <th style="font-size:11px;padding:4px 6px">F.Pago</th>
+            <th style="font-size:11px;padding:4px 6px;min-width:140px">N° Factura</th>
+            <th style="font-size:11px;padding:4px 6px"></th>
           </tr></thead>
           <tbody id="tabla-contador"></tbody>
         </table>
@@ -3263,26 +3269,21 @@ function renderContador(){
     const prov=cli.provincia||'—';
     const vidx=VENTAS.indexOf(v);
     return `
-    <tr id="frow-${vidx}">
-      <td>${v.fecha}</td>
-      <td>${v.cliente}</td>
-      <td style="font-family:var(--mono);font-size:11px">${cli.cuit||'—'}</td>
-      <td style="font-size:11px">${cli.condicion||'—'}</td>
-      <td style="font-size:11px">${loc}</td>
-      <td style="font-size:11px">${prov}</td>
-      <td style="font-size:12px">${v.producto.substring(0,40)}${v.producto.length>40?'…':''}</td>
-      <td>${v.cant}</td>
-      <td style="text-align:right;font-family:var(--mono)">$${v.total.toLocaleString('es-AR')}</td>
-      <td><span class="chip gray">${v.fpago}</span></td>
-      <td>
-        <input type="text" id="nfac-${vidx}" value="${v.nroFactura||''}" placeholder="Ej: 0001-00000123"
-          style="width:150px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);font-size:12px;font-family:var(--mono)"
+    <tr id="frow-${vidx}" style="font-size:12px">
+      <td style="padding:4px 6px;white-space:nowrap">${v.fecha}</td>
+      <td style="padding:4px 6px;font-size:11px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${v.cliente}">${v.cliente}</td>
+      <td style="padding:4px 6px;font-family:var(--mono);font-size:10px">${cli.cuit||'—'}</td>
+      <td style="padding:4px 6px;font-size:10px">${cli.condicion||'—'}</td>
+      <td style="padding:4px 6px">${v.cant}</td>
+      <td style="padding:4px 6px;text-align:right;font-family:var(--mono)">$${v.total.toLocaleString('es-AR')}</td>
+      <td style="padding:4px 6px;font-size:10px">${v.fpago}</td>
+      <td style="padding:4px 6px">
+        <input type="text" id="nfac-${vidx}" value="${v.nroFactura||''}" placeholder="0001-00000123"
+          style="width:138px;padding:4px 7px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);font-size:11px;font-family:var(--mono)"
           onkeydown="if(event.key==='Enter')confirmarFactura(${vidx})">
       </td>
-      <td>
-        <button class="btn btn-primary btn-sm" onclick="confirmarFactura(${vidx})" title="Confirmar factura y enviar al repositorio">
-          ✓ Facturar
-        </button>
+      <td style="padding:4px 6px">
+        <button class="btn btn-primary btn-sm" onclick="confirmarFactura(${vidx})" style="font-size:11px;padding:4px 10px">✓</button>
       </td>
     </tr>`;
   }).join('')||'<tr><td colspan="12" style="text-align:center;color:var(--muted);padding:20px">Sin ventas para facturar en este período</td></tr>';
@@ -4204,7 +4205,7 @@ function checkSaldoArrayan() {
 
   // Calcular saldo actual Arrayan
   const creditos = VENTAS.filter(v=>v.arrayan).reduce((s,v)=>s+v.total, 0);
-  const debitos  = COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')).reduce((s,c)=>s+c.costoTotal, 0);
+  const debitos  = COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')&&((c.fpago||'').toLowerCase()==='cuenta corriente'||(c.fpago||'').toLowerCase().includes('cta cte'))).reduce((s,c)=>s+c.costoTotal, 0);
   const saldo    = creditos - debitos;
 
   const costoTotal = parseFloat(document.getElementById('nc-costoTotal').value) || 0;
@@ -4266,7 +4267,7 @@ function guardarCompra() {
 
   if(fpago === 'Cuenta corriente' && esArrayan) {
     const creditos = VENTAS.filter(v=>v.arrayan).reduce((s,v)=>s+v.total, 0);
-    const debitos  = COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')).reduce((s,c)=>s+c.costoTotal, 0);
+    const debitos  = COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')&&((c.fpago||'').toLowerCase()==='cuenta corriente'||(c.fpago||'').toLowerCase().includes('cta cte'))).reduce((s,c)=>s+c.costoTotal, 0);
     const saldo    = creditos - debitos;
 
     if(saldo < costoTotal) {
@@ -4610,88 +4611,97 @@ function getPctArrayan(lts) {
 }
 
 function renderEscalaArrayan() {
+  const meses=['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   const hoy = new Date();
-  const mesActual = hoy.getMonth()+1;
-  const anioActual = hoy.getFullYear();
 
-  // Compras de Arrayan del mes actual
+  // Selectores de filtro — los crea si no existen
+  const contenedor = document.getElementById('arrayan-escala');
+  const anioSel = document.getElementById('escala-anio')?.value || String(hoy.getFullYear());
+  const mesSel  = parseInt(document.getElementById('escala-mes')?.value  || hoy.getMonth()+1);
+
+  // Todas las compras de Arrayan del período seleccionado (sin filtrar por fpago)
   const comprasMes = COMPRAS.filter(c => {
     if(!(c.proveedor||'').toLowerCase().includes('arrayan')) return false;
-    const p = c.fecha.split('/');
-    return parseInt(p[2])===anioActual && parseInt(p[1])===mesActual;
+    const p = (c.fecha||'').split('/');
+    if(p.length < 3) return false;
+    return parseInt(p[2])===parseInt(anioSel) && parseInt(p[1])===mesSel;
   });
 
+  // Construir HTML de filtros
+  const anios = [...new Set(COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')).map(c=>(c.fecha||'').split('/')[2]).filter(Boolean))].sort();
+  if(!anios.includes(String(hoy.getFullYear()))) anios.push(String(hoy.getFullYear()));
+
+  const filtrosHTML = `<div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
+    <div class="card-title" style="margin:0">📊 Escala de Volumen</div>
+    <select id="escala-anio" onchange="renderEscalaArrayan()" style="padding:5px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:12px">
+      ${anios.map(a=>`<option value="${a}" ${a===anioSel?'selected':''}>${a}</option>`).join('')}
+    </select>
+    <select id="escala-mes" onchange="renderEscalaArrayan()" style="padding:5px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:12px">
+      ${meses.slice(1).map((m,i)=>`<option value="${i+1}" ${i+1===mesSel?'selected':''}>${m}</option>`).join('')}
+    </select>
+  </div>`;
+
   if(!comprasMes.length) {
-    document.getElementById('arrayan-escala').innerHTML =
-      '<div style="color:var(--muted);text-align:center;padding:16px">Sin compras este mes</div>';
+    contenedor.innerHTML = filtrosHTML + '<div style="color:var(--muted);text-align:center;padding:16px">Sin compras en este período</div>';
     return;
   }
 
-  // Total litros del mes
-  const totalLts = comprasMes.reduce((s,c)=>s+c.cant, 0);
-  const pctActual = getPctArrayan(totalLts);
   const precioListaCereal  = PRECIO_LISTA_ARRAYAN.cereal;
   const precioListaEtilico = PRECIO_LISTA_ARRAYAN.etilico;
-
-  // Total pagado real
+  const totalLts    = comprasMes.reduce((s,c)=>s+c.cant, 0);
+  const pctActual   = getPctArrayan(totalLts);
   const totalPagado = comprasMes.reduce((s,c)=>s+c.costoTotal, 0);
 
-  // Recálculo: precio correcto según rango actual
   const totalCorrecto = comprasMes.reduce((s,c)=>{
     const esCereal = (c.producto||'').toLowerCase().includes('cereal') || (c.producto||'').toLowerCase().includes('tri');
     const lista = esCereal ? precioListaCereal : precioListaEtilico;
-    const precioCorr = lista * (1 + pctActual);
-    return s + c.cant * precioCorr;
+    return s + c.cant * lista * (1 + pctActual);
   }, 0);
 
   const ajuste = totalPagado - totalCorrecto;
 
-  // Filas
   const filas = comprasMes.map(c => {
     const esCereal = (c.producto||'').toLowerCase().includes('cereal') || (c.producto||'').toLowerCase().includes('tri');
     const lista = esCereal ? precioListaCereal : precioListaEtilico;
-    const pctMomento = getPctArrayan(comprasMes.slice(0, comprasMes.indexOf(c)+1).reduce((s,x)=>s+x.cant,0));
     const precioCorr = lista * (1 + pctActual);
+    const fpago = c.fpago || '—';
+    const fpagoColor = fpago.toLowerCase().includes('cta') || fpago.toLowerCase().includes('corriente') ? 'var(--accent)' : fpago.toLowerCase().includes('efectivo') ? '#ffd166' : 'var(--text)';
     return `<tr>
-      <td>${c.fecha}</td>
-      <td style="font-family:var(--mono)">${c.cant.toLocaleString('es-AR')} Lts</td>
-      <td>${c.producto}</td>
-      <td style="font-family:var(--mono)">$${c.precioU.toLocaleString('es-AR')}</td>
-      <td style="font-family:var(--mono);color:var(--accent)">$${c.costoTotal.toLocaleString('es-AR')}</td>
-      <td style="font-family:var(--mono);color:var(--green)">$${Math.round(precioCorr).toLocaleString('es-AR')}</td>
+      <td style="padding:6px 8px">${c.fecha}</td>
+      <td style="font-family:var(--mono);padding:6px 8px">${c.cant.toLocaleString('es-AR')} Lts</td>
+      <td style="padding:6px 8px">${c.producto}</td>
+      <td style="padding:6px 8px;color:${fpagoColor};font-size:11px">${fpago}</td>
+      <td style="font-family:var(--mono);padding:6px 8px">$${c.precioU.toLocaleString('es-AR')}</td>
+      <td style="font-family:var(--mono);padding:6px 8px;color:var(--accent)">$${c.costoTotal.toLocaleString('es-AR')}</td>
+      <td style="font-family:var(--mono);padding:6px 8px;color:var(--green)">$${Math.round(precioCorr).toLocaleString('es-AR')}</td>
     </tr>`;
   }).join('');
 
-  const meses=['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-
-  document.getElementById('arrayan-escala').innerHTML = `
-    <div class="card-title">📊 Escala de Volumen — ${meses[mesActual]} ${anioActual}</div>
-    <div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap">
-      <div style="background:var(--surface2);border-radius:8px;padding:12px 16px;flex:1;min-width:140px">
-        <div style="font-size:11px;color:var(--muted)">Total litros mes</div>
+  contenedor.innerHTML = filtrosHTML + `
+    <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+      <div style="background:var(--surface2);border-radius:8px;padding:12px 16px;flex:1;min-width:130px">
+        <div style="font-size:11px;color:var(--muted)">Total litros</div>
         <div style="font-size:20px;font-weight:700;font-family:var(--mono)">${totalLts.toLocaleString('es-AR')} Lts</div>
       </div>
-      <div style="background:var(--surface2);border-radius:8px;padding:12px 16px;flex:1;min-width:140px">
+      <div style="background:var(--surface2);border-radius:8px;padding:12px 16px;flex:1;min-width:130px">
         <div style="font-size:11px;color:var(--muted)">Rango actual</div>
         <div style="font-size:20px;font-weight:700;color:var(--accent)">${(pctActual*100).toFixed(1)}%</div>
       </div>
-      <div style="background:var(--surface2);border-radius:8px;padding:12px 16px;flex:1;min-width:140px">
+      <div style="background:var(--surface2);border-radius:8px;padding:12px 16px;flex:1;min-width:130px">
         <div style="font-size:11px;color:var(--muted)">Total pagado</div>
         <div style="font-size:20px;font-weight:700;font-family:var(--mono)">$${Math.round(totalPagado).toLocaleString('es-AR')}</div>
       </div>
-      <div style="background:var(--surface2);border-radius:8px;padding:12px 16px;flex:1;min-width:140px;border:1px solid ${ajuste>0?'#22c987':'#ff4d6a'}">
+      <div style="background:var(--surface2);border-radius:8px;padding:12px 16px;flex:1;min-width:130px;border:1px solid ${ajuste>=0?'#22c987':'#ff4d6a'}">
         <div style="font-size:11px;color:var(--muted)">${ajuste>=0?'✅ A tu favor':'⚠️ Debés'}</div>
         <div style="font-size:20px;font-weight:700;color:${ajuste>=0?'var(--green)':'var(--red)'};font-family:var(--mono)">$${Math.round(Math.abs(ajuste)).toLocaleString('es-AR')}</div>
       </div>
     </div>
     <table style="width:100%;border-collapse:collapse;font-size:12px">
       <thead><tr style="color:var(--muted);font-size:11px;text-transform:uppercase;border-bottom:1px solid var(--border)">
-        <th style="padding:8px">Fecha</th>
-        <th>Cantidad</th>
-        <th>Producto</th>
-        <th>Precio pagado</th>
-        <th>Total pagado</th>
-        <th>Precio correcto (${(pctActual*100).toFixed(1)}%)</th>
+        <th style="padding:6px 8px">Fecha</th><th style="padding:6px 8px">Cantidad</th>
+        <th style="padding:6px 8px">Producto</th><th style="padding:6px 8px">F. Pago</th>
+        <th style="padding:6px 8px">Precio pagado</th><th style="padding:6px 8px">Total pagado</th>
+        <th style="padding:6px 8px">Precio correcto (${(pctActual*100).toFixed(1)}%)</th>
       </tr></thead>
       <tbody>${filas}</tbody>
     </table>
@@ -4701,7 +4711,64 @@ function renderEscalaArrayan() {
       <div>${ajuste>=0?'✅ A tu favor':'⚠️ Diferencia'}: <b style="color:${ajuste>=0?'var(--green)':'var(--red)'}">$${Math.round(Math.abs(ajuste)).toLocaleString('es-AR')}</b></div>
     </div>`;
 }
-function renderArrayan(){const creditos=VENTAS.filter(v=>v.arrayan).map(v=>({fecha:v.fecha,tipo:'credito',desc:v.cliente+' — '+v.producto.substring(0,50)+' ('+v.cant+' Lts)',monto:v.total}));const debitos=COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')).map(c=>({fecha:c.fecha,tipo:'debito',desc:'Compra: '+c.producto+' ('+c.cant+' '+(c.unidad||'Lts')+') — '+c.proveedor,monto:c.costoTotal}));const movs=[...creditos,...debitos].sort((a,b)=>{const pa=a.fecha.split('/'),pb=b.fecha.split('/');return new Date(parseInt(pa[2]||0),parseInt(pa[1]||1)-1,parseInt(pa[0]||1))-new Date(parseInt(pb[2]||0),parseInt(pb[1]||1)-1,parseInt(pb[0]||1));});let saldo=0;const rows=movs.map(m=>{if(m.tipo==='credito')saldo+=m.monto;else saldo-=m.monto;const sc=saldo>=0?'var(--green)':'var(--red)';return '<tr><td>'+m.fecha+'</td><td><span class="chip '+(m.tipo==='credito'?'green':'red')+'">'+(m.tipo==='credito'?'➕ Crédito':'➖ Débito')+'</span></td><td style="font-size:12px">'+m.desc+'</td><td style="text-align:right;font-family:var(--mono);color:var(--green)">'+(m.tipo==='credito'?fmt(m.monto):'—')+'</td><td style="text-align:right;font-family:var(--mono);color:var(--red)">'+(m.tipo==='debito'?fmt(m.monto):'—')+'</td><td style="text-align:right;font-family:var(--mono);font-weight:700;color:'+sc+'">'+fmt(saldo)+'</td></tr>';});document.getElementById('arrayan-body').innerHTML=rows.length?rows.join(''):'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Sin movimientos. Registrá compras con proveedor <b>Arrayan</b> y marcá ventas con el toggle 🏭</td></tr>';const totalCred=creditos.reduce((s,m)=>s+m.monto,0);const totalDeb=debitos.reduce((s,m)=>s+m.monto,0);const sf=totalCred-totalDeb;const sc2=sf>=0?'var(--green)':'var(--red)';const saldoLabel=sf>=0?'A tu favor — Arrayan te debe mercadería':'Debés a Arrayan — retirá mercadería para saldar';document.getElementById('arrayan-kpis').innerHTML='<div class="kpi highlight2"><div class="kpi-label">💰 Saldo Actual</div><div class="kpi-value" style="color:'+sc2+'">'+fmt(Math.abs(sf))+'</div><div class="kpi-sub">'+saldoLabel+'</div></div><div class="kpi"><div class="kpi-label">➕ Total Créditos</div><div class="kpi-value accent">'+fmt(totalCred)+'</div><div class="kpi-sub">'+creditos.length+' pagos de clientes</div></div><div class="kpi"><div class="kpi-label">➖ Total Débitos</div><div class="kpi-value" style="color:var(--red)">'+fmt(totalDeb)+'</div><div class="kpi-sub">'+debitos.length+' compras en Arrayan</div></div><div class="kpi"><div class="kpi-label">📦 Movimientos</div><div class="kpi-value">'+movs.length+'</div><div class="kpi-sub">Total de operaciones</div></div>';renderEscalaArrayan();}function exportArrayanExcel(){const cred=VENTAS.filter(v=>v.arrayan).map(v=>({'Fecha':v.fecha,'Tipo':'Credito','Descripcion':v.cliente+' - '+v.producto,'Credito ($)':v.total,'Debito ($)':'','Cantidad':v.cant,'Saldo':''}));const deb=COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')).map(c=>({'Fecha':c.fecha,'Tipo':'Debito','Descripcion':'Compra: '+c.producto+' ('+c.cant+' '+(c.unidad||'')+')', 'Credito ($)':'','Debito ($)':c.costoTotal,'Cantidad':c.cant,'Saldo':''}));const movs=[...cred,...deb].sort((a,b)=>{const pa=a['Fecha'].split('/'),pb=b['Fecha'].split('/');return new Date(parseInt(pa[2]),parseInt(pa[1])-1,parseInt(pa[0]))-new Date(parseInt(pb[2]),parseInt(pb[1])-1,parseInt(pb[0]));});let s=0;movs.forEach(m=>{s+=(parseFloat(m['Credito ($)'])||0)-(parseFloat(m['Debito ($)'])||0);m['Saldo']='$'+Math.round(s).toLocaleString('es-AR');});if(!movs.length){notify('Sin movimientos para exportar');return;}const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(movs),'Cuenta Corriente Arrayan');XLSX.writeFile(wb,'cuenta_corriente_arrayan.xlsx');notify('✓ Excel Arrayan exportado');}// =========== INIT ===========
+function esCuentaCorrienteArrayan(fpago) {
+  const f = (fpago||'').toLowerCase().trim();
+  return f === 'cuenta corriente' || f.includes('cta cte') || f.startsWith('cta cte');
+}
+
+function renderArrayan() {
+  // CRÉDITOS: ventas donde el cliente pagó directo a Arrayan
+  const creditos = VENTAS.filter(v=>v.arrayan).map(v=>({
+    fecha:v.fecha, tipo:'credito',
+    desc:v.cliente+' — '+v.producto.substring(0,50)+' ('+v.cant+' Lts)',
+    monto:v.total, fpago:'Crédito cliente'
+  }));
+
+  // DÉBITOS cuenta corriente: solo compras a Arrayan pagadas con cta cte
+  const debitosCC = COMPRAS.filter(c =>
+    (c.proveedor||'').toLowerCase().includes('arrayan') && esCuentaCorrienteArrayan(c.fpago)
+  ).map(c=>({
+    fecha:c.fecha, tipo:'debito',
+    desc:'Compra: '+c.producto+' ('+c.cant+' '+(c.unidad||'Lts')+') — '+c.proveedor,
+    monto:c.costoTotal, fpago:c.fpago
+  }));
+
+  const movs = [...creditos,...debitosCC].sort((a,b)=>{
+    const pa=a.fecha.split('/'), pb=b.fecha.split('/');
+    return new Date(+pa[2]||0,+pa[1]-1||0,+pa[0]||1) - new Date(+pb[2]||0,+pb[1]-1||0,+pb[0]||1);
+  });
+
+  let saldo = 0;
+  const rows = movs.map(m => {
+    if(m.tipo==='credito') saldo+=m.monto; else saldo-=m.monto;
+    const sc = saldo>=0?'var(--green)':'var(--red)';
+    return '<tr><td>'+m.fecha+'</td><td><span class="chip '+(m.tipo==='credito'?'green':'red')+'">'+(m.tipo==='credito'?'➕ Crédito':'➖ Débito Cta Cte')+'</span></td><td style="font-size:12px">'+m.desc+'</td><td style="text-align:right;font-family:var(--mono);color:var(--green)">'+(m.tipo==='credito'?fmt(m.monto):'—')+'</td><td style="text-align:right;font-family:var(--mono);color:var(--red)">'+(m.tipo==='debito'?fmt(m.monto):'—')+'</td><td style="text-align:right;font-family:var(--mono);font-weight:700;color:'+sc+'">'+fmt(saldo)+'</td></tr>';
+  });
+
+  document.getElementById('arrayan-body').innerHTML = rows.length ? rows.join('') :
+    '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Sin movimientos de cuenta corriente. Solo se muestran compras pagadas con <b>Cuenta corriente</b>.</td></tr>';
+
+  const totalCred = creditos.reduce((s,m)=>s+m.monto, 0);
+  const totalDeb  = debitosCC.reduce((s,m)=>s+m.monto, 0);
+  const sf = totalCred - totalDeb;
+  const sc2 = sf>=0?'var(--green)':'var(--red)';
+  const saldoLabel = sf>=0?'A tu favor — Arrayan te debe mercadería':'Debés a Arrayan — retirá mercadería para saldar';
+
+  // Compras NO cta cte (pagadas con efectivo/transferencia) — informativo
+  const comprasOtras = COMPRAS.filter(c =>
+    (c.proveedor||'').toLowerCase().includes('arrayan') && !esCuentaCorrienteArrayan(c.fpago)
+  );
+  const totalOtras = comprasOtras.reduce((s,c)=>s+c.costoTotal, 0);
+  const subLabelOtras = totalOtras > 0 ? ' · '+fmt(totalOtras)+' pagado en efectivo/transf' : '';
+
+  document.getElementById('arrayan-kpis').innerHTML =
+    '<div class="kpi highlight2"><div class="kpi-label">💰 Saldo Cuenta Corriente</div><div class="kpi-value" style="color:'+sc2+'">'+fmt(Math.abs(sf))+'</div><div class="kpi-sub">'+saldoLabel+'</div></div>'+
+    '<div class="kpi"><div class="kpi-label">➕ Total Créditos</div><div class="kpi-value accent">'+fmt(totalCred)+'</div><div class="kpi-sub">'+creditos.length+' pagos de clientes</div></div>'+
+    '<div class="kpi"><div class="kpi-label">➖ Débitos Cta Cte</div><div class="kpi-value" style="color:var(--red)">'+fmt(totalDeb)+'</div><div class="kpi-sub">'+debitosCC.length+' compras descontadas'+subLabelOtras+'</div></div>'+
+    '<div class="kpi"><div class="kpi-label">📦 Movimientos</div><div class="kpi-value">'+movs.length+'</div><div class="kpi-sub">Total operaciones cta cte</div></div>';
+
+  renderEscalaArrayan();
+}function exportArrayanExcel(){const cred=VENTAS.filter(v=>v.arrayan).map(v=>({'Fecha':v.fecha,'Tipo':'Credito','Descripcion':v.cliente+' - '+v.producto,'Credito ($)':v.total,'Debito ($)':'','Cantidad':v.cant,'Saldo':''}));const deb=COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')).map(c=>({'Fecha':c.fecha,'Tipo':'Debito','Descripcion':'Compra: '+c.producto+' ('+c.cant+' '+(c.unidad||'')+')', 'Credito ($)':'','Debito ($)':c.costoTotal,'Cantidad':c.cant,'Saldo':''}));const movs=[...cred,...deb].sort((a,b)=>{const pa=a['Fecha'].split('/'),pb=b['Fecha'].split('/');return new Date(parseInt(pa[2]),parseInt(pa[1])-1,parseInt(pa[0]))-new Date(parseInt(pb[2]),parseInt(pb[1])-1,parseInt(pb[0]));});let s=0;movs.forEach(m=>{s+=(parseFloat(m['Credito ($)'])||0)-(parseFloat(m['Debito ($)'])||0);m['Saldo']='$'+Math.round(s).toLocaleString('es-AR');});if(!movs.length){notify('Sin movimientos para exportar');return;}const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(movs),'Cuenta Corriente Arrayan');XLSX.writeFile(wb,'cuenta_corriente_arrayan.xlsx');notify('✓ Excel Arrayan exportado');}// =========== INIT ===========
 document.getElementById('nav-fecha').textContent = new Date().toLocaleDateString('es-AR',{month:'long',year:'numeric'});
 actualizarBadge();
 cargarDesdeSheets(); // Carga datos desde Sheets y luego renderiza
