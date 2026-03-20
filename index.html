@@ -323,7 +323,31 @@
   </div>
 </div>
 
-<!-- ===== ARRAYAN ===== --><div class="page" id="page-arrayan"><div class="section-header"><div class="section-title">🏭 Cuenta Corriente — Arrayan</div><div style="display:flex;gap:8px"><button class="btn btn-warn btn-sm" onclick="exportArrayanExcel()">📊 Excel</button></div></div><div class="kpi-grid" id="arrayan-kpis" style="margin-bottom:24px"></div><div class="card" id="arrayan-escala" style="margin-bottom:16px"></div><div class="card"><div class="card-title">Movimientos — Créditos (pagos de clientes) y Débitos (compras en Arrayan)</div><div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Descripción</th><th style="text-align:right">Crédito</th><th style="text-align:right">Débito</th><th style="text-align:right">Saldo</th></tr></thead><tbody id="arrayan-body"></tbody></table></div></div></div><!-- MODAL EDITAR VENTA -->
+<!-- ===== ARRAYAN ===== --><div class="page" id="page-arrayan"><div class="section-header"><div class="section-title">🏭 Cuenta Corriente — Arrayan</div><div style="display:flex;gap:8px"><button class="btn btn-warn btn-sm" onclick="exportArrayanExcel()">📊 Excel</button></div></div><div class="kpi-grid" id="arrayan-kpis" style="margin-bottom:24px"></div><div class="card" id="arrayan-escala" style="margin-bottom:16px"></div><div class="card"><div class="card-title">Movimientos — Créditos (pagos de clientes) y Débitos (compras en Arrayan)</div><div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Descripción</th><th style="text-align:right">Crédito</th><th style="text-align:right">Débito</th><th style="text-align:right">Saldo</th></tr></thead><tbody id="arrayan-body"></tbody></table></div></div></div><!-- MODAL PAGO PARCIAL ARRAYAN -->
+<div class="modal-overlay" id="modal-pago-arrayan">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-title">💰 Registrar Pago Parcial — Arrayan</div>
+    <div id="pago-arrayan-info" style="background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px"></div>
+    <div class="form-grid cols2" style="gap:12px">
+      <div class="form-group"><label>Fecha del depósito *</label>
+        <input type="date" id="pa-fecha">
+      </div>
+      <div class="form-group"><label>Monto *</label>
+        <input type="number" id="pa-monto" placeholder="Ej: 2000000" oninput="actualizarResumenPago()">
+      </div>
+      <div class="form-group" style="grid-column:1/-1"><label>Observaciones</label>
+        <input id="pa-obs" placeholder="Opcional — N° transferencia, banco, etc.">
+      </div>
+    </div>
+    <div id="pa-resumen" style="margin-top:12px;padding:10px 14px;background:var(--surface2);border-radius:8px;font-size:13px;font-family:var(--mono)"></div>
+    <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="cerrarModal('modal-pago-arrayan')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarPagoArrayan()">💾 Registrar Pago</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR VENTA -->
 <div class="modal-overlay" id="modal-editar-venta">
   <div class="modal" style="max-width:640px">
     <div class="modal-title">✏️ Editar Venta</div>
@@ -3656,6 +3680,7 @@ async function cargarDesdeSheets() {
         VENTAS = [...soloLocalesHistoricos, ...ventasSheets];
       }
       if(res.compras?.length)    COMPRAS    = res.compras;
+      if(res.pagosArrayan?.length) PAGOS_ARRAYAN = res.pagosArrayan;
       if(res.clientes?.length)   CLIENTES   = res.clientes;
       if(res.transportes?.length) {
         // Combinar: usar Sheets si tiene más que el hardcoded, sino combinar
@@ -4173,6 +4198,7 @@ async function guardarEdicionCliente() {
 
 // =========== COMPRAS ===========
 let COMPRAS = [];
+let PAGOS_ARRAYAN = []; // Pagos parciales de ventas Arrayan
 
 function abrirModalCompra() {
   // Fecha de hoy por defecto
@@ -4210,9 +4236,13 @@ function checkSaldoArrayan() {
     return;
   }
 
-  // Calcular saldo actual Arrayan
-  const creditos = VENTAS.filter(v=>v.arrayan).reduce((s,v)=>s+v.total, 0);
-  const debitos  = COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')&&((c.fpago||'').toLowerCase()==='cuenta corriente'||(c.fpago||'').toLowerCase().includes('cta cte'))).reduce((s,c)=>s+c.costoTotal, 0);
+  // Calcular saldo actual Arrayan (usando pagos parciales si existen)
+  const ventasConPagos2 = new Set(PAGOS_ARRAYAN.map(p => p.ventaId));
+  const creditosPagos2 = PAGOS_ARRAYAN.reduce((s,p)=>s+p.monto, 0);
+  const creditosDirectos2 = VENTAS.filter(v=>v.arrayan && !ventasConPagos2.has(ventaId(v))).reduce((s,v)=>s+v.total, 0);
+  const creditosIngreso2 = COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')&&(c.fpago||'').toLowerCase().includes('ingreso a cta cte')).reduce((s,c)=>s+c.costoTotal, 0);
+  const creditos = creditosPagos2 + creditosDirectos2 + creditosIngreso2;
+  const debitos  = COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')&&esCuentaCorrienteArrayan(c.fpago)).reduce((s,c)=>s+c.costoTotal, 0);
   const saldo    = creditos - debitos;
 
   const costoTotal = parseFloat(document.getElementById('nc-costoTotal').value) || 0;
@@ -4725,75 +4755,254 @@ function esCuentaCorrienteArrayan(fpago) {
          f.includes('cuenta corriente') || f.includes('cc ') || f === 'cc';
 }
 
+function ventaId(v) {
+  // Clave única para identificar una venta
+  return v.fecha + '|' + v.cliente + '|' + v.total + '|' + v.cant;
+}
+
+function getPagosDeVenta(v) {
+  const id = ventaId(v);
+  return PAGOS_ARRAYAN.filter(p => p.ventaId === id);
+}
+
+function getTotalPagadoVenta(v) {
+  return getPagosDeVenta(v).reduce((s, p) => s + p.monto, 0);
+}
+
+let _ventaIdxPagoActual = -1;
+
+function abrirPagoArrayan(ventaIdx) {
+  _ventaIdxPagoActual = ventaIdx;
+  const v = VENTAS[ventaIdx];
+  const pagos = getPagosDeVenta(v);
+  const totalPagado = pagos.reduce((s,p)=>s+p.monto, 0);
+  const pendiente = v.total - totalPagado;
+
+  document.getElementById('pago-arrayan-info').innerHTML =
+    '<b>' + v.cliente + '</b> — ' + v.producto.substring(0,40) + '<br>' +
+    'Total venta: <b style="font-family:var(--mono)">' + fmt(v.total) + '</b> · ' +
+    'Cobrado: <span style="color:var(--green);font-family:var(--mono)">' + fmt(totalPagado) + '</span> · ' +
+    'Pendiente: <span style="color:' + (pendiente>0?'var(--yellow)':'var(--green)') + ';font-family:var(--mono)">' + fmt(pendiente) + '</span>';
+
+  document.getElementById('pa-fecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('pa-monto').value = pendiente > 0 ? Math.round(pendiente) : '';
+  document.getElementById('pa-obs').value = '';
+  actualizarResumenPago();
+  document.getElementById('modal-pago-arrayan').classList.add('show');
+}
+
+function actualizarResumenPago() {
+  if(_ventaIdxPagoActual < 0) return;
+  const v = VENTAS[_ventaIdxPagoActual];
+  const pagos = getPagosDeVenta(v);
+  const totalPagado = pagos.reduce((s,p)=>s+p.monto, 0);
+  const monto = parseFloat(document.getElementById('pa-monto').value) || 0;
+  const nuevoPagado = totalPagado + monto;
+  const pendiente = v.total - nuevoPagado;
+  const el = document.getElementById('pa-resumen');
+  if(!monto) { el.innerHTML = ''; return; }
+  el.innerHTML =
+    'Después de este pago: cobrado <b style="color:var(--green)">' + fmt(nuevoPagado) + '</b>' +
+    (pendiente > 0
+      ? ' · queda pendiente <b style="color:var(--yellow)">' + fmt(pendiente) + '</b>'
+      : ' · <b style="color:var(--green)">✅ Venta saldada completamente</b>');
+}
+
+async function guardarPagoArrayan() {
+  if(_ventaIdxPagoActual < 0) return;
+  const v = VENTAS[_ventaIdxPagoActual];
+  const fechaRaw = document.getElementById('pa-fecha').value;
+  const monto = parseFloat(document.getElementById('pa-monto').value) || 0;
+  const obs = document.getElementById('pa-obs').value.trim();
+
+  if(!fechaRaw || !monto) { notify('⚠ Completá fecha y monto', 'warn'); return; }
+
+  const partes = fechaRaw.split('-');
+  const fecha = partes[2] + '/' + partes[1] + '/' + partes[0];
+
+  const pago = {
+    ventaId: ventaId(v),
+    fecha,
+    cliente: v.cliente,
+    concepto: v.producto.substring(0,40) + ' (' + v.cant + ' Lts)',
+    monto,
+    obs
+  };
+
+  PAGOS_ARRAYAN.push(pago);
+
+  // Verificar si la venta quedó saldada
+  const totalPagado = getTotalPagadoVenta(v);
+  if(totalPagado >= v.total) {
+    VENTAS[_ventaIdxPagoActual].pagado = 'Sí';
+    gsCall('updateVenta', {idx: _ventaIdxPagoActual, campos: {
+      pagado: 'Sí',
+      _fecha: v.fecha, _cliente: v.cliente, _total: v.total, _cant: v.cant
+    }});
+  }
+
+  cerrarModal('modal-pago-arrayan');
+  notify('✓ Pago de ' + fmt(monto) + ' registrado');
+  renderArrayan();
+  actualizarBadge();
+
+  // Guardar en Sheets
+  gsCall('savePagoArrayan', {pago}).catch(() => notify('⚠ Error al sincronizar pago', '#ff4d6a'));
+}
+
+async function eliminarPagoArrayan(idx) {
+  if(!confirm('¿Eliminar este pago?')) return;
+  const pago = PAGOS_ARRAYAN[idx];
+  PAGOS_ARRAYAN.splice(idx, 1);
+  // Si la venta era saldada, volver a pendiente
+  const v = VENTAS.find(v => ventaId(v) === pago.ventaId);
+  if(v && getTotalPagadoVenta(v) < v.total && v.pagado === 'Sí') {
+    v.pagado = 'No';
+    const vi = VENTAS.indexOf(v);
+    gsCall('updateVenta', {idx: vi, campos: {
+      pagado: 'No',
+      _fecha: v.fecha, _cliente: v.cliente, _total: v.total, _cant: v.cant
+    }});
+  }
+  renderArrayan();
+  notify('Pago eliminado');
+  gsCall('deletePagoArrayan', {idx});
+}
+
 function renderArrayan() {
-  // CRÉDITOS: ventas donde el cliente pagó directo a Arrayan
-  const creditosVentas = VENTAS.filter(v=>v.arrayan).map(v=>({
-    fecha:v.fecha, tipo:'credito',
-    desc:v.cliente+' — '+v.producto.substring(0,50)+' ('+v.cant+' Lts)',
-    monto:v.total, fpago:'Crédito cliente'
+  // Créditos: pagos parciales registrados (no el total de la venta)
+  const creditosPagos = PAGOS_ARRAYAN.map(p => ({
+    fecha: p.fecha, tipo: 'credito',
+    desc: p.cliente + ' — ' + p.concepto + (p.obs ? ' (' + p.obs + ')' : ''),
+    monto: p.monto, fpago: 'Pago parcial',
+    pagoIdx: PAGOS_ARRAYAN.indexOf(p)
   }));
-  // CRÉDITOS: ingresos propios a cta cte (compras con fpago "Ingreso a Cta Cte")
+
+  // Créditos: ventas Arrayan SIN pagos registrados (crédito completo de una vez)
+  const ventasConPagos = new Set(PAGOS_ARRAYAN.map(p => p.ventaId));
+  const creditosVentasDirectas = VENTAS.filter(v => v.arrayan && !ventasConPagos.has(ventaId(v))).map(v => ({
+    fecha: v.fecha, tipo: 'credito',
+    desc: v.cliente + ' — ' + v.producto.substring(0,50) + ' (' + v.cant + ' Lts)',
+    monto: v.total, fpago: 'Pago único'
+  }));
+
+  // Créditos: ingresos propios a cta cte
   const creditosIngreso = COMPRAS.filter(c =>
     (c.proveedor||'').toLowerCase().includes('arrayan') &&
     (c.fpago||'').toLowerCase().includes('ingreso a cta cte')
-  ).map(c=>({
-    fecha:c.fecha, tipo:'credito',
-    desc:'➕ Ingreso propio: '+c.producto+' ('+c.cant+' Lts)',
-    monto:c.costoTotal, fpago:'Ingreso a Cta Cte'
+  ).map(c => ({
+    fecha: c.fecha, tipo: 'credito',
+    desc: '➕ Ingreso propio: ' + c.producto,
+    monto: c.costoTotal, fpago: 'Ingreso propio'
   }));
-  const creditos = [...creditosVentas, ...creditosIngreso];
 
-  // DÉBITOS cuenta corriente: solo compras a Arrayan pagadas con cta cte
+  const creditos = [...creditosPagos, ...creditosVentasDirectas, ...creditosIngreso];
+
+  // Débitos: solo compras cta cte
   const debitosCC = COMPRAS.filter(c =>
     (c.proveedor||'').toLowerCase().includes('arrayan') && esCuentaCorrienteArrayan(c.fpago)
-  ).map(c=>({
-    fecha:c.fecha, tipo:'debito',
-    desc:'Compra: '+c.producto+' ('+c.cant+' '+(c.unidad||'Lts')+') — '+c.proveedor,
-    monto:c.costoTotal, fpago:c.fpago
+  ).map(c => ({
+    fecha: c.fecha, tipo: 'debito',
+    desc: 'Compra: ' + c.producto + ' (' + c.cant + ' ' + (c.unidad||'Lts') + ') — ' + c.proveedor,
+    monto: c.costoTotal, fpago: c.fpago
   }));
 
-  const movs = [...creditos,...debitosCC].sort((a,b)=>{
-    const pa=a.fecha.split('/'), pb=b.fecha.split('/');
-    return new Date(+pa[2]||0,+pa[1]-1||0,+pa[0]||1) - new Date(+pb[2]||0,+pb[1]-1||0,+pb[0]||1);
+  const movs = [...creditos, ...debitosCC].sort((a,b) => {
+    const pa = a.fecha.split('/'), pb = b.fecha.split('/');
+    return new Date(+pa[2]||0, +pa[1]-1||0, +pa[0]||1) - new Date(+pb[2]||0, +pb[1]-1||0, +pb[0]||1);
   });
 
   let saldo = 0;
   const rows = movs.map(m => {
-    if(m.tipo==='credito') saldo+=m.monto; else saldo-=m.monto;
-    const sc = saldo>=0?'var(--green)':'var(--red)';
-    return '<tr><td>'+m.fecha+'</td><td><span class="chip '+(m.tipo==='credito'?'green':'red')+'">'+(m.tipo==='credito'?'➕ Crédito':'➖ Débito Cta Cte')+'</span></td><td style="font-size:12px">'+m.desc+'</td><td style="text-align:right;font-family:var(--mono);color:var(--green)">'+(m.tipo==='credito'?fmt(m.monto):'—')+'</td><td style="text-align:right;font-family:var(--mono);color:var(--red)">'+(m.tipo==='debito'?fmt(m.monto):'—')+'</td><td style="text-align:right;font-family:var(--mono);font-weight:700;color:'+sc+'">'+fmt(saldo)+'</td></tr>';
+    if(m.tipo==='credito') saldo += m.monto; else saldo -= m.monto;
+    const sc = saldo >= 0 ? 'var(--green)' : 'var(--red)';
+    const delBtn = m.pagoIdx !== undefined
+      ? '<button onclick="eliminarPagoArrayan(' + m.pagoIdx + ')" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:12px;padding:0 4px" title="Eliminar pago">🗑</button>'
+      : '';
+    return '<tr>' +
+      '<td>' + m.fecha + '</td>' +
+      '<td><span class="chip ' + (m.tipo==='credito'?'green':'red') + '">' + (m.tipo==='credito'?'➕ Crédito':'➖ Débito') + '</span></td>' +
+      '<td style="font-size:12px">' + m.desc + delBtn + '</td>' +
+      '<td style="text-align:right;font-family:var(--mono);color:var(--green)">' + (m.tipo==='credito'?fmt(m.monto):'—') + '</td>' +
+      '<td style="text-align:right;font-family:var(--mono);color:var(--red)">' + (m.tipo==='debito'?fmt(m.monto):'—') + '</td>' +
+      '<td style="text-align:right;font-family:var(--mono);font-weight:700;color:' + sc + '">' + fmt(saldo) + '</td>' +
+      '</tr>';
   });
 
   document.getElementById('arrayan-body').innerHTML = rows.length ? rows.join('') :
-    '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Sin movimientos de cuenta corriente. Solo se muestran compras pagadas con <b>Cuenta corriente</b>.</td></tr>';
+    '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Sin movimientos. Registrá ventas con el toggle 🏭 y compras de Arrayan.</td></tr>';
 
-  const totalCred = creditos.reduce((s,m)=>s+m.monto, 0);
-  const totalDeb  = debitosCC.reduce((s,m)=>s+m.monto, 0);
+  const totalCred = creditos.reduce((s,m) => s+m.monto, 0);
+  const totalDeb  = debitosCC.reduce((s,m) => s+m.monto, 0);
   const sf = totalCred - totalDeb;
-  const sc2 = sf>=0?'var(--green)':'var(--red)';
-  const saldoLabel = sf>=0?'A tu favor — Arrayan te debe mercadería':'Debés a Arrayan — retirá mercadería para saldar';
+  const sc2 = sf >= 0 ? 'var(--green)' : 'var(--red)';
+  const saldoLabel = sf >= 0 ? 'A tu favor — Arrayan te debe mercadería' : 'Debés a Arrayan — retirá mercadería para saldar';
 
-  // Compras NO cta cte (pagadas con efectivo/transferencia) — informativo
   const comprasOtras = COMPRAS.filter(c =>
-    (c.proveedor||'').toLowerCase().includes('arrayan') && !esCuentaCorrienteArrayan(c.fpago)
+    (c.proveedor||'').toLowerCase().includes('arrayan') && !esCuentaCorrienteArrayan(c.fpago) &&
+    !(c.fpago||'').toLowerCase().includes('ingreso a cta cte')
   );
-  const totalOtras = comprasOtras.reduce((s,c)=>s+c.costoTotal, 0);
-  const subLabelOtras = totalOtras > 0 ? ' · '+fmt(totalOtras)+' pagado en efectivo/transf' : '';
+  const totalOtras = comprasOtras.reduce((s,c) => s+c.costoTotal, 0);
+  const subLabelOtras = totalOtras > 0 ? ' · ' + fmt(totalOtras) + ' pagado efect/transf' : '';
 
   document.getElementById('arrayan-kpis').innerHTML =
-    '<div class="kpi highlight2"><div class="kpi-label">💰 Saldo Cuenta Corriente</div><div class="kpi-value" style="color:'+sc2+'">'+fmt(Math.abs(sf))+'</div><div class="kpi-sub">'+saldoLabel+'</div></div>'+
-    '<div class="kpi"><div class="kpi-label">➕ Total Créditos</div><div class="kpi-value accent">'+fmt(totalCred)+'</div><div class="kpi-sub">'+creditos.length+' pagos de clientes</div></div>'+
-    '<div class="kpi"><div class="kpi-label">➖ Débitos Cta Cte</div><div class="kpi-value" style="color:var(--red)">'+fmt(totalDeb)+'</div><div class="kpi-sub">'+debitosCC.length+' compras descontadas'+subLabelOtras+'</div></div>'+
-    '<div class="kpi"><div class="kpi-label">📦 Movimientos</div><div class="kpi-value">'+movs.length+'</div><div class="kpi-sub">Total operaciones cta cte</div></div>';
+    '<div class="kpi highlight2"><div class="kpi-label">💰 Saldo Cuenta Corriente</div><div class="kpi-value" style="color:' + sc2 + '">' + fmt(Math.abs(sf)) + '</div><div class="kpi-sub">' + saldoLabel + '</div></div>' +
+    '<div class="kpi"><div class="kpi-label">➕ Total Créditos</div><div class="kpi-value accent">' + fmt(totalCred) + '</div><div class="kpi-sub">' + creditos.length + ' movimientos</div></div>' +
+    '<div class="kpi"><div class="kpi-label">➖ Débitos Cta Cte</div><div class="kpi-value" style="color:var(--red)">' + fmt(totalDeb) + '</div><div class="kpi-sub">' + debitosCC.length + ' compras descontadas' + subLabelOtras + '</div></div>' +
+    '<div class="kpi"><div class="kpi-label">📦 Movimientos</div><div class="kpi-value">' + movs.length + '</div><div class="kpi-sub">Total operaciones</div></div>';
+
+  // Ventas Arrayan con detalle de pagos
+  const ventasArrayan = VENTAS.filter(v => v.arrayan);
+  if(ventasArrayan.length > 0) {
+    const ventasHTML = ventasArrayan.map(v => {
+      const pagos = getPagosDeVenta(v);
+      const totalPagado = pagos.reduce((s,p) => s+p.monto, 0);
+      const pendiente = v.total - totalPagado;
+      const pct = Math.min(100, Math.round(totalPagado / v.total * 100));
+      const saldada = pendiente <= 0;
+      const vi = VENTAS.indexOf(v);
+      const pagosHTML = pagos.map((p,i) => {
+        const pidx = PAGOS_ARRAYAN.indexOf(p);
+        return '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--border);font-size:12px">' +
+          '<span style="color:var(--muted);font-size:11px;min-width:70px">' + p.fecha + '</span>' +
+          '<span style="color:var(--green);font-family:var(--mono)">' + fmt(p.monto) + '</span>' +
+          (p.obs ? '<span style="color:var(--muted);font-size:11px">· ' + p.obs + '</span>' : '') +
+          '<button onclick="eliminarPagoArrayan(' + pidx + ')" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:11px;margin-left:auto">🗑</button>' +
+          '</div>';
+      }).join('');
+
+      return '<div style="background:var(--surface2);border-radius:10px;padding:14px 16px;margin-bottom:10px;border:1px solid ' + (saldada?'#22c987':'var(--border)') + '">' +
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">' +
+          '<div>' +
+            '<div style="font-weight:600;font-size:14px">' + v.cliente + '</div>' +
+            '<div style="font-size:12px;color:var(--muted)">' + v.fecha + ' · ' + v.producto.substring(0,45) + ' · ' + v.cant + ' Lts</div>' +
+          '</div>' +
+          '<div style="text-align:right">' +
+            '<div style="font-family:var(--mono);font-weight:700;font-size:15px">' + fmt(v.total) + '</div>' +
+            '<div style="font-size:11px;color:' + (saldada?'var(--green)':'var(--yellow)') + '">' + (saldada?'✅ Saldada':'⏳ Pendiente: ' + fmt(pendiente)) + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div style="background:var(--surface);border-radius:6px;height:6px;margin-bottom:10px;overflow:hidden">' +
+          '<div style="background:var(--green);height:100%;width:' + pct + '%;transition:width .3s"></div>' +
+        '</div>' +
+        (pagosHTML ? '<div style="margin-bottom:8px">' + pagosHTML + '</div>' : '') +
+        (!saldada ? '<button class="btn btn-primary btn-sm" onclick="abrirPagoArrayan(' + vi + ')" style="font-size:12px;width:100%">💰 Registrar pago parcial</button>' : '') +
+        '</div>';
+    }).join('');
+
+    // Agregar sección de ventas con pagos al contenedor
+    let seccion = document.getElementById('arrayan-ventas-detalle');
+    if(!seccion) {
+      seccion = document.createElement('div');
+      seccion.id = 'arrayan-ventas-detalle';
+      seccion.className = 'card';
+      seccion.style.marginBottom = '16px';
+      // Insertar antes del cuadro de escala
+      const escala = document.getElementById('arrayan-escala');
+      escala.parentNode.insertBefore(seccion, escala);
+    }
+    seccion.innerHTML = '<div class="card-title">🧾 Ventas Arrayan — Estado de cobro</div>' + ventasHTML;
+  }
 
   renderEscalaArrayan();
-}function exportArrayanExcel(){const cred=VENTAS.filter(v=>v.arrayan).map(v=>({'Fecha':v.fecha,'Tipo':'Credito','Descripcion':v.cliente+' - '+v.producto,'Credito ($)':v.total,'Debito ($)':'','Cantidad':v.cant,'Saldo':''}));const deb=COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')).map(c=>({'Fecha':c.fecha,'Tipo':'Debito','Descripcion':'Compra: '+c.producto+' ('+c.cant+' '+(c.unidad||'')+')', 'Credito ($)':'','Debito ($)':c.costoTotal,'Cantidad':c.cant,'Saldo':''}));const movs=[...cred,...deb].sort((a,b)=>{const pa=a['Fecha'].split('/'),pb=b['Fecha'].split('/');return new Date(parseInt(pa[2]),parseInt(pa[1])-1,parseInt(pa[0]))-new Date(parseInt(pb[2]),parseInt(pb[1])-1,parseInt(pb[0]));});let s=0;movs.forEach(m=>{s+=(parseFloat(m['Credito ($)'])||0)-(parseFloat(m['Debito ($)'])||0);m['Saldo']='$'+Math.round(s).toLocaleString('es-AR');});if(!movs.length){notify('Sin movimientos para exportar');return;}const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(movs),'Cuenta Corriente Arrayan');XLSX.writeFile(wb,'cuenta_corriente_arrayan.xlsx');notify('✓ Excel Arrayan exportado');}// =========== INIT ===========
-document.getElementById('nav-fecha').textContent = new Date().toLocaleDateString('es-AR',{month:'long',year:'numeric'});
-actualizarBadge();
-cargarDesdeSheets(); // Carga datos desde Sheets y luego renderiza
-setTimeout(()=>calcularAlertas(), 3000); // Calcular alertas después de cargar
-</script>
-
-
-</body>
-</html>
+}
