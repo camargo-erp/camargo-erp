@@ -663,7 +663,20 @@
     </div>
     <div style="font-size:11px;color:#c084fc;margin-top:8px">⚠️ El precio y costo ingresados aquí quedarán congelados en la venta. No modifican la tabla maestra.</div>
   </div>
-<div class="toggle-wrap" style="background:#0f1f1a;border-color:#1a4a3a;margin-bottom:14px;opacity:0.5;transition:opacity .2s" id="toggle-arrayan-wrap"><label class="toggle"><input type="checkbox" id="toggle-arrayan" onchange="toggleArrayanChange()"><span class="toggle-slider" style="background:#1a3a2a"></span></label><span class="toggle-label">🏭 <strong style="color:#00d4aa">Paga a Arrayan</strong> — El cliente transfiere directo a Arrayan. Queda como saldo a favor para retiro de mercadería.</span></div>
+<div class="toggle-wrap" style="background:#0f1f1a;border-color:#1a4a3a;margin-bottom:14px;opacity:0.5;transition:opacity .2s" id="toggle-arrayan-wrap"><label class="toggle"><input type="checkbox" id="toggle-arrayan" onchange="toggleArrayanChange()"><span class="toggle-slider" style="background:#1a3a2a"></span></label><span class="toggle-label">🏭 <strong style="color:#00d4aa">Paga a Arrayan</strong> — El cliente transfiere directo a Arrayan.</span></div>
+<div id="arrayan-tipo-wrap" style="display:none;margin-bottom:14px;background:#0a1f18;border:1px solid #1a4a3a;border-radius:8px;padding:10px 14px">
+  <div style="font-size:12px;color:var(--muted);margin-bottom:8px">¿Cómo deposita el cliente?</div>
+  <div style="display:flex;gap:10px">
+    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:8px 12px" id="arr-tipo-unico-label">
+      <input type="radio" name="arr-tipo" id="arr-tipo-unico" value="unico" checked onchange="toggleArrayanTipo()">
+      <span>💰 <strong>Pago único</strong> — deposita el total de una vez</span>
+    </label>
+    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:8px 12px" id="arr-tipo-parcial-label">
+      <input type="radio" name="arr-tipo" id="arr-tipo-parcial" value="parcial" onchange="toggleArrayanTipo()">
+      <span>📅 <strong>Pagos parciales</strong> — deposita en cuotas</span>
+    </label>
+  </div>
+</div>
   <div class="grid2">
     <div class="card">
       <div class="card-title">Datos de la Venta</div>
@@ -2927,9 +2940,14 @@ function initForm() {
 
 function toggleArrayanChange() {
   const on = document.getElementById('toggle-arrayan').checked;
-  const wrap = document.getElementById('toggle-arrayan-wrap');
-  wrap.style.opacity = on ? '1' : '0.5';
-  // Si está ON, agregar cuenta corriente al select de forma de pago
+  document.getElementById('toggle-arrayan-wrap').style.opacity = on ? '1' : '0.5';
+  document.getElementById('arrayan-tipo-wrap').style.display = on ? 'block' : 'none';
+  if(on) {
+    // Resetear a pago único por defecto
+    document.getElementById('arr-tipo-unico').checked = true;
+    toggleArrayanTipo();
+  }
+  // Manejar cuenta corriente en fpago
   const fpago = document.getElementById('nv-fpago');
   const yaExiste = Array.from(fpago.options).some(o => o.value === 'Cuenta corriente');
   if(on && !yaExiste) {
@@ -2942,6 +2960,13 @@ function toggleArrayanChange() {
       if(o.value === 'Cuenta corriente') fpago.removeChild(o);
     });
   }
+}
+
+function toggleArrayanTipo() {
+  const parcial = document.getElementById('arr-tipo-parcial').checked;
+  // Resaltar la opción seleccionada
+  document.getElementById('arr-tipo-unico-label').style.borderColor = !parcial ? '#00d4aa' : 'var(--border)';
+  document.getElementById('arr-tipo-parcial-label').style.borderColor = parcial ? '#00d4aa' : 'var(--border)';
 }
 
 function toggleFpagoArrayan() {}
@@ -3055,6 +3080,8 @@ function limpiarForm(){
   // Reset toggle arrayan
   document.getElementById('toggle-arrayan').checked=false;
   document.getElementById('toggle-arrayan-wrap').style.opacity='0.5';
+  document.getElementById('arrayan-tipo-wrap').style.display='none';
+  document.getElementById('arr-tipo-unico').checked=true;
   // Quitar cuenta corriente del fpago si estaba
   const fpago=document.getElementById('nv-fpago');
   Array.from(fpago.options).forEach(o=>{if(o.value==='Cuenta corriente')fpago.removeChild(o);});
@@ -3783,7 +3810,10 @@ async function guardarVenta() {
     costoT:costoTotal,gan,margen:total>0?gan/total:0,
     fpago,pagado,entrega,entregado:'No',
     frozen:true,especial:espe||false,
-    arrayan:document.getElementById('toggle-arrayan').checked
+    arrayan:document.getElementById('toggle-arrayan').checked,
+    arrayanTipo: document.getElementById('toggle-arrayan').checked
+      ? (document.getElementById('arr-tipo-parcial').checked ? 'parcial' : 'unico')
+      : ''
 };
 VENTAS.unshift(venta);
 actualizarBadge();
@@ -4870,7 +4900,7 @@ async function eliminarPagoArrayan(idx) {
 }
 
 function renderArrayan() {
-  // Créditos: pagos parciales registrados (no el total de la venta)
+  // Créditos: pagos parciales registrados
   const creditosPagos = PAGOS_ARRAYAN.map(p => ({
     fecha: p.fecha, tipo: 'credito',
     desc: p.cliente + ' — ' + p.concepto + (p.obs ? ' (' + p.obs + ')' : ''),
@@ -4878,9 +4908,13 @@ function renderArrayan() {
     pagoIdx: PAGOS_ARRAYAN.indexOf(p)
   }));
 
-  // Créditos: ventas Arrayan SIN pagos registrados (crédito completo de una vez)
+  // Créditos: ventas Arrayan con pago único (arrayanTipo='unico' o sin tipo = backward compat)
   const ventasConPagos = new Set(PAGOS_ARRAYAN.map(p => p.ventaId));
-  const creditosVentasDirectas = VENTAS.filter(v => v.arrayan && !ventasConPagos.has(ventaId(v))).map(v => ({
+  const creditosVentasDirectas = VENTAS.filter(v =>
+    v.arrayan &&
+    (v.arrayanTipo === 'unico' || !v.arrayanTipo) &&
+    !ventasConPagos.has(ventaId(v))
+  ).map(v => ({
     fecha: v.fecha, tipo: 'credito',
     desc: v.cliente + ' — ' + v.producto.substring(0,50) + ' (' + v.cant + ' Lts)',
     monto: v.total, fpago: 'Pago único'
@@ -4952,7 +4986,8 @@ function renderArrayan() {
     '<div class="kpi"><div class="kpi-label">📦 Movimientos</div><div class="kpi-value">' + movs.length + '</div><div class="kpi-sub">Total operaciones</div></div>';
 
   // Ventas Arrayan con detalle de pagos
-  const ventasArrayan = VENTAS.filter(v => v.arrayan);
+  // Solo ventas con pago parcial van al estado de cobro
+  const ventasArrayan = VENTAS.filter(v => v.arrayan && v.arrayanTipo === 'parcial');
   if(ventasArrayan.length > 0) {
     const ventasHTML = ventasArrayan.map(v => {
       const pagos = getPagosDeVenta(v);
