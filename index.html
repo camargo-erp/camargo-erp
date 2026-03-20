@@ -303,7 +303,7 @@
       </div>
       <div class="form-group"><label>Forma de Pago</label>
         <select id="nc-fpago" onchange="checkSaldoArrayan()">
-  <option>Transferencia</option><option>Efectivo</option><option>Cheque</option><option>Cuenta corriente</option>
+  <option>Transferencia</option><option>Efectivo</option><option>Cheque</option><option>Cuenta corriente</option><option value="Ingreso a Cta Cte">➕ Ingreso a Cta Cte</option>
 </select>
 <div id="aviso-cta-cte" style="display:none;background:#2d1a0a;border:1px solid #8b4513;border-radius:8px;padding:12px;margin-top:8px;font-size:12px;color:var(--yellow)"></div>
 <div id="diferencia-fpago" style="display:none;margin-top:8px">
@@ -4200,6 +4200,13 @@ function checkSaldoArrayan() {
   if(fpago !== 'Cuenta corriente') {
     aviso.style.display = 'none';
     difDiv.style.display = 'none';
+    if(fpago === 'Ingreso a Cta Cte') {
+      aviso.style.display = 'block';
+      aviso.style.background = '#1a3d2e';
+      aviso.style.borderColor = '#22c987';
+      aviso.style.color = '#22c987';
+      aviso.innerHTML = '➕ Este monto se sumará como <b>crédito</b> en la cuenta corriente Arrayan';
+    }
     return;
   }
 
@@ -4619,9 +4626,10 @@ function renderEscalaArrayan() {
   const anioSel = document.getElementById('escala-anio')?.value || String(hoy.getFullYear());
   const mesSel  = parseInt(document.getElementById('escala-mes')?.value  || hoy.getMonth()+1);
 
-  // Todas las compras de Arrayan del período seleccionado (sin filtrar por fpago)
+  // Todas las compras reales de Arrayan del período (excluir Ingreso a Cta Cte)
   const comprasMes = COMPRAS.filter(c => {
     if(!(c.proveedor||'').toLowerCase().includes('arrayan')) return false;
+    if((c.fpago||'').toLowerCase().includes('ingreso a cta cte')) return false;
     const p = (c.fecha||'').split('/');
     if(p.length < 3) return false;
     return parseInt(p[2])===parseInt(anioSel) && parseInt(p[1])===mesSel;
@@ -4713,16 +4721,27 @@ function renderEscalaArrayan() {
 }
 function esCuentaCorrienteArrayan(fpago) {
   const f = (fpago||'').toLowerCase().trim();
-  return f === 'cuenta corriente' || f.includes('cta cte') || f.startsWith('cta cte');
+  return f === 'cuenta corriente' || f.includes('cta cte') || f.startsWith('cta cte') || 
+         f.includes('cuenta corriente') || f.includes('cc ') || f === 'cc';
 }
 
 function renderArrayan() {
   // CRÉDITOS: ventas donde el cliente pagó directo a Arrayan
-  const creditos = VENTAS.filter(v=>v.arrayan).map(v=>({
+  const creditosVentas = VENTAS.filter(v=>v.arrayan).map(v=>({
     fecha:v.fecha, tipo:'credito',
     desc:v.cliente+' — '+v.producto.substring(0,50)+' ('+v.cant+' Lts)',
     monto:v.total, fpago:'Crédito cliente'
   }));
+  // CRÉDITOS: ingresos propios a cta cte (compras con fpago "Ingreso a Cta Cte")
+  const creditosIngreso = COMPRAS.filter(c =>
+    (c.proveedor||'').toLowerCase().includes('arrayan') &&
+    (c.fpago||'').toLowerCase().includes('ingreso a cta cte')
+  ).map(c=>({
+    fecha:c.fecha, tipo:'credito',
+    desc:'➕ Ingreso propio: '+c.producto+' ('+c.cant+' Lts)',
+    monto:c.costoTotal, fpago:'Ingreso a Cta Cte'
+  }));
+  const creditos = [...creditosVentas, ...creditosIngreso];
 
   // DÉBITOS cuenta corriente: solo compras a Arrayan pagadas con cta cte
   const debitosCC = COMPRAS.filter(c =>
