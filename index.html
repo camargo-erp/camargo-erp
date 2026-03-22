@@ -847,6 +847,22 @@
     </div>
   </div>
 
+  <!-- TABLA PRODUCTOS USD ARRAYAN -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-title">💵 Productos Arrayan — En Dólares</div>
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;background:#111827;border:1px solid #1e3a5f;border-radius:8px;padding:12px 16px;flex-wrap:wrap">
+      <span style="font-size:13px;color:var(--muted)">💲 Valor del dólar (ARS):</span>
+      <input type="number" id="input-valor-dolar" style="width:130px;font-family:var(--mono);font-size:15px;font-weight:600;color:var(--yellow);background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:7px 10px" oninput="recalcularUSD()">
+      <span style="font-size:12px;color:var(--muted)">· Precio venta = costo + 10% &nbsp;·&nbsp; Tu comisión = 5% del costo</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Producto</th><th>Presentación</th><th>Costo USD/unid (Arrayan)</th><th>Valor Tambor ARS</th><th>Precio Venta Recambio ARS</th><th>Precio Venta Con Tambor ARS</th><th>Tu comisión ARS</th></tr></thead>
+        <tbody id="usd-prod-body"></tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- TABLA TODOS LOS PRODUCTOS -->
   <div class="card">
     <div class="card-title">📦 Todos los Productos (Hoja PRODUCTO)</div>
@@ -965,6 +981,21 @@ let PRECIOS = [
   {modal:"SIN Envase 5L SIN caja",costo:1440,lista:2110,m80:2026,m120:1962,m200:1899,prod:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO fracc recambio"},
   {modal:"TAMBOR 200L RECAMBIO",costo:1440,lista:1600,m80:1600,m120:1600,m200:1600,prod:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO tambor recambio"},
   {modal:"TAMBOR 200L VENTA",costo:1520,lista:1726.25,m80:1726.25,m120:1726.25,m200:1726.25,prod:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO tambor venta"},
+];
+
+let VALOR_DOLAR = 1200;
+
+let PRODUCTOS_USD = [
+  {nombre:"Ácido Sulfónico",presentacion:"Tambor 220 kg",cant:220,unidad:"kg",costoUSD:null,valorTambor:null,esArrayan:true,sinTambor:false},
+  {nombre:"Soda Cáustica 99%",presentacion:"Bolsa 25 kg",cant:25,unidad:"kg",costoUSD:null,valorTambor:null,esArrayan:true,sinTambor:true},
+  {nombre:"Glicerina USP Vegetal",presentacion:"Tambor 250 kg",cant:250,unidad:"kg",costoUSD:null,valorTambor:null,esArrayan:true,sinTambor:false},
+  {nombre:"Nonilfenol 10M",presentacion:"Tambor 200 kg",cant:200,unidad:"kg",costoUSD:null,valorTambor:null,esArrayan:true,sinTambor:false},
+  {nombre:"Isopropílico IPA",presentacion:"Tambor 160 kg",cant:160,unidad:"kg",costoUSD:null,valorTambor:null,esArrayan:true,sinTambor:false},
+  {nombre:"Butilglicol",presentacion:"Tambor 200 L",cant:200,unidad:"L",costoUSD:null,valorTambor:null,esArrayan:true,sinTambor:false},
+  {nombre:"Agua Amoniacal 26°",presentacion:"Tambor 200 L",cant:200,unidad:"L",costoUSD:null,valorTambor:null,esArrayan:true,sinTambor:false},
+  {nombre:"Thinner Profesional 501",presentacion:"Tambor 200 L",cant:200,unidad:"L",costoUSD:null,valorTambor:null,esArrayan:true,sinTambor:false},
+  {nombre:"Thinner Sello de Oro",presentacion:"Tambor 200 L",cant:200,unidad:"L",costoUSD:null,valorTambor:null,esArrayan:true,sinTambor:false},
+  {nombre:"Aguarrás",presentacion:"Tambor 200 L",cant:200,unidad:"L",costoUSD:null,valorTambor:null,esArrayan:true,sinTambor:false},
 ];
 
 const OTROS_PROD = [
@@ -3533,6 +3564,26 @@ function renderPrecios() {
       <td><input class="precio-edit" type="number" value="${p.m200}" id="pc-${i}-m200" oninput="precioEditado()"></td>
     </tr>`).join('');
 
+  document.getElementById('input-valor-dolar').value = VALOR_DOLAR;
+  document.getElementById('usd-prod-body').innerHTML = PRODUCTOS_USD.map((p,i) => {
+    const costoARS = p.costoUSD ? Math.round(p.costoUSD * VALOR_DOLAR * p.cant) : null;
+    const pvRecambio = costoARS ? Math.round(costoARS * 1.10) : null;
+    const pvConTambor = pvRecambio && p.valorTambor ? pvRecambio + p.valorTambor : null;
+    const comision = costoARS ? Math.round(costoARS * 0.05) : null;
+    return `<tr>
+      <td><strong>${p.nombre}</strong><br><span style="font-size:11px;color:var(--accent2)">🏭 Arrayan</span></td>
+      <td style="color:var(--muted);font-size:12px">${p.presentacion}</td>
+      <td><input class="precio-edit" type="number" step="0.01" placeholder="u$d" value="${p.costoUSD||''}" id="usd-${i}-costo" oninput="recalcularUSD()" style="width:110px"></td>
+      <td>${p.sinTambor
+        ? '<span style="color:var(--muted);font-size:11px">Sin tambor</span>'
+        : `<input class="precio-edit" type="number" placeholder="$ARS" value="${p.valorTambor||''}" id="usd-${i}-tambor" oninput="recalcularUSD()" style="width:110px">`
+      }</td>
+      <td style="font-family:var(--mono);color:var(--accent2);font-weight:600" id="usd-${i}-recambio">${pvRecambio ? '$'+pvRecambio.toLocaleString('es-AR') : '—'}</td>
+      <td style="font-family:var(--mono);color:var(--green);font-weight:600" id="usd-${i}-contambor">${p.sinTambor ? '<span style="color:var(--muted)">—</span>' : (pvConTambor ? '$'+pvConTambor.toLocaleString('es-AR') : '—')}</td>
+      <td style="font-family:var(--mono);color:var(--yellow)" id="usd-${i}-comision">${comision ? '$'+comision.toLocaleString('es-AR') : '—'}</td>
+    </tr>`;
+  }).join('');
+
   document.getElementById('todos-prod-body').innerHTML=TODOS_PRODUCTOS.map(p=>`
     <tr>
       <td><strong>${p.nombre}</strong></td>
@@ -3547,6 +3598,25 @@ function renderPrecios() {
 }
 
 function precioEditado(){document.getElementById('precio-alert-box').classList.add('show');}
+
+function recalcularUSD(){
+  VALOR_DOLAR = parseFloat(document.getElementById('input-valor-dolar').value) || VALOR_DOLAR;
+  PRODUCTOS_USD.forEach((p,i) => {
+    p.costoUSD = parseFloat(document.getElementById(`usd-${i}-costo`)?.value) || null;
+    p.valorTambor = p.sinTambor ? null : (parseFloat(document.getElementById(`usd-${i}-tambor`)?.value) || null);
+    const costoARS = p.costoUSD ? Math.round(p.costoUSD * VALOR_DOLAR * p.cant) : null;
+    const pvRecambio = costoARS ? Math.round(costoARS * 1.10) : null;
+    const pvConTambor = pvRecambio && p.valorTambor ? pvRecambio + p.valorTambor : null;
+    const comision = costoARS ? Math.round(costoARS * 0.05) : null;
+    const elRec = document.getElementById(`usd-${i}-recambio`);
+    const elTam = document.getElementById(`usd-${i}-contambor`);
+    const elCom = document.getElementById(`usd-${i}-comision`);
+    if(elRec) elRec.textContent = pvRecambio ? '$'+pvRecambio.toLocaleString('es-AR') : '—';
+    if(elTam && !p.sinTambor) elTam.textContent = pvConTambor ? '$'+pvConTambor.toLocaleString('es-AR') : '—';
+    if(elCom) elCom.textContent = comision ? '$'+comision.toLocaleString('es-AR') : '—';
+  });
+  document.getElementById('precio-alert-box').classList.add('show');
+}
 
 function guardarPrecios(){
   PRECIOS.forEach((p,i)=>{
@@ -3881,6 +3951,7 @@ async function guardarPrecios(){
     p.m120=parseFloat(document.getElementById(`pc-${i}-m120`).value)||p.m120;
     p.m200=parseFloat(document.getElementById(`pc-${i}-m200`).value)||p.m200;
   });
+  recalcularUSD();
   notify('✓ Precios actualizados — ventas históricas sin cambios');
   await gsGuardarPrecios(PRECIOS);
 }
