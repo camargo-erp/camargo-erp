@@ -162,7 +162,7 @@
   <div class="nav-tab" onclick="showPage('clientes')">👥 Clientes</div>
   <div class="nav-tab" onclick="showPage('transportes')">🚚 Transportes</div>
   <div class="nav-tab" onclick="showPage('reporte-contador')">📋 Reporte Contador</div>
-  <div class="nav-tab" onclick="showPage('compras')">🛒 Compras</div><div class="nav-tab" onclick="showPage('arrayan')">🏭 Arrayan</div>
+  <div class="nav-tab" onclick="showPage('compras')">🛒 Compras</div><div class="nav-tab" onclick="showPage('arrayan')">🏭 Arrayan</div><div class="nav-tab" onclick="showPage('ventas-arrayan')">📊 Ventas Arrayan</div>
   <div class="nav-right" style="display:flex;align-items:center;gap:8px">
     <div style="position:relative;cursor:pointer" onclick="toggleAlertas()" id="btn-alertas" title="Alertas">
       <span style="font-size:18px">🔔</span>
@@ -323,7 +323,50 @@
   </div>
 </div>
 
-<!-- ===== ARRAYAN ===== --><div class="page" id="page-arrayan"><div class="section-header"><div class="section-title">🏭 Cuenta Corriente — Arrayan</div><div style="display:flex;gap:8px"><button class="btn btn-warn btn-sm" onclick="exportArrayanExcel()">📊 Excel</button></div></div><div class="kpi-grid" id="arrayan-kpis" style="margin-bottom:24px"></div><div class="card" id="arrayan-escala" style="margin-bottom:16px"></div><div class="card"><div class="card-title">Movimientos — Créditos (pagos de clientes) y Débitos (compras en Arrayan)</div><div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Descripción</th><th style="text-align:right">Crédito</th><th style="text-align:right">Débito</th><th style="text-align:right">Saldo</th></tr></thead><tbody id="arrayan-body"></tbody></table></div></div></div><!-- MODAL PAGO PARCIAL ARRAYAN -->
+<!-- ===== ARRAYAN ===== --><div class="page" id="page-arrayan"><div class="section-header"><div class="section-title">🏭 Cuenta Corriente — Arrayan</div><div style="display:flex;gap:8px"><button class="btn btn-warn btn-sm" onclick="exportArrayanExcel()">📊 Excel</button></div></div><div class="kpi-grid" id="arrayan-kpis" style="margin-bottom:24px"></div><div class="card" id="arrayan-escala" style="margin-bottom:16px"></div><div class="card"><div class="card-title">Movimientos — Créditos (pagos de clientes) y Débitos (compras en Arrayan)</div><div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Descripción</th><th style="text-align:right">Crédito</th><th style="text-align:right">Débito</th><th style="text-align:right">Saldo</th></tr></thead><tbody id="arrayan-body"></tbody></table></div></div></div><!-- ===== VENTAS ARRAYAN ===== -->
+<div class="page" id="page-ventas-arrayan">
+  <div class="section-header">
+    <div class="section-title">📊 Ventas Arrayan</div>
+    <button class="btn btn-warn btn-sm" onclick="exportVentasArrayanExcel()">📊 Excel</button>
+  </div>
+  <!-- Filtros -->
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+    <select id="va-anio" onchange="renderVentasArrayan()" style="padding:7px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px">
+      <option value="all">Todos los años</option>
+    </select>
+    <select id="va-mes" onchange="renderVentasArrayan()" style="padding:7px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px">
+      <option value="0">Todos los meses</option>
+      <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option>
+      <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
+      <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
+      <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+    </select>
+  </div>
+  <!-- KPIs -->
+  <div class="kpi-grid" id="va-kpis" style="margin-bottom:20px"></div>
+  <!-- Tabla -->
+  <div class="card">
+    <div class="card-title">Detalle de ventas</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Fecha</th><th>Cliente</th><th>Producto</th>
+          <th style="text-align:right">Cantidad</th>
+          <th style="text-align:right">Total Venta</th>
+          <th style="text-align:right">Comisión 5%</th>
+        </tr></thead>
+        <tbody id="va-body"></tbody>
+        <tfoot><tr>
+          <td colspan="4" style="font-weight:600;color:var(--muted);padding:10px 12px">TOTAL</td>
+          <td style="text-align:right;font-family:var(--mono);font-weight:700;color:var(--accent);padding:10px 12px" id="va-total-venta">—</td>
+          <td style="text-align:right;font-family:var(--mono);font-weight:700;color:var(--green);padding:10px 12px" id="va-total-comision">—</td>
+        </tr></tfoot>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PAGO PARCIAL ARRAYAN -->
 <div class="modal-overlay" id="modal-pago-arrayan">
   <div class="modal" style="max-width:480px">
     <div class="modal-title">💰 Registrar Pago Parcial — Arrayan</div>
@@ -2166,12 +2209,12 @@ function showPage(id) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
-  const tabs={'dashboard':0,'ventas':1,'nueva-venta':2,'pendientes':3,'precios':4,'clientes':5,'transportes':6,'reporte-contador':7,'compras':8,'arrayan':9};
+  const tabs={'dashboard':0,'ventas':1,'nueva-venta':2,'pendientes':3,'precios':4,'clientes':5,'transportes':6,'reporte-contador':7,'compras':8,'arrayan':9,'ventas-arrayan':10};
   document.querySelectorAll('.nav-tab')[tabs[id]]?.classList.add('active');
   if(id==='ventas') renderVentas();
   if(id==='pendientes') renderPendientes();
   if(id==='reporte-contador') renderReporteContador();
-  if(id==='compras') renderCompras();if(id==='arrayan') renderArrayan();
+  if(id==='compras') renderCompras();if(id==='arrayan') renderArrayan();if(id==='ventas-arrayan') renderVentasArrayan();
   if(id==='precios') renderPrecios();
   if(id==='nueva-venta') initForm();
   if(id==='dashboard') renderDashboard();
@@ -5188,6 +5231,93 @@ function renderArrayan() {
 
   renderEscalaArrayan();
 }
+function renderVentasArrayan() {
+  const PRODS_ARRAYAN = PRODUCTOS_USD.map(p => p.nombre.toLowerCase());
+
+  // Poblar filtro de años
+  const anios = [...new Set(VENTAS
+    .filter(v => v.esArrayan || PRODS_ARRAYAN.some(n => (v.producto||'').toLowerCase().includes(n)))
+    .map(v => { const p = (v.fecha||'').split('/'); return p[2] || ''; })
+    .filter(Boolean)
+  )].sort().reverse();
+
+  const selAnio = document.getElementById('va-anio');
+  const anioAct = selAnio.value;
+  selAnio.innerHTML = '<option value="all">Todos los años</option>' +
+    anios.map(a => `<option value="${a}" ${a===anioAct?'selected':''}>${a}</option>`).join('');
+
+  const anio = selAnio.value;
+  const mes = parseInt(document.getElementById('va-mes').value);
+
+  // Filtrar ventas Arrayan
+  const ventas = VENTAS.filter(v => {
+    const esArr = v.esArrayan || PRODS_ARRAYAN.some(n => (v.producto||'').toLowerCase().includes(n));
+    if (!esArr) return false;
+    const p = (v.fecha||'').split('/');
+    if (anio !== 'all' && p[2] !== anio) return false;
+    if (mes > 0 && parseInt(p[1]) !== mes) return false;
+    return true;
+  });
+
+  // KPIs
+  const totalVenta = ventas.reduce((s,v) => s + v.total, 0);
+  const totalComision = ventas.reduce((s,v) => s + Math.round(v.total * 0.05), 0);
+  const ops = ventas.length;
+
+  document.getElementById('va-kpis').innerHTML = `
+    <div class="kpi highlight"><div class="kpi-label">💰 Total Vendido</div>
+      <div class="kpi-value accent">${fmt(totalVenta)}</div>
+      <div class="kpi-sub">${ops} operaciones</div></div>
+    <div class="kpi highlight2"><div class="kpi-label">✅ Total Comisiones (5%)</div>
+      <div class="kpi-value green">${fmt(totalComision)}</div>
+      <div class="kpi-sub">Sobre ventas filtradas</div></div>
+    <div class="kpi"><div class="kpi-label">📦 Operaciones</div>
+      <div class="kpi-value">${ops}</div>
+      <div class="kpi-sub">${anio==='all'?'Históricas':anio}</div></div>
+    <div class="kpi"><div class="kpi-label">📊 Comisión Promedio</div>
+      <div class="kpi-value">${ops>0?fmt(Math.round(totalComision/ops)):'—'}</div>
+      <div class="kpi-sub">Por operación</div></div>`;
+
+  // Tabla
+  const rows = ventas.sort((a,b) => {
+    const pa=a.fecha.split('/'), pb=b.fecha.split('/');
+    return new Date(pb[2],pb[1]-1,pb[0]) - new Date(pa[2],pa[1]-1,pa[0]);
+  }).map(v => {
+    const comision = Math.round(v.total * 0.05);
+    return `<tr>
+      <td>${v.fecha}</td>
+      <td>${v.cliente}</td>
+      <td>${v.producto}</td>
+      <td style="text-align:right;font-family:var(--mono)">${v.cant}</td>
+      <td style="text-align:right;font-family:var(--mono);color:var(--accent)">${fmt(v.total)}</td>
+      <td style="text-align:right;font-family:var(--mono);color:var(--green);font-weight:600">${fmt(comision)}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('va-body').innerHTML = rows || '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Sin ventas Arrayan en el período</td></tr>';
+  document.getElementById('va-total-venta').textContent = fmt(totalVenta);
+  document.getElementById('va-total-comision').textContent = fmt(totalComision);
+}
+
+function exportVentasArrayanExcel() {
+  const PRODS_ARRAYAN = PRODUCTOS_USD.map(p => p.nombre.toLowerCase());
+  const ventas = VENTAS.filter(v => v.esArrayan || PRODS_ARRAYAN.some(n => (v.producto||'').toLowerCase().includes(n)));
+  if (!ventas.length) { notify('Sin ventas Arrayan para exportar'); return; }
+  const rows = ventas.map(v => ({
+    'Fecha': v.fecha, 'Cliente': v.cliente, 'Producto': v.producto,
+    'Cantidad': v.cant, 'Total Venta ($)': v.total,
+    'Comisión 5% ($)': Math.round(v.total * 0.05)
+  }));
+  rows.push({'Fecha':'','Cliente':'','Producto':'TOTAL','Cantidad':'',
+    'Total Venta ($)': ventas.reduce((s,v)=>s+v.total,0),
+    'Comisión 5% ($)': ventas.reduce((s,v)=>s+Math.round(v.total*0.05),0)
+  });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Ventas Arrayan');
+  XLSX.writeFile(wb, 'ventas_arrayan.xlsx');
+  notify('✓ Excel exportado');
+}
+
 function exportArrayanExcel(){const cred=VENTAS.filter(v=>v.arrayan).map(v=>({'Fecha':v.fecha,'Tipo':'Credito','Descripcion':v.cliente+' - '+v.producto,'Credito ($)':v.total,'Debito ($)':'','Cantidad':v.cant,'Saldo':''}));const deb=COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')).map(c=>({'Fecha':c.fecha,'Tipo':'Debito','Descripcion':'Compra: '+c.producto+' ('+c.cant+' '+(c.unidad||'')+')', 'Credito ($)':'','Debito ($)':c.costoTotal,'Cantidad':c.cant,'Saldo':''}));const movs=[...cred,...deb].sort((a,b)=>{const pa=a['Fecha'].split('/'),pb=b['Fecha'].split('/');return new Date(parseInt(pa[2]),parseInt(pa[1])-1,parseInt(pa[0]))-new Date(parseInt(pb[2]),parseInt(pb[1])-1,parseInt(pb[0]));});let s=0;movs.forEach(m=>{s+=(parseFloat(m['Credito ($)'])||0)-(parseFloat(m['Debito ($)'])||0);m['Saldo']='$'+Math.round(s).toLocaleString('es-AR');});if(!movs.length){notify('Sin movimientos para exportar');return;}const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(movs),'Cuenta Corriente Arrayan');XLSX.writeFile(wb,'cuenta_corriente_arrayan.xlsx');notify('✓ Excel Arrayan exportado');}// =========== INIT ===========
 document.getElementById('nav-fecha').textContent = new Date().toLocaleDateString('es-AR',{month:'long',year:'numeric'});
 actualizarBadge();
