@@ -993,9 +993,9 @@ let PRODUCTOS_USD = [
   {nombre:"Isopropílico IPA",presentacion:"Tambor 160 kg",cant:160,unidad:"kg",costoUSD:null,valorTambor:null,esArrayan:true,sinTambor:false},
   {nombre:"Butilglicol",presentacion:"Tambor 200 L",cant:200,unidad:"L",costoUSD:null,valorTambor:null,esArrayan:true,sinTambor:false},
   {nombre:"Agua Amoniacal 26°",presentacion:"Tambor 200 L",cant:200,unidad:"L",costoUSD:null,valorTambor:null,esArrayan:true,sinTambor:false},
-  {nombre:"Thinner Profesional 501",presentacion:"Tambor 200 L",cant:200,unidad:"L",costoUSD:null,valorTambor:null,esArrayan:true,sinTambor:false},
-  {nombre:"Thinner Sello de Oro",presentacion:"Tambor 200 L",cant:200,unidad:"L",costoUSD:null,valorTambor:null,esArrayan:true,sinTambor:false},
-  {nombre:"Aguarrás",presentacion:"Tambor 200 L",cant:200,unidad:"L",costoUSD:null,valorTambor:null,esArrayan:true,sinTambor:false},
+  {nombre:"Thinner Profesional 501",presentacion:"Tambor 200 L",cant:200,unidad:"L",costoUSD:null,valorTambor:null,esArrayan:true,sinTambor:false,enPesos:true},
+  {nombre:"Thinner Sello de Oro",presentacion:"Tambor 200 L",cant:200,unidad:"L",costoUSD:null,valorTambor:null,esArrayan:true,sinTambor:false,enPesos:true},
+  {nombre:"Aguarrás",presentacion:"Tambor 200 L",cant:200,unidad:"L",costoUSD:null,valorTambor:null,esArrayan:true,sinTambor:false,enPesos:true},
 ];
 
 const OTROS_PROD = [
@@ -3566,14 +3566,19 @@ function renderPrecios() {
 
   document.getElementById('input-valor-dolar').value = VALOR_DOLAR;
   document.getElementById('usd-prod-body').innerHTML = PRODUCTOS_USD.map((p,i) => {
-    const costoARS = p.costoUSD ? Math.round(p.costoUSD * VALOR_DOLAR * p.cant) : null;
+    // Productos en pesos: costo directo en ARS, sin multiplicar por dólar
+    const costoARS = p.enPesos
+      ? (p.costoUSD ? Math.round(p.costoUSD * p.cant) : null)
+      : (p.costoUSD ? Math.round(p.costoUSD * VALOR_DOLAR * p.cant) : null);
     const pvRecambio = costoARS ? Math.round(costoARS * 1.10) : null;
     const pvConTambor = pvRecambio && p.valorTambor ? pvRecambio + p.valorTambor : null;
     const comision = costoARS ? Math.round(costoARS * 0.05) : null;
+    const placeholderCosto = p.enPesos ? '$ARS/unid' : 'u$d/unid';
+    const labelMoneda = p.enPesos ? '<span style="font-size:10px;color:var(--muted)">ARS</span>' : '<span style="font-size:10px;color:var(--yellow)">USD</span>';
     return `<tr>
       <td><strong>${p.nombre}</strong><br><span style="font-size:11px;color:var(--accent2)">🏭 Arrayan</span></td>
       <td style="color:var(--muted);font-size:12px">${p.presentacion}</td>
-      <td><input class="precio-edit" type="number" step="0.01" placeholder="u$d" value="${p.costoUSD||''}" id="usd-${i}-costo" oninput="recalcularUSD()" style="width:110px"></td>
+      <td><div style="display:flex;align-items:center;gap:4px"><input class="precio-edit" type="number" step="0.01" placeholder="${placeholderCosto}" value="${p.costoUSD||''}" id="usd-${i}-costo" oninput="recalcularUSD()" style="width:110px">${labelMoneda}</div></td>
       <td>${p.sinTambor
         ? '<span style="color:var(--muted);font-size:11px">Sin tambor</span>'
         : `<input class="precio-edit" type="number" placeholder="$ARS" value="${p.valorTambor||''}" id="usd-${i}-tambor" oninput="recalcularUSD()" style="width:110px">`
@@ -3604,7 +3609,9 @@ function recalcularUSD(){
   PRODUCTOS_USD.forEach((p,i) => {
     p.costoUSD = parseFloat(document.getElementById(`usd-${i}-costo`)?.value) || null;
     p.valorTambor = p.sinTambor ? null : (parseFloat(document.getElementById(`usd-${i}-tambor`)?.value) || null);
-    const costoARS = p.costoUSD ? Math.round(p.costoUSD * VALOR_DOLAR * p.cant) : null;
+    const costoARS = p.enPesos
+      ? (p.costoUSD ? Math.round(p.costoUSD * p.cant) : null)
+      : (p.costoUSD ? Math.round(p.costoUSD * VALOR_DOLAR * p.cant) : null);
     const pvRecambio = costoARS ? Math.round(costoARS * 1.10) : null;
     const pvConTambor = pvRecambio && p.valorTambor ? pvRecambio + p.valorTambor : null;
     const comision = costoARS ? Math.round(costoARS * 0.05) : null;
