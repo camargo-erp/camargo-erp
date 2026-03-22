@@ -3568,12 +3568,12 @@ function renderPrecios() {
   document.getElementById('usd-prod-body').innerHTML = PRODUCTOS_USD.map((p,i) => {
     // Productos en pesos: costo directo en ARS, sin multiplicar por dólar
     const costoARS = p.enPesos
-      ? (p.costoUSD ? Math.round(p.costoUSD * p.cant) : null)
+      ? (p.costoUSD ? Math.round(p.costoUSD) : null)
       : (p.costoUSD ? Math.round(p.costoUSD * VALOR_DOLAR * p.cant) : null);
     const pvRecambio = costoARS ? Math.round(costoARS * 1.10) : null;
     const pvConTambor = pvRecambio && p.valorTambor ? pvRecambio + p.valorTambor : null;
     const comision = costoARS ? Math.round(costoARS * 0.05) : null;
-    const placeholderCosto = p.enPesos ? '$ARS/unid' : 'u$d/unid';
+    const placeholderCosto = p.enPesos ? '$ARS tambor' : 'u$d/unid';
     const labelMoneda = p.enPesos ? '<span style="font-size:10px;color:var(--muted)">ARS</span>' : '<span style="font-size:10px;color:var(--yellow)">USD</span>';
     return `<tr>
       <td><strong>${p.nombre}</strong><br><span style="font-size:11px;color:var(--accent2)">🏭 Arrayan</span></td>
@@ -3610,7 +3610,7 @@ function recalcularUSD(){
     p.costoUSD = parseFloat(document.getElementById(`usd-${i}-costo`)?.value) || null;
     p.valorTambor = p.sinTambor ? null : (parseFloat(document.getElementById(`usd-${i}-tambor`)?.value) || null);
     const costoARS = p.enPesos
-      ? (p.costoUSD ? Math.round(p.costoUSD * p.cant) : null)
+      ? (p.costoUSD ? Math.round(p.costoUSD) : null)
       : (p.costoUSD ? Math.round(p.costoUSD * VALOR_DOLAR * p.cant) : null);
     const pvRecambio = costoARS ? Math.round(costoARS * 1.10) : null;
     const pvConTambor = pvRecambio && p.valorTambor ? pvRecambio + p.valorTambor : null;
