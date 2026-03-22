@@ -734,8 +734,15 @@
       </div>
       <div class="form-grid" style="margin-bottom:14px">
         <div class="form-group"><label>Producto</label>
-          <select id="nv-producto" onchange="calcularPrecio()">
+          <select id="nv-producto" onchange="onProductoChange()">
             <option value="">— Seleccionar —</option>
+          </select>
+        </div>
+        <div class="form-group" id="nv-tambor-wrap" style="display:none">
+          <label>Modalidad Tambor</label>
+          <select id="nv-tambor-tipo" onchange="calcularPrecio()" style="border-color:var(--accent2)">
+            <option value="recambio">🔄 Recambio (devuelve tambor vacío)</option>
+            <option value="venta">🛒 Con tambor (se queda con el tambor)</option>
           </select>
         </div>
         <div class="form-group"><label>Cantidad (Lts/Kg)</label>
@@ -3065,6 +3072,16 @@ function autoCompleteCliente() {
   calcularPrecio();
 }
 
+function onProductoChange() {
+  const prod = document.getElementById('nv-producto').value;
+  const prodName = prod.startsWith('ARRAYAN:') ? prod.replace('ARRAYAN:','') : prod;
+  const arr = PRODUCTOS_USD.find(p => p.nombre === prodName);
+  const tieneTambor = arr && !arr.sinTambor;
+  const wrap = document.getElementById('nv-tambor-wrap');
+  if(wrap) wrap.style.display = tieneTambor ? 'block' : 'none';
+  calcularPrecio();
+}
+
 function getPrecio(prod,cant) {
   const espe=document.getElementById('toggle-especial').checked;
   if(espe) {
@@ -3091,9 +3108,12 @@ function getPrecio(prod,cant) {
     const costoARS = arr.enPesos
       ? (arr.costoUSD || 0)
       : ((arr.costoUSD || 0) * VALOR_DOLAR * arr.cant);
+    const modalidad = document.getElementById('nv-tambor-tipo')?.value || 'recambio';
+    const esCon = modalidad === 'venta' && !arr.sinTambor && arr.valorTambor;
     const pvRecambio = Math.round(costoARS * 1.10);
-    const miCosto = Math.round(costoARS * 1.05); // costo + mi 5%
-    return {precio: pvRecambio, costo: miCosto, esArrayan: true};
+    const pvConTambor = esCon ? pvRecambio + arr.valorTambor : pvRecambio;
+    const miCosto = Math.round(costoARS * 1.05);
+    return {precio: pvConTambor, costo: miCosto, esArrayan: true, modalidadTambor: modalidad};
   }
   return null;
 }
@@ -3168,6 +3188,8 @@ function guardarVenta() {
 function limpiarForm(){
   ['nv-cliente','nv-producto','nv-canal','nv-precio','nv-cantidad','nv-envio','nv-precio-manual','nv-costo-manual']
     .forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const wrapT = document.getElementById('nv-tambor-wrap'); if(wrapT) wrapT.style.display='none';
+  const selT = document.getElementById('nv-tambor-tipo'); if(selT) selT.value='recambio';
   document.getElementById('toggle-especial').checked=false;
   document.getElementById('especial-fields').classList.remove('show');
   // Reset toggle arrayan
@@ -5236,7 +5258,7 @@ function renderVentasArrayan() {
 
   // Poblar filtro de años
   const anios = [...new Set(VENTAS
-    .filter(v => v.esArrayan || PRODS_ARRAYAN.some(n => (v.producto||'').toLowerCase().includes(n)))
+    .filter(v => v.esArrayan === true)
     .map(v => { const p = (v.fecha||'').split('/'); return p[2] || ''; })
     .filter(Boolean)
   )].sort().reverse();
@@ -5251,7 +5273,7 @@ function renderVentasArrayan() {
 
   // Filtrar ventas Arrayan
   const ventas = VENTAS.filter(v => {
-    const esArr = v.esArrayan || PRODS_ARRAYAN.some(n => (v.producto||'').toLowerCase().includes(n));
+    const esArr = v.esArrayan === true;
     if (!esArr) return false;
     const p = (v.fecha||'').split('/');
     if (anio !== 'all' && p[2] !== anio) return false;
@@ -5301,7 +5323,7 @@ function renderVentasArrayan() {
 
 function exportVentasArrayanExcel() {
   const PRODS_ARRAYAN = PRODUCTOS_USD.map(p => p.nombre.toLowerCase());
-  const ventas = VENTAS.filter(v => v.esArrayan || PRODS_ARRAYAN.some(n => (v.producto||'').toLowerCase().includes(n)));
+  const ventas = VENTAS.filter(v => v.esArrayan === true);
   if (!ventas.length) { notify('Sin ventas Arrayan para exportar'); return; }
   const rows = ventas.map(v => ({
     'Fecha': v.fecha, 'Cliente': v.cliente, 'Producto': v.producto,
