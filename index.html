@@ -4014,13 +4014,18 @@ async function guardarVenta() {
   const envioTotal=entrega==='Propio'?envio:0;
   const total=subtotal+envioTotal;
   const gan=total-costoTotal;
+  const esArrayan2 = prod.startsWith('ARRAYAN:') || (pc.esArrayan === true);
+  const prodNombre2 = prod.startsWith('ARRAYAN:') ? prod.replace('ARRAYAN:','') : prod;
+  const costoOriginal2 = esArrayan2 ? Math.round(cant * pc.costo / 1.05) : costoTotal;
+  const ganReal2 = esArrayan2 ? Math.round(costoOriginal2 * 0.05) : gan;
   const venta = {
     fecha:new Date(fecha).toLocaleDateString('es-AR'),
-    canal:canal||'Minorista',cliente,producto:prod,
+    canal:canal||'Mayorista',cliente,producto:prodNombre2,
     cant,precioU:pc.precio,total,costoU:pc.costo,
-    costoT:costoTotal,gan,margen:total>0?gan/total:0,
+    costoT:costoTotal,gan:ganReal2,margen:total>0?ganReal2/total:0,
     fpago,pagado,entrega,entregado:'No',
     frozen:true,especial:espe||false,
+    esArrayan:esArrayan2,
     arrayan:document.getElementById('toggle-arrayan').checked,
     arrayanTipo: document.getElementById('toggle-arrayan').checked
       ? (document.getElementById('arr-tipo-parcial').checked ? 'parcial' : 'unico')
