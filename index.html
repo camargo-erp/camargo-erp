@@ -3797,6 +3797,8 @@ async function cargarDesdeSheets() {
         }
       }
       if(res.precios?.length)    PRECIOS    = res.precios;
+      if(res.productosUSD?.length) PRODUCTOS_USD = res.productosUSD.map((p,i) => ({...PRODUCTOS_USD[i], ...p}));
+      if(res.valorDolar)         VALOR_DOLAR = res.valorDolar;
       setSyncStatus('ok');
       actualizarBadge();
       renderDashboard();
@@ -3836,7 +3838,7 @@ async function gsGuardarTransporte(transporte) {
 // GUARDAR precios en Sheets
 async function gsGuardarPrecios(precios) {
   setSyncStatus('sync');
-  const res = await gsCall('savePrecios', {precios});
+  const res = await gsCall('savePrecios', {precios, productosUSD: PRODUCTOS_USD, valorDolar: VALOR_DOLAR});
   setSyncStatus(res.ok ? 'ok' : 'error');
   return res.ok;
 }
