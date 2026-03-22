@@ -841,7 +841,7 @@
     <div class="card-title">🧪 Alcohol de Cereal Tridestilado — PRECIOS_TRIDEST</div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Modalidad</th><th>Costo/L</th><th>Lista</th><th>Mayor 80L</th><th>Mayor 120L</th><th>Mayor 200L</th></tr></thead>
+        <thead><tr><th>Modalidad</th><th>Costo/L</th><th>Lista</th><th>Mayor 80L</th><th>Mayor 120L</th><th>Mayor 200L</th><th>Costo Tambor</th><th>Precio Tambor</th><th>Gan. Tambor</th></tr></thead>
         <tbody id="precios-body"></tbody>
       </table>
     </div>
@@ -980,7 +980,7 @@ let PRECIOS = [
   {modal:"CON Envase 5L CON caja",costo:1596.4,lista:2390,m80:2294,m120:2223,m200:2151,prod:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO fracc envase caja"},
   {modal:"SIN Envase 5L SIN caja",costo:1440,lista:2110,m80:2026,m120:1962,m200:1899,prod:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO fracc recambio"},
   {modal:"TAMBOR 200L RECAMBIO",costo:1440,lista:1600,m80:1600,m120:1600,m200:1600,prod:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO tambor recambio"},
-  {modal:"TAMBOR 200L VENTA",costo:1520,lista:1726.25,m80:1726.25,m120:1726.25,m200:1726.25,prod:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO tambor venta"},
+  {modal:"TAMBOR 200L VENTA",costo:1520,lista:1726.25,m80:1726.25,m120:1726.25,m200:1726.25,costoTambor:null,precioTambor:null,prod:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO tambor venta"},
 ];
 
 let VALOR_DOLAR = 1200;
@@ -1000,7 +1000,7 @@ let PRODUCTOS_USD = [
 
 const OTROS_PROD = [
   {nombre:"Alcohol Etílico al 96% Buen gusto tambor recambio",costo:1315,precio:1505},
-  {nombre:"Alcohol Etílico al 96% Buen gusto tambor venta",costo:1395,precio:1631.25},
+  {nombre:"Alcohol Etílico al 96% Buen gusto tambor venta",costo:1395,precio:1631.25,costoTambor:null,precioTambor:null},
   {nombre:"Glicerina usp vegetal fracc envase",costo:2300,precio:4236},
   {nombre:"Soda Cáustica en perlas 99%",costo:4385,precio:9700},
   {nombre:"Acido sulfónico 96% tambor recambio",costo:3710,precio:3905},
@@ -3554,15 +3554,21 @@ function exportReporteContadorExcel(){
 
 // =========== PRECIOS ===========
 function renderPrecios() {
-  document.getElementById('precios-body').innerHTML=PRECIOS.map((p,i)=>`
-    <tr>
+  document.getElementById('precios-body').innerHTML=PRECIOS.map((p,i)=>{
+    const esTambor = p.modal && p.modal.includes('TAMBOR') && p.modal.includes('VENTA');
+    const ganTambor = (p.costoTambor && p.precioTambor) ? Math.round(p.precioTambor - p.costoTambor) : null;
+    return `<tr>
       <td><strong>${p.modal}</strong></td>
       <td><input class="precio-edit" type="number" value="${p.costo}" id="pc-${i}-costo" oninput="precioEditado()"></td>
       <td><input class="precio-edit" type="number" value="${p.lista}" id="pc-${i}-lista" oninput="precioEditado()"></td>
       <td><input class="precio-edit" type="number" value="${p.m80}" id="pc-${i}-m80" oninput="precioEditado()"></td>
       <td><input class="precio-edit" type="number" value="${p.m120}" id="pc-${i}-m120" oninput="precioEditado()"></td>
       <td><input class="precio-edit" type="number" value="${p.m200}" id="pc-${i}-m200" oninput="precioEditado()"></td>
-    </tr>`).join('');
+      <td>${esTambor ? `<input class="precio-edit" type="number" placeholder="Costo $" value="${p.costoTambor||''}" id="pc-${i}-costoTambor" oninput="calcGanTambor(${i})" style="width:100px">` : '<span style="color:var(--muted);font-size:11px">—</span>'}</td>
+      <td>${esTambor ? `<input class="precio-edit" type="number" placeholder="Precio $" value="${p.precioTambor||''}" id="pc-${i}-precioTambor" oninput="calcGanTambor(${i})" style="width:100px">` : '<span style="color:var(--muted);font-size:11px">—</span>'}</td>
+      <td style="font-family:var(--mono);color:var(--green);font-weight:600" id="pc-${i}-ganTambor">${esTambor ? (ganTambor !== null ? '$'+ganTambor.toLocaleString('es-AR') : '—') : '<span style="color:var(--muted);font-size:11px">—</span>'}</td>
+    </tr>`;
+  }).join('');
 
   document.getElementById('input-valor-dolar').value = VALOR_DOLAR;
   document.getElementById('usd-prod-body').innerHTML = PRODUCTOS_USD.map((p,i) => {
@@ -3603,6 +3609,14 @@ function renderPrecios() {
 }
 
 function precioEditado(){document.getElementById('precio-alert-box').classList.add('show');}
+
+function calcGanTambor(i){
+  const costo = parseFloat(document.getElementById(`pc-${i}-costoTambor`)?.value) || null;
+  const precio = parseFloat(document.getElementById(`pc-${i}-precioTambor`)?.value) || null;
+  const el = document.getElementById(`pc-${i}-ganTambor`);
+  if(el) el.textContent = (costo && precio) ? '$'+(precio-costo).toLocaleString('es-AR') : '—';
+  precioEditado();
+}
 
 function recalcularUSD(){
   VALOR_DOLAR = parseFloat(document.getElementById('input-valor-dolar').value) || VALOR_DOLAR;
@@ -3959,6 +3973,11 @@ async function guardarPrecios(){
     p.m80=parseFloat(document.getElementById(`pc-${i}-m80`).value)||p.m80;
     p.m120=parseFloat(document.getElementById(`pc-${i}-m120`).value)||p.m120;
     p.m200=parseFloat(document.getElementById(`pc-${i}-m200`).value)||p.m200;
+    // Guardar tambor si aplica
+    const elCT = document.getElementById(`pc-${i}-costoTambor`);
+    const elPT = document.getElementById(`pc-${i}-precioTambor`);
+    if(elCT) p.costoTambor = parseFloat(elCT.value)||null;
+    if(elPT) p.precioTambor = parseFloat(elPT.value)||null;
   });
   recalcularUSD();
   notify('✓ Precios actualizados — ventas históricas sin cambios');
