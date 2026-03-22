@@ -2233,14 +2233,8 @@ function getVentasFiltradas() {
 function renderDashboard() {
   const vf = getVentasFiltradas();
   const totalVentas = vf.reduce((s,v)=>s+v.total,0);
-  // Para ventas Arrayan (productos que no son opciones 5,6,7) la ganancia real es 5% del costo
-  const PRODS_ARRAYAN = PRODUCTOS_USD.map(p=>p.nombre);
-  const totalGan = vf.reduce((s,v)=>{
-    if(v.arrayan || PRODS_ARRAYAN.some(n => v.producto && v.producto.toLowerCase().includes(n.toLowerCase()))) {
-      return s + Math.round(v.costoT * 0.05);
-    }
-    return s + v.gan;
-  },0);
+  // Para ventas Arrayan la ganancia ya viene calculada como 5% en v.gan
+  const totalGan = vf.reduce((s,v)=>s+v.gan,0);
   const totalCosto = vf.reduce((s,v)=>s+v.costoT,0);
   const totalCuentas = vf.filter(v=>v.pagado==='No').reduce((s,v)=>s+v.total,0);
   const ops = vf.length;
@@ -2965,9 +2959,11 @@ function initForm() {
   const sp=document.getElementById('nv-producto');
   const triProds=PRECIOS.map(p=>p.prod);
   const otrosProds=OTROS_PROD.map(p=>p.nombre);
+  const arrayanProds = PRODUCTOS_USD.map(p=>p.nombre);
   sp.innerHTML='<option value="">— Seleccionar —</option>'+
     '<optgroup label="Tridestilado">'+triProds.map(p=>`<option>${p}</option>`).join('')+'</optgroup>'+
-    '<optgroup label="Otros">'+otrosProds.map(p=>`<option>${p}</option>`).join('')+'</optgroup>';
+    '<optgroup label="Otros">'+otrosProds.map(p=>`<option>${p}</option>`).join('')+'</optgroup>'+
+    '<optgroup label="🏭 Arrayan (comisión 5%)">'+arrayanProds.map(p=>`<option value="ARRAYAN:${p}">${p}</option>`).join('')+'</optgroup>';
   // Transportes
   const st=document.getElementById('nv-transporte');
   st.innerHTML='<option value="">—</option>'+TRANSPORTES.map(t=>`<option>${t.nombre}</option>`).join('');
@@ -3045,6 +3041,17 @@ function getPrecio(prod,cant) {
   }
   const otro=OTROS_PROD.find(p=>p.nombre===prod);
   if(otro) return {precio:otro.precio,costo:otro.costo};
+  // Productos Arrayan
+  const prodName = prod.startsWith('ARRAYAN:') ? prod.replace('ARRAYAN:','') : prod;
+  const arr = PRODUCTOS_USD.find(p=>p.nombre===prodName || prod===p.nombre);
+  if(arr) {
+    const costoARS = arr.enPesos
+      ? (arr.costoUSD || 0)
+      : ((arr.costoUSD || 0) * VALOR_DOLAR * arr.cant);
+    const pvRecambio = Math.round(costoARS * 1.10);
+    const miCosto = Math.round(costoARS * 1.05); // costo + mi 5%
+    return {precio: pvRecambio, costo: miCosto, esArrayan: true};
+  }
   return null;
 }
 
@@ -3096,13 +3103,18 @@ function guardarVenta() {
   const envioTotal=entrega==='Propio'?envio:0;
   const total=subtotal+envioTotal;
   const gan=total-costoTotal;
+  const esArrayan = prod.startsWith('ARRAYAN:') || (pc.esArrayan === true);
+  const prodNombre = prod.startsWith('ARRAYAN:') ? prod.replace('ARRAYAN:','') : prod;
+  // Para Arrayan: gan real = 5% del costo original (sin mi markup)
+  const costoOriginal = esArrayan ? Math.round(cant * pc.costo / 1.05) : costoTotal;
+  const ganReal = esArrayan ? Math.round(costoOriginal * 0.05) : gan;
   VENTAS.unshift({
     fecha: (()=>{ const [y,m,d]=fecha.split('-'); return d.padStart(2,'0')+'/'+m.padStart(2,'0')+'/'+y; })(),
-    canal:canal||'Minorista',cliente,producto:prod,
+    canal:canal||'Mayorista',cliente,producto:prodNombre,
     cant,precioU:pc.precio,total,costoU:pc.costo,
-    costoT:costoTotal,gan,margen:total>0?gan/total:0,
+    costoT:costoTotal,gan:ganReal,margen:total>0?ganReal/total:0,
     fpago,pagado,entrega,entregado:'No',
-    frozen:true,especial:espe||false
+    frozen:true,especial:espe||false,esArrayan:esArrayan
   });
   actualizarBadge();
   notify('✓ Venta guardada'+(espe?' con precio especial':''));
