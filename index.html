@@ -2272,12 +2272,17 @@ function parseFechaVenta(fecha){
 function getMesVenta(fecha){ return parseFechaVenta(fecha).mes; }
 function getAnioVenta(fecha){ return parseFechaVenta(fecha).anio; }
 
+function esVentaPropia(v) {
+  return v.esArrayan !== true;
+}
+
 function getVentasFiltradas() {
-  if(dashPeriodo==='all') return VENTAS;
+  const propias = VENTAS.filter(esVentaPropia);
+  if(dashPeriodo==='all') return propias;
   const anio = parseInt(document.getElementById('dash-anio-sel').value);
-  if(dashPeriodo==='year') return VENTAS.filter(v=> getAnioVenta(v.fecha)===anio);
+  if(dashPeriodo==='year') return propias.filter(v=> getAnioVenta(v.fecha)===anio);
   const mes = parseInt(document.getElementById('dash-mes-sel').value);
-  return VENTAS.filter(v=> getAnioVenta(v.fecha)===anio && getMesVenta(v.fecha)===mes);
+  return propias.filter(v=> getAnioVenta(v.fecha)===anio && getMesVenta(v.fecha)===mes);
 }
 
 function renderDashboard() {
@@ -2410,8 +2415,8 @@ function renderKPIsAvanzados() {
   const mesAnt     = mesActual === 1 ? 12 : mesActual - 1;
   const anioAnt    = mesActual === 1 ? anioActual - 1 : anioActual;
 
-  const vMesAct = VENTAS.filter(v => getAnioVenta(v.fecha)===anioActual && getMesVenta(v.fecha)===mesActual);
-  const vMesAnt = VENTAS.filter(v => getAnioVenta(v.fecha)===anioAnt    && getMesVenta(v.fecha)===mesAnt);
+  const vMesAct = VENTAS.filter(v => esVentaPropia(v) && getAnioVenta(v.fecha)===anioActual && getMesVenta(v.fecha)===mesActual);
+  const vMesAnt = VENTAS.filter(v => esVentaPropia(v) && getAnioVenta(v.fecha)===anioAnt    && getMesVenta(v.fecha)===mesAnt);
   const totalMesAct = vMesAct.reduce((s,v)=>s+v.total,0);
   const totalMesAnt = vMesAnt.reduce((s,v)=>s+v.total,0);
   const ganMesAct   = vMesAct.reduce((s,v)=>s+v.gan,0);
@@ -2421,8 +2426,8 @@ function renderKPIsAvanzados() {
   const MESES_NOM   = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
   // ── Año actual vs año anterior ───────────────────────────────────
-  const vAnioAct = VENTAS.filter(v => getAnioVenta(v.fecha)===anioActual);
-  const vAnioAntE= VENTAS.filter(v => getAnioVenta(v.fecha)===(anioActual-1));
+  const vAnioAct = VENTAS.filter(v => esVentaPropia(v) && getAnioVenta(v.fecha)===anioActual);
+  const vAnioAntE= VENTAS.filter(v => esVentaPropia(v) && getAnioVenta(v.fecha)===(anioActual-1));
   // Solo comparar hasta el mismo mes del año anterior
   const vAnioAntPar = vAnioAntE.filter(v => getMesVenta(v.fecha) <= mesActual);
   const totAnioAct  = vAnioAct.reduce((s,v)=>s+v.total,0);
@@ -2940,6 +2945,7 @@ function getVentasFiltradas_tabla() {
   const entrega   = document.getElementById('flt-entrega')?.value  || '';
   const entregado = document.getElementById('flt-entregado')?.value|| '';
   return VENTAS.filter(v=>{
+    if(!esVentaPropia(v))                                                  return false;
     if(anio      && getAnioVenta(v.fecha) !== anio)                        return false;
     if(mes       && getMesVenta(v.fecha)  !== mes)                         return false;
     if(cliente   && !(v.cliente||'').toLowerCase().includes(cliente))      return false;
@@ -3209,8 +3215,8 @@ function getClienteData(nombre){
 }
 
 function renderPendientes() {
-  const sinEntregar=VENTAS.filter(v=>v.entregado!=='Sí');
-  const sinCobrar=VENTAS.filter(v=>v.pagado==='No');
+  const sinEntregar=VENTAS.filter(v=>esVentaPropia(v)&&v.entregado!=='Sí');
+  const sinCobrar=VENTAS.filter(v=>esVentaPropia(v)&&v.pagado==='No');
   document.getElementById('cnt-entregas').textContent=sinEntregar.length;
   document.getElementById('cnt-cobros').textContent=sinCobrar.length;
   document.getElementById('lista-entregas').innerHTML=sinEntregar.map((v)=>{
@@ -3413,6 +3419,7 @@ function getContadorVentas(){
   const transfOk=document.getElementById('cont-transf').checked;
   const echeqOk=document.getElementById('cont-echeq').checked;
   return VENTAS.filter(v=>{
+    if(!esVentaPropia(v)) return false;
     if(getAnioVenta(v.fecha)!==anio) return false;
     if(getMesVenta(v.fecha)!==mes) return false;
     if(v.facturado) return false;
@@ -3506,6 +3513,7 @@ function getReporteContadorVentas(){
   const mes=parseInt(document.getElementById('rc-mes').value);
   const anio=parseInt(document.getElementById('rc-anio')?.value||0);
   return VENTAS.filter(v=>{
+    if(!esVentaPropia(v)) return false;
     if(!v.facturado) return false;
     if(anio!==0 && getAnioVenta(v.fecha)!==anio) return false;
     if(mes===0) return true;
