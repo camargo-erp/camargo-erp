@@ -5137,7 +5137,6 @@ function renderArrayan() {
   const ventasConPagos = new Set(PAGOS_ARRAYAN.map(p => p.ventaId));
   const creditosVentasDirectas = VENTAS.filter(v =>
     v.arrayan &&
-    v.arrayanTipo !== 'parcial' &&
     !ventasConPagos.has(ventaId(v))
   ).map(v => ({
     fecha: v.fecha, tipo: 'credito',
