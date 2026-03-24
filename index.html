@@ -5234,7 +5234,7 @@ function renderArrayan() {
       return '<div style="background:var(--surface2);border-radius:10px;padding:14px 16px;margin-bottom:10px;border:1px solid ' + (saldada?'#22c987':'var(--border)') + '">' +
         '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">' +
           '<div>' +
-            '<div style="font-weight:600;font-size:14px">Venta #' + (VENTAS.indexOf(v)+1) + '</div>' +
+            '<div style="font-weight:600;font-size:14px">Venta ' + v.producto.substring(0,40) + ' (' + v.cant + ' Lts)</div>' +
             '<div style="font-size:12px;color:var(--muted)">' + v.fecha + ' · ' + v.producto.substring(0,45) + ' · ' + v.cant + ' Lts</div>' +
           '</div>' +
           '<div style="text-align:right">' +
