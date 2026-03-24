@@ -5211,7 +5211,7 @@ function renderArrayan() {
 
   // Ventas Arrayan con detalle de pagos
   // Solo ventas con pago parcial van al estado de cobro
-  const ventasArrayan = VENTAS.filter(v => v.arrayan && v.arrayanTipo === 'parcial');
+  const ventasArrayan = VENTAS.filter(v => v.arrayan && ventasConPagos.has(ventaId(v)));
   if(ventasArrayan.length > 0) {
     const ventasHTML = ventasArrayan.map(v => {
       const pagos = getPagosDeVenta(v);
