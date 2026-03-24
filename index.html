@@ -4494,7 +4494,7 @@ function checkSaldoArrayan() {
   // Calcular saldo actual Arrayan (usando pagos parciales si existen)
   const ventasConPagos2 = new Set(PAGOS_ARRAYAN.map(p => p.ventaId));
   const creditosPagos2 = PAGOS_ARRAYAN.reduce((s,p)=>s+p.monto, 0);
-  const creditosDirectos2 = VENTAS.filter(v=>v.arrayan && !ventasConPagos2.has(ventaId(v))).reduce((s,v)=>s+v.total, 0);
+  const creditosDirectos2 = VENTAS.filter(v=>v.arrayan && v.arrayanTipo !== 'parcial' && !ventasConPagos2.has(ventaId(v))).reduce((s,v)=>s+v.total, 0);
   const creditosIngreso2 = COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')&&(c.fpago||'').toLowerCase().includes('ingreso a cta cte')).reduce((s,c)=>s+c.costoTotal, 0);
   const creditos = creditosPagos2 + creditosDirectos2 + creditosIngreso2;
   const debitos  = COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')&&esCuentaCorrienteArrayan(c.fpago)).reduce((s,c)=>s+c.costoTotal, 0);
@@ -5137,7 +5137,7 @@ function renderArrayan() {
   const ventasConPagos = new Set(PAGOS_ARRAYAN.map(p => p.ventaId));
   const creditosVentasDirectas = VENTAS.filter(v =>
     v.arrayan &&
-    (v.arrayanTipo === 'unico' || !v.arrayanTipo) &&
+    v.arrayanTipo !== 'parcial' &&
     !ventasConPagos.has(ventaId(v))
   ).map(v => ({
     fecha: v.fecha, tipo: 'credito',
