@@ -5128,7 +5128,7 @@ function renderArrayan() {
   // Créditos: pagos parciales registrados
   const creditosPagos = PAGOS_ARRAYAN.map(p => ({
     fecha: p.fecha, tipo: 'credito',
-    desc: p.cliente + ' — ' + p.concepto + (p.obs ? ' (' + p.obs + ')' : ''),
+    desc: p.concepto + (p.obs ? ' (' + p.obs + ')' : ''),
     monto: p.monto, fpago: 'Pago parcial',
     pagoIdx: PAGOS_ARRAYAN.indexOf(p)
   }));
@@ -5141,7 +5141,7 @@ function renderArrayan() {
     !ventasConPagos.has(ventaId(v))
   ).map(v => ({
     fecha: v.fecha, tipo: 'credito',
-    desc: v.cliente + ' — ' + v.producto.substring(0,50) + ' (' + v.cant + ' Lts)',
+    desc: v.producto.substring(0,50) + ' (' + v.cant + ' Lts)',
     monto: v.total, fpago: 'Pago único'
   }));
 
@@ -5234,7 +5234,7 @@ function renderArrayan() {
       return '<div style="background:var(--surface2);border-radius:10px;padding:14px 16px;margin-bottom:10px;border:1px solid ' + (saldada?'#22c987':'var(--border)') + '">' +
         '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">' +
           '<div>' +
-            '<div style="font-weight:600;font-size:14px">' + v.cliente + '</div>' +
+            '<div style="font-weight:600;font-size:14px">Venta #' + (VENTAS.indexOf(v)+1) + '</div>' +
             '<div style="font-size:12px;color:var(--muted)">' + v.fecha + ' · ' + v.producto.substring(0,45) + ' · ' + v.cant + ' Lts</div>' +
           '</div>' +
           '<div style="text-align:right">' +
