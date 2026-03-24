@@ -5011,8 +5011,9 @@ function esCuentaCorrienteArrayan(fpago) {
 }
 
 function ventaId(v) {
-  // Clave única para identificar una venta
-  return v.fecha + '|' + v.cliente + '|' + Math.round(v.total) + '|' + Math.round(v.cant);
+  var f = (v.fecha || '').split('/');
+  var fn = (parseInt(f[0])||0) + '/' + (parseInt(f[1])||0) + '/' + (f[2]||'');
+  return fn + '|' + v.cliente + '|' + Math.round(v.total) + '|' + Math.round(v.cant);
 }
 
 function getPagosDeVenta(v) {
