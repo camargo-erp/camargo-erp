@@ -5012,7 +5012,7 @@ function esCuentaCorrienteArrayan(fpago) {
 
 function ventaId(v) {
   // Clave única para identificar una venta
-  return v.fecha + '|' + v.cliente + '|' + v.total + '|' + v.cant;
+  return v.fecha + '|' + v.cliente + '|' + Math.round(v.total) + '|' + Math.round(v.cant);
 }
 
 function getPagosDeVenta(v) {
