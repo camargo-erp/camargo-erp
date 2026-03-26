@@ -243,6 +243,7 @@
     <div class="section-title">🛒 Registro de Compras</div>
     <div style="display:flex;gap:8px">
       <button class="btn btn-primary" onclick="abrirModalCompra()">➕ Nueva Compra</button>
+      <button class="btn btn-ghost btn-sm" onclick="abrirModalPagoProveedor()" style="border-color:#e8a838;color:#e8a838">💳 Pago a Proveedor</button>
       <button class="btn btn-warn btn-sm" onclick="exportComprasExcel()">📊 Excel</button>
     </div>
   </div>
@@ -319,6 +320,45 @@
     <div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end">
       <button class="btn btn-ghost" onclick="cerrarModal('modal-compra')">Cancelar</button>
       <button class="btn btn-primary" onclick="guardarCompra()">💾 Guardar Compra</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PAGO DIRECTO A PROVEEDOR -->
+<div class="modal-overlay" id="modal-pago-proveedor">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-title">💳 Pago Directo a Proveedor</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:14px">Registrá un pago en efectivo, transferencia o echeq que impacta en la cuenta corriente del proveedor sin asociarlo a una compra específica.</div>
+    <div class="form-grid cols2" style="gap:12px">
+      <div class="form-group">
+        <label>Proveedor *</label>
+        <input id="pp-proveedor" placeholder="Nombre del proveedor" list="pp-prov-list">
+        <datalist id="pp-prov-list"></datalist>
+      </div>
+      <div class="form-group">
+        <label>Fecha *</label>
+        <input type="date" id="pp-fecha">
+      </div>
+      <div class="form-group">
+        <label>Monto *</label>
+        <input type="number" id="pp-monto" placeholder="Ej: 500000" min="0" step="any">
+      </div>
+      <div class="form-group">
+        <label>Forma de Pago</label>
+        <select id="pp-fpago">
+          <option>Efectivo</option>
+          <option>Transferencia</option>
+          <option>Echeq</option>
+        </select>
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label>Observaciones</label>
+        <input id="pp-obs" placeholder="Opcional — N° transferencia, concepto, etc.">
+      </div>
+    </div>
+    <div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="cerrarModal('modal-pago-proveedor')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarPagoProveedor()">💾 Registrar Pago</button>
     </div>
   </div>
 </div>
@@ -706,17 +746,21 @@
     </div>
     <div style="font-size:11px;color:#c084fc;margin-top:8px">⚠️ El precio y costo ingresados aquí quedarán congelados en la venta. No modifican la tabla maestra.</div>
   </div>
-<div class="toggle-wrap" style="background:#0f1f1a;border-color:#1a4a3a;margin-bottom:14px;opacity:0.5;transition:opacity .2s" id="toggle-arrayan-wrap"><label class="toggle"><input type="checkbox" id="toggle-arrayan" onchange="toggleArrayanChange()"><span class="toggle-slider" style="background:#1a3a2a"></span></label><span class="toggle-label">🏭 <strong style="color:#00d4aa">Paga a Arrayan</strong> — El cliente transfiere directo a Arrayan.</span></div>
+<div class="toggle-wrap" style="background:#0f1f1a;border-color:#1a4a3a;margin-bottom:14px;opacity:0.5;transition:opacity .2s" id="toggle-arrayan-wrap"><label class="toggle"><input type="checkbox" id="toggle-arrayan" onchange="toggleArrayanChange()"><span class="toggle-slider" style="background:#1a3a2a"></span></label><span class="toggle-label">🏭 <strong style="color:#00d4aa">Venta Arrayan</strong> — Activá si Arrayan interviene en esta venta.</span></div>
 <div id="arrayan-tipo-wrap" style="display:none;margin-bottom:14px;background:#0a1f18;border:1px solid #1a4a3a;border-radius:8px;padding:10px 14px">
-  <div style="font-size:12px;color:var(--muted);margin-bottom:8px">¿Cómo deposita el cliente?</div>
-  <div style="display:flex;gap:10px">
+  <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Tipo de operación Arrayan:</div>
+  <div style="display:flex;gap:10px;flex-direction:column">
     <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:8px 12px" id="arr-tipo-unico-label">
       <input type="radio" name="arr-tipo" id="arr-tipo-unico" value="unico" checked onchange="toggleArrayanTipo()">
-      <span>💰 <strong>Pago único</strong> — deposita el total de una vez</span>
+      <span>💰 <strong>Pago único</strong> — El cliente deposita el total directo a Arrayan</span>
     </label>
     <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:8px 12px" id="arr-tipo-parcial-label">
       <input type="radio" name="arr-tipo" id="arr-tipo-parcial" value="parcial" onchange="toggleArrayanTipo()">
-      <span>📅 <strong>Pagos parciales</strong> — deposita en cuotas</span>
+      <span>📅 <strong>Pagos parciales</strong> — El cliente deposita en cuotas a Arrayan</span>
+    </label>
+    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;flex:1;background:var(--surface2);border:1px solid #2a5a3a;border-radius:7px;padding:8px 12px" id="arr-tipo-cobra-label">
+      <input type="radio" name="arr-tipo" id="arr-tipo-cobra" value="arrayanCobra" onchange="toggleArrayanTipo()">
+      <span>🚚 <strong>Arrayan cobra y entrega</strong> — La venta la gestiona Arrayan (va a Ventas Arrayan con 5% comisión)</span>
     </label>
   </div>
 </div>
@@ -733,23 +777,13 @@
         <div class="form-group"><label class="auto-label">Canal</label><input class="auto-field" id="nv-canal" readonly></div>
       </div>
       <div class="form-grid" style="margin-bottom:14px">
-        <div class="form-group"><label>Producto</label>
-          <select id="nv-producto" onchange="onProductoChange()">
-            <option value="">— Seleccionar —</option>
-          </select>
-        </div>
-        <div class="form-group" id="nv-tambor-wrap" style="display:none">
-          <label>Modalidad Tambor</label>
-          <select id="nv-tambor-tipo" onchange="calcularPrecio()" style="border-color:var(--accent2)">
-            <option value="recambio">🔄 Recambio (devuelve tambor vacío)</option>
-            <option value="venta">🛒 Con tambor (se queda con el tambor)</option>
-          </select>
-        </div>
-        <div class="form-group"><label>Cantidad (Lts/Kg)</label>
-          <input type="number" id="nv-cantidad" placeholder="0" oninput="calcularPrecio()">
-        </div>
-        <div class="form-group"><label class="auto-label">Precio Unitario</label>
-          <input class="auto-field" id="nv-precio" readonly>
+        <!-- LISTA DINÁMICA DE ITEMS -->
+        <div style="grid-column:1/-1">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <label style="margin:0;font-size:12px;color:var(--muted)">Productos</label>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="agregarItemVenta()" style="font-size:11px;padding:4px 10px">+ Agregar producto</button>
+          </div>
+          <div id="items-venta-lista"></div>
         </div>
       </div>
       <div class="form-grid" style="margin-bottom:14px">
@@ -781,10 +815,8 @@
         <div class="card-title">Resumen Calculado ⚡</div>
         <div class="precio-box">
           <div class="precio-box-title">💡 Precios tomados al momento de la venta</div>
-          <div class="precio-row"><span style="color:var(--muted)">Precio unitario</span><span id="res-precio" style="font-family:var(--mono)">—</span></div>
-          <div class="precio-row"><span style="color:var(--muted)">Costo unitario</span><span id="res-costo" style="font-family:var(--mono)">—</span></div>
-          <div class="precio-row"><span style="color:var(--muted)">Cantidad</span><span id="res-cant" style="font-family:var(--mono)">—</span></div>
-          <div class="precio-row"><span style="color:var(--muted)">Subtotal venta</span><span id="res-subtotal" style="font-family:var(--mono)">—</span></div>
+          <div id="res-items-detalle" style="margin-bottom:6px;font-size:11px;color:var(--muted)"></div>
+          <div class="precio-row"><span style="color:var(--muted)">Subtotal productos</span><span id="res-subtotal" style="font-family:var(--mono)">—</span></div>
           <div class="precio-row"><span style="color:var(--muted)">+ Envío</span><span id="res-envio" style="font-family:var(--mono)">—</span></div>
           <div class="precio-row total"><span>TOTAL VENTA</span><span id="res-total">—</span></div>
           <div class="precio-row ganancia"><span>✓ Ganancia neta</span><span id="res-ganancia">—</span></div>
@@ -3005,207 +3037,384 @@ function renderVentas() {
   }).join('');
 }
 
-// =========== NUEVA VENTA ===========
-function initForm() {
-  const today=new Date().toISOString().split('T')[0];
-  document.getElementById('nv-fecha').value=today;
-  const sc=document.getElementById('nv-cliente');
-  sc.innerHTML='<option value="">— Seleccionar —</option>'+
-    CLIENTES.map(c=>`<option value="${c.nombre}">${c.nombre}</option>`).join('');
-  const sp=document.getElementById('nv-producto');
-  const triProds=PRECIOS.map(p=>p.prod);
-  const otrosProds=OTROS_PROD.map(p=>p.nombre);
+// =========== NUEVA VENTA — MULTI PRODUCTO ===========
+
+// Construye las <option> del selector de productos (reutilizable en cada item)
+function buildProdOptions() {
+  const triProds   = PRECIOS.map(p=>p.prod);
+  const otrosProds = OTROS_PROD.map(p=>p.nombre);
   const arrayanProds = PRODUCTOS_USD.map(p=>p.nombre);
-  sp.innerHTML='<option value="">— Seleccionar —</option>'+
-    '<optgroup label="Tridestilado">'+triProds.map(p=>`<option>${p}</option>`).join('')+'</optgroup>'+
-    '<optgroup label="Otros">'+otrosProds.map(p=>`<option>${p}</option>`).join('')+'</optgroup>'+
-    '<optgroup label="🏭 Arrayan (comisión 5%)">'+arrayanProds.map(p=>`<option value="ARRAYAN:${p}">${p}</option>`).join('')+'</optgroup>';
+  return '<option value="">— Seleccionar —</option>' +
+    '<optgroup label="Tridestilado">'  + triProds.map(p=>`<option>${p}</option>`).join('') + '</optgroup>' +
+    '<optgroup label="Otros">'         + otrosProds.map(p=>`<option>${p}</option>`).join('') + '</optgroup>' +
+    '<optgroup label="🏭 Arrayan (comisión 5%)">' + arrayanProds.map(p=>`<option value="ARRAYAN:${p}">${p}</option>`).join('') + '</optgroup>';
+}
+
+// HTML de una fila de item en la lista de productos
+function htmlItem(i) {
+  return `<div class="item-venta" id="item-${i}" style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin-bottom:8px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <span style="font-size:11px;color:var(--muted);font-weight:600">PRODUCTO ${i+1}</span>
+      ${i>0?`<button type="button" onclick="quitarItemVenta(${i})" style="background:none;border:none;cursor:pointer;color:var(--warn);font-size:16px;padding:0 4px" title="Quitar">✕</button>`:'<span></span>'}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end;margin-bottom:8px">
+      <div class="form-group" style="margin:0">
+        <label style="font-size:11px">Producto</label>
+        <select id="item-prod-${i}" onchange="onItemProdChange(${i})" style="width:100%">${buildProdOptions()}</select>
+      </div>
+      <div id="item-tambor-wrap-${i}" style="display:none;min-width:130px">
+        <label style="font-size:11px">Modalidad tambor</label>
+        <select id="item-tambor-${i}" onchange="calcularPrecio()" style="border-color:var(--accent2);width:100%;padding:8px 10px;background:var(--surface2);border-radius:7px;color:var(--text);font-size:13px">
+          <option value="recambio">🔄 Recambio</option>
+          <option value="venta">🛒 Con tambor</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div class="form-group" style="margin:0">
+        <label style="font-size:11px">Cantidad (Lts/Kg)</label>
+        <input type="number" id="item-cant-${i}" placeholder="0" oninput="calcularPrecio()" style="width:100%">
+      </div>
+      <div class="form-group" style="margin:0">
+        <label style="font-size:11px;color:var(--muted)">Precio unitario (auto)</label>
+        <input class="auto-field" id="item-precio-${i}" readonly style="width:100%">
+      </div>
+    </div>
+    <div id="item-espe-fields-${i}" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid #3a1060">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="form-group" style="margin:0">
+          <label style="font-size:11px;color:#c084fc">💲 Precio manual ($/L)</label>
+          <input type="number" id="item-precio-manual-${i}" placeholder="Ej: 1950" oninput="calcularPrecio()" style="border-color:#4a2060;width:100%">
+        </div>
+        <div class="form-group" style="margin:0">
+          <label style="font-size:11px;color:#c084fc">📦 Costo manual ($/L)</label>
+          <input type="number" id="item-costo-manual-${i}" placeholder="Ej: 1440" oninput="calcularPrecio()" style="border-color:#4a2060;width:100%">
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// Estado de items (array de índices lógicos)
+let itemsVenta = [0];
+let nextItemId  = 1;
+
+function agregarItemVenta() {
+  // Guardar valores actuales antes de re-renderizar
+  const saved = _guardarValoresItems();
+  itemsVenta.push(nextItemId++);
+  _renderizarItems(saved);
+  calcularPrecio();
+}
+
+function quitarItemVenta(i) {
+  if(itemsVenta.length <= 1) return;
+  const saved = _guardarValoresItems();
+  saved.splice(i, 1);
+  itemsVenta.splice(i, 1);
+  _renderizarItems(saved);
+  calcularPrecio();
+}
+
+// Guarda valores de todos los items actuales
+function _guardarValoresItems() {
+  return itemsVenta.map((_, i) => ({
+    prod:   document.getElementById(`item-prod-${i}`)?.value   || '',
+    cant:   document.getElementById(`item-cant-${i}`)?.value   || '',
+    tambor: document.getElementById(`item-tambor-${i}`)?.value || 'recambio',
+    pmanu:  document.getElementById(`item-precio-manual-${i}`)?.value || '',
+    cmanu:  document.getElementById(`item-costo-manual-${i}`)?.value  || '',
+  }));
+}
+
+// Re-renderiza todos los items y restaura valores guardados
+function _renderizarItems(saved) {
+  const lista = document.getElementById('items-venta-lista');
+  if(!lista) return;
+  lista.innerHTML = itemsVenta.map((_, i) => htmlItem(i)).join('');
+  const espe = document.getElementById('toggle-especial')?.checked;
+  (saved || []).forEach((v, i) => {
+    const selProd = document.getElementById(`item-prod-${i}`);
+    if(selProd && v.prod) selProd.value = v.prod;
+    const selTambor = document.getElementById(`item-tambor-${i}`);
+    if(selTambor && v.tambor) selTambor.value = v.tambor;
+    const cant = document.getElementById(`item-cant-${i}`);
+    if(cant && v.cant) cant.value = v.cant;
+    const pmanu = document.getElementById(`item-precio-manual-${i}`);
+    if(pmanu && v.pmanu) pmanu.value = v.pmanu;
+    const cmanu = document.getElementById(`item-costo-manual-${i}`);
+    if(cmanu && v.cmanu) cmanu.value = v.cmanu;
+    // Mostrar campos especiales si toggle activo
+    if(espe) {
+      const ef = document.getElementById(`item-espe-fields-${i}`);
+      if(ef) ef.style.display = 'block';
+    }
+    // Actualizar visibilidad tambor
+    _actualizarTamborItem(i);
+  });
+}
+
+// Muestra/oculta el selector de modalidad tambor según el producto elegido
+function _actualizarTamborItem(i) {
+  const prod = document.getElementById(`item-prod-${i}`)?.value || '';
+  const esTambor = !!PRECIOS.find(p => p.prod === prod && p.esTambor);
+  const wrap = document.getElementById(`item-tambor-wrap-${i}`);
+  if(wrap) wrap.style.display = esTambor ? 'block' : 'none';
+}
+
+function onItemProdChange(i) {
+  _actualizarTamborItem(i);
+  calcularPrecio();
+}
+
+// Compatibilidad: sigue existiendo para no romper otros lugares que la llamen
+function onProductoChange() { calcularPrecio(); }
+
+function initForm() {
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('nv-fecha').value = today;
+  // Clientes
+  const sc = document.getElementById('nv-cliente');
+  sc.innerHTML = '<option value="">— Seleccionar —</option>' +
+    CLIENTES.map(c=>`<option value="${c.nombre}">${c.nombre}</option>`).join('');
+  // Items: resetear a 1 item vacío
+  itemsVenta = [0]; nextItemId = 1;
+  _renderizarItems([{prod:'',cant:'',tambor:'recambio',pmanu:'',cmanu:''}]);
   // Transportes
-  const st=document.getElementById('nv-transporte');
-  st.innerHTML='<option value="">—</option>'+TRANSPORTES.map(t=>`<option>${t.nombre}</option>`).join('');
-  // Reset toggle
-  document.getElementById('toggle-especial').checked=false;document.getElementById('toggle-arrayan').checked=false;
+  const st = document.getElementById('nv-transporte');
+  if(st) st.innerHTML = '<option value="">—</option>' + TRANSPORTES.map(t=>`<option>${t.nombre}</option>`).join('');
+  // Resetear toggles
+  document.getElementById('toggle-especial').checked = false;
+  document.getElementById('toggle-arrayan').checked  = false;
   document.getElementById('especial-fields').classList.remove('show');
 }
 
 function toggleArrayanChange() {
   const on = document.getElementById('toggle-arrayan').checked;
   document.getElementById('toggle-arrayan-wrap').style.opacity = on ? '1' : '0.5';
-  document.getElementById('arrayan-tipo-wrap').style.display = on ? 'block' : 'none';
+  document.getElementById('arrayan-tipo-wrap').style.display   = on ? 'block' : 'none';
   if(on) {
-    // Resetear a pago único por defecto
     document.getElementById('arr-tipo-unico').checked = true;
     toggleArrayanTipo();
   }
-  // Manejar cuenta corriente en fpago
+  // Manejar opción "Cuenta corriente" en fpago
   const fpago = document.getElementById('nv-fpago');
   const yaExiste = Array.from(fpago.options).some(o => o.value === 'Cuenta corriente');
   if(on && !yaExiste) {
     const opt = document.createElement('option');
-    opt.value = 'Cuenta corriente';
-    opt.text = 'Cuenta corriente Arrayan';
+    opt.value = 'Cuenta corriente'; opt.text = 'Cuenta corriente Arrayan';
     fpago.appendChild(opt);
   } else if(!on) {
-    Array.from(fpago.options).forEach(o => {
-      if(o.value === 'Cuenta corriente') fpago.removeChild(o);
-    });
+    Array.from(fpago.options).forEach(o => { if(o.value==='Cuenta corriente') fpago.removeChild(o); });
   }
 }
 
 function toggleArrayanTipo() {
   const parcial = document.getElementById('arr-tipo-parcial').checked;
-  // Resaltar la opción seleccionada
-  document.getElementById('arr-tipo-unico-label').style.borderColor = !parcial ? '#00d4aa' : 'var(--border)';
+  const cobra   = document.getElementById('arr-tipo-cobra')?.checked;
+  document.getElementById('arr-tipo-unico-label').style.borderColor   = (!parcial&&!cobra)? '#00d4aa' : 'var(--border)';
   document.getElementById('arr-tipo-parcial-label').style.borderColor = parcial ? '#00d4aa' : 'var(--border)';
+  if(document.getElementById('arr-tipo-cobra-label'))
+    document.getElementById('arr-tipo-cobra-label').style.borderColor = cobra ? '#00d4aa' : 'var(--border)';
 }
 
 function toggleFpagoArrayan() {}
 
 function togglePrecioEspecial() {
-  const on=document.getElementById('toggle-especial').checked;
-  document.getElementById('especial-fields').classList.toggle('show',on);
+  const on = document.getElementById('toggle-especial').checked;
+  document.getElementById('especial-fields').classList.toggle('show', on);
+  // Mostrar/ocultar campos manuales en cada item
+  itemsVenta.forEach((_, i) => {
+    const ef = document.getElementById(`item-espe-fields-${i}`);
+    if(ef) ef.style.display = on ? 'block' : 'none';
+  });
   calcularPrecio();
 }
 
 function autoCompleteCliente() {
-  const nombre=document.getElementById('nv-cliente').value;
-  const c=CLIENTES.find(x=>x.nombre===nombre);
+  const nombre = document.getElementById('nv-cliente').value;
+  const c = CLIENTES.find(x => x.nombre === nombre);
   if(c) {
-    document.getElementById('nv-canal').value=c.canal==='menor'?'Minorista':'Mayorista';
-    const entMap={'envio a cliente':'Propio','envio transporte':'Envío transporte','retiro transporte':'Retiro cliente','Retiro cliente':'Retiro cliente','Propio':'Propio','Envío transporte':'Envío transporte'};
-    document.getElementById('nv-entrega').value=entMap[c.entrega]||'Propio';
+    document.getElementById('nv-canal').value = c.canal==='menor' ? 'Minorista' : 'Mayorista';
+    const entMap = {'envio a cliente':'Propio','envio transporte':'Envío transporte','retiro transporte':'Retiro cliente','Retiro cliente':'Retiro cliente','Propio':'Propio','Envío transporte':'Envío transporte'};
+    document.getElementById('nv-entrega').value = entMap[c.entrega] || 'Propio';
   }
   calcularPrecio();
 }
 
-function onProductoChange() {
-  const prod = document.getElementById('nv-producto').value;
-  const prodName = prod.startsWith('ARRAYAN:') ? prod.replace('ARRAYAN:','') : prod;
-  const arr = PRODUCTOS_USD.find(p => p.nombre === prodName);
-  const tieneTambor = arr && !arr.sinTambor;
-  const wrap = document.getElementById('nv-tambor-wrap');
-  if(wrap) wrap.style.display = tieneTambor ? 'block' : 'none';
-  calcularPrecio();
-}
-
-function getPrecio(prod,cant) {
-  const espe=document.getElementById('toggle-especial').checked;
+// Devuelve {precio, costo, especial?, esArrayan?} para un producto y cantidad dado
+// idx = índice del item (para leer precio manual de ese item específico)
+function getPrecio(prod, cant, idx) {
+  const espe = document.getElementById('toggle-especial')?.checked;
   if(espe) {
-    const pm=parseFloat(document.getElementById('nv-precio-manual').value)||0;
-    const cm=parseFloat(document.getElementById('nv-costo-manual').value)||0;
-    if(pm&&cm) return {precio:pm,costo:cm,especial:true};
+    // Leer precio manual del item correcto si se pasa idx, sino del campo legacy
+    const pm = idx !== undefined
+      ? parseFloat(document.getElementById(`item-precio-manual-${idx}`)?.value) || 0
+      : parseFloat(document.getElementById('nv-precio-manual')?.value) || 0;
+    const cm = idx !== undefined
+      ? parseFloat(document.getElementById(`item-costo-manual-${idx}`)?.value) || 0
+      : parseFloat(document.getElementById('nv-costo-manual')?.value) || 0;
+    if(pm && cm) return {precio: pm, costo: cm, especial: true};
     return null;
   }
-  const tri=PRECIOS.find(p=>p.prod===prod);
-  if(tri){
+  const tri = PRECIOS.find(p => p.prod === prod);
+  if(tri) {
+    // Tambores tienen precio fijo × 200L, no usan tramos de cantidad
+    if(tri.esTambor) return {precio: tri.precioFijo, costo: tri.costo};
     let precio;
-    if(cant>=200) precio=tri.m200;
-    else if(cant>=120) precio=tri.m120;
-    else if(cant>=80) precio=tri.m80;
-    else precio=tri.lista;
-    return {precio,costo:tri.costo};
+    if(cant >= 200)      precio = tri.m200;
+    else if(cant >= 120) precio = tri.m120;
+    else if(cant >= 80)  precio = tri.m80;
+    else                 precio = tri.lista;
+    return {precio, costo: tri.costo};
   }
-  const otro=OTROS_PROD.find(p=>p.nombre===prod);
-  if(otro) return {precio:otro.precio,costo:otro.costo};
-  // Productos Arrayan
-  const prodName = prod.startsWith('ARRAYAN:') ? prod.replace('ARRAYAN:','') : prod;
-  const arr = PRODUCTOS_USD.find(p=>p.nombre===prodName || prod===p.nombre);
+  const otro = OTROS_PROD.find(p => p.nombre === prod);
+  if(otro) return {precio: otro.precio, costo: otro.costo};
+  // Productos Arrayan (USD → ARS)
+  const prodName = prod.startsWith('ARRAYAN:') ? prod.replace('ARRAYAN:', '') : prod;
+  const arr = PRODUCTOS_USD.find(p => p.nombre === prodName || prod === p.nombre);
   if(arr) {
     const costoARS = arr.enPesos
       ? (arr.costoUSD || 0)
       : ((arr.costoUSD || 0) * VALOR_DOLAR * arr.cant);
-    const modalidad = document.getElementById('nv-tambor-tipo')?.value || 'recambio';
+    const modalidad = idx !== undefined
+      ? (document.getElementById(`item-tambor-${idx}`)?.value || 'recambio')
+      : (document.getElementById('nv-tambor-tipo')?.value    || 'recambio');
     const esCon = modalidad === 'venta' && !arr.sinTambor && arr.valorTambor;
-    const pvRecambio = Math.round(costoARS * 1.10);
-    const pvConTambor = esCon ? pvRecambio + arr.valorTambor : pvRecambio;
-    const miCosto = Math.round(costoARS * 1.05);
+    const pvRecambio   = Math.round(costoARS * 1.10);
+    const pvConTambor  = esCon ? pvRecambio + arr.valorTambor : pvRecambio;
+    const miCosto      = Math.round(costoARS * 1.05);
     return {precio: pvConTambor, costo: miCosto, esArrayan: true, modalidadTambor: modalidad};
   }
   return null;
 }
 
 function calcularPrecio() {
-  const prod=document.getElementById('nv-producto').value;
-  const cant=parseFloat(document.getElementById('nv-cantidad').value)||0;
-  const envio=parseFloat(document.getElementById('nv-envio').value)||0;
-  const entrega=document.getElementById('nv-entrega').value;
-  const pc=getPrecio(prod,cant);
-  if(!pc||!cant){
-    ['res-precio','res-costo','res-cant','res-subtotal','res-envio','res-total','res-ganancia','res-margen']
-      .forEach(id=>document.getElementById(id).textContent='—');
-    document.getElementById('nv-precio').value='';
+  const envio    = parseFloat(document.getElementById('nv-envio')?.value)   || 0;
+  const entrega  = document.getElementById('nv-entrega')?.value || '';
+  const envioTotal = entrega === 'Propio' ? envio : 0;
+
+  let totalSub = 0, totalCosto = 0, detalleLineas = [];
+
+  itemsVenta.forEach((_, i) => {
+    const prod = document.getElementById(`item-prod-${i}`)?.value || '';
+    const cant = parseFloat(document.getElementById(`item-cant-${i}`)?.value) || 0;
+    const pEl  = document.getElementById(`item-precio-${i}`);
+    if(!prod || !cant) { if(pEl) pEl.value = ''; return; }
+    const pc = getPrecio(prod, cant, i);
+    if(!pc) { if(pEl) pEl.value = ''; return; }
+    const sub = cant * pc.precio;
+    const cos = cant * pc.costo;
+    totalSub   += sub;
+    totalCosto += cos;
+    if(pEl) pEl.value = pc.precio.toLocaleString('es-AR');
+    const label = (prod.startsWith('ARRAYAN:')?prod.replace('ARRAYAN:',''):prod).substring(0,28);
+    detalleLineas.push(`<span style="color:var(--text)">${cant}L ${label}…</span> <span style="font-family:var(--mono);color:var(--accent)">${fmt(sub)}</span>`);
+  });
+
+  const total  = totalSub + envioTotal;
+  const gan    = total - totalCosto;
+  const margen = total > 0 ? gan / total : 0;
+
+  const rd = document.getElementById('res-items-detalle');
+  if(rd) rd.innerHTML = detalleLineas.join('<br>');
+
+  const set = (id, val) => { const el=document.getElementById(id); if(el) el.textContent=val; };
+  if(totalSub === 0) {
+    ['res-subtotal','res-envio','res-total','res-ganancia','res-margen'].forEach(id => set(id,'—'));
     return;
   }
-  const subtotal=cant*pc.precio;
-  const costoTotal=cant*pc.costo;
-  const envioTotal=entrega==='Propio'?envio:0;
-  const total=subtotal+envioTotal;
-  const gan=total-costoTotal;
-  const margen=total>0?gan/total:0;
-  document.getElementById('nv-precio').value=pc.precio.toLocaleString('es-AR');
-  document.getElementById('res-precio').textContent=fmt(pc.precio)+'/L'+(pc.especial?' ⭐':'');
-  document.getElementById('res-costo').textContent=fmt(pc.costo)+'/L'+(pc.especial?' ⭐':'');
-  document.getElementById('res-cant').textContent=cant+' Lts';
-  document.getElementById('res-subtotal').textContent=fmt(subtotal);
-  document.getElementById('res-envio').textContent=envioTotal>0?fmt(envioTotal):'$0';
-  document.getElementById('res-total').textContent=fmt(total);
-  document.getElementById('res-ganancia').textContent=fmt(gan);
-  document.getElementById('res-margen').textContent=pct(margen);
+  set('res-subtotal', fmt(totalSub));
+  set('res-envio',    envioTotal > 0 ? fmt(envioTotal) : '$0');
+  set('res-total',    fmt(total));
+  set('res-ganancia', fmt(gan));
+  set('res-margen',   pct(margen));
 }
 
 function guardarVenta() {
-  const fecha=document.getElementById('nv-fecha').value;
-  const cliente=document.getElementById('nv-cliente').value;
-  const prod=document.getElementById('nv-producto').value;
-  const cant=parseFloat(document.getElementById('nv-cantidad').value)||0;
-  const canal=document.getElementById('nv-canal').value;
-  const fpago=document.getElementById('nv-fpago').value;
-  const pagado=document.getElementById('nv-pagado').value;
-  const entrega=document.getElementById('nv-entrega').value;
-  const envio=parseFloat(document.getElementById('nv-envio').value)||0;
-  const espe=document.getElementById('toggle-especial').checked;
-  if(!fecha||!cliente||!prod||!cant){alert('Completá Fecha, Cliente, Producto y Cantidad');return;}
-  const pc=getPrecio(prod,cant);
-  if(!pc){alert('Ingresá precio y costo manual');return;}
-  const subtotal=cant*pc.precio;
-  const costoTotal=cant*pc.costo;
-  const envioTotal=entrega==='Propio'?envio:0;
-  const total=subtotal+envioTotal;
-  const gan=total-costoTotal;
-  const esArrayan = prod.startsWith('ARRAYAN:') || (pc.esArrayan === true);
-  const prodNombre = prod.startsWith('ARRAYAN:') ? prod.replace('ARRAYAN:','') : prod;
-  // Para Arrayan: gan real = 5% del costo original (sin mi markup)
-  const costoOriginal = esArrayan ? Math.round(cant * pc.costo / 1.05) : costoTotal;
-  const ganReal = esArrayan ? Math.round(costoOriginal * 0.05) : gan;
-  VENTAS.unshift({
-    fecha: (()=>{ const [y,m,d]=fecha.split('-'); return d.padStart(2,'0')+'/'+m.padStart(2,'0')+'/'+y; })(),
-    canal:canal||'Mayorista',cliente,producto:prodNombre,
-    cant,precioU:pc.precio,total,costoU:pc.costo,
-    costoT:costoTotal,gan:ganReal,margen:total>0?ganReal/total:0,
-    fpago,pagado,entrega,entregado:'No',
-    frozen:true,especial:espe||false,esArrayan:esArrayan
+  const fecha   = document.getElementById('nv-fecha').value;
+  const cliente = document.getElementById('nv-cliente').value;
+  const canal   = document.getElementById('nv-canal').value;
+  const fpago   = document.getElementById('nv-fpago').value;
+  const pagado  = document.getElementById('nv-pagado').value;
+  const entrega = document.getElementById('nv-entrega').value;
+  const envio   = parseFloat(document.getElementById('nv-envio').value) || 0;
+  const espe    = document.getElementById('toggle-especial').checked;
+  const esArrToggle = document.getElementById('toggle-arrayan').checked;
+  // Tipo Arrayan elegido en los radios
+  const tipoArr = esArrToggle
+    ? (document.getElementById('arr-tipo-cobra')?.checked    ? 'arrayanCobra'
+       : document.getElementById('arr-tipo-parcial')?.checked ? 'parcial' : 'unico')
+    : null;
+
+  if(!fecha || !cliente) { alert('Completá Fecha y Cliente'); return; }
+
+  // Recolectar items válidos
+  const itemsData = [];
+  for(let i = 0; i < itemsVenta.length; i++) {
+    const prod = document.getElementById(`item-prod-${i}`)?.value || '';
+    const cant = parseFloat(document.getElementById(`item-cant-${i}`)?.value) || 0;
+    if(!prod || !cant) continue;
+    const pc = getPrecio(prod, cant, i);
+    if(!pc) { alert(`Producto ${i+1}: no se pudo calcular precio. Revisá el producto o ingresá precio manual.`); return; }
+    itemsData.push({prod, cant, pc});
+  }
+  if(!itemsData.length) { alert('Agregá al menos un producto con cantidad'); return; }
+
+  const fechaFmt = (()=>{ const [y,m,d]=fecha.split('-'); return d.padStart(2,'0')+'/'+m.padStart(2,'0')+'/'+y; })();
+  const envioTotal = entrega === 'Propio' ? envio : 0;
+
+  // Crear una fila en VENTAS por cada item
+  itemsData.forEach((item, iIdx) => {
+    const {prod, cant, pc} = item;
+    const esArrayan  = prod.startsWith('ARRAYAN:') || !!pc.esArrayan || tipoArr === 'arrayanCobra';
+    const prodNombre = prod.startsWith('ARRAYAN:') ? prod.replace('ARRAYAN:', '') : prod;
+    // Envío solo en el primer item si hay múltiples (evita duplicarlo)
+    const envioEste  = iIdx === 0 ? envioTotal : 0;
+    const subtotal   = cant * pc.precio;
+    const costoTotal = cant * pc.costo;
+    const total      = subtotal + envioEste;
+    const gan        = total - costoTotal;
+    // Arrayan: ganancia = 5% del costo original sin nuestro markup del 5%
+    const costoOrig  = esArrayan ? Math.round(cant * pc.costo / 1.05) : costoTotal;
+    const ganReal    = esArrayan ? Math.round(costoOrig * 0.05) : gan;
+
+    const venta = {
+      fecha: fechaFmt,
+      canal: canal || 'Mayorista', cliente, producto: prodNombre,
+      cant, precioU: pc.precio, total, costoU: pc.costo,
+      costoT: costoTotal, gan: ganReal, margen: total > 0 ? ganReal / total : 0,
+      fpago, pagado, entrega, entregado: 'No',
+      frozen: true, especial: espe || false,
+      esArrayan, arrayan: esArrayan,
+      arrayanTipo: tipoArr || null,
+    };
+    VENTAS.unshift(venta);
   });
+
   actualizarBadge();
-  notify('✓ Venta guardada'+(espe?' con precio especial':''));
+  notify(itemsData.length > 1 ? `✓ ${itemsData.length} ventas guardadas` : '✓ Venta guardada' + (espe ? ' con precio especial' : ''));
   limpiarForm();
   showPage('ventas');
 }
 
-function limpiarForm(){
-  ['nv-cliente','nv-producto','nv-canal','nv-precio','nv-cantidad','nv-envio','nv-precio-manual','nv-costo-manual']
-    .forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  const wrapT = document.getElementById('nv-tambor-wrap'); if(wrapT) wrapT.style.display='none';
-  const selT = document.getElementById('nv-tambor-tipo'); if(selT) selT.value='recambio';
-  document.getElementById('toggle-especial').checked=false;
+function limpiarForm() {
+  ['nv-cliente','nv-canal','nv-envio'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  const fEl = document.getElementById('nv-fecha');
+  if(fEl) fEl.value = new Date().toISOString().split('T')[0];
+  document.getElementById('toggle-especial').checked = false;
   document.getElementById('especial-fields').classList.remove('show');
-  // Reset toggle arrayan
-  document.getElementById('toggle-arrayan').checked=false;
-  document.getElementById('toggle-arrayan-wrap').style.opacity='0.5';
-  document.getElementById('arrayan-tipo-wrap').style.display='none';
-  document.getElementById('arr-tipo-unico').checked=true;
+  // Resetear toggle Arrayan
+  const ta = document.getElementById('toggle-arrayan'); if(ta) ta.checked = false;
+  const taw = document.getElementById('toggle-arrayan-wrap'); if(taw) taw.style.opacity = '0.5';
+  const atw = document.getElementById('arrayan-tipo-wrap'); if(atw) atw.style.display = 'none';
+  const aun = document.getElementById('arr-tipo-unico'); if(aun) aun.checked = true;
   // Quitar cuenta corriente del fpago si estaba
-  const fpago=document.getElementById('nv-fpago');
-  Array.from(fpago.options).forEach(o=>{if(o.value==='Cuenta corriente')fpago.removeChild(o);});
+  const fpago = document.getElementById('nv-fpago');
+  if(fpago) Array.from(fpago.options).forEach(o => { if(o.value==='Cuenta corriente') fpago.removeChild(o); });
+  // Resetear items a uno solo vacío
+  itemsVenta = [0]; nextItemId = 1;
+  _renderizarItems([{prod:'',cant:'',tambor:'recambio',pmanu:'',cmanu:''}]);
   calcularPrecio();
 }
 
@@ -3993,51 +4202,77 @@ async function gsActualizarVenta(idx, campos) {
 
 // =========== PARCHEAR FUNCIONES PARA GUARDAR EN SHEETS ===========
 
-// Override guardarVenta para también guardar en Sheets
+// Override guardarVenta para también guardar en Sheets (multi-producto)
 const _guardarVentaOriginal = guardarVenta;
 async function guardarVenta() {
-  const fecha=document.getElementById('nv-fecha').value;
-  const cliente=document.getElementById('nv-cliente').value;
-  const prod=document.getElementById('nv-producto').value;
-  const cant=parseFloat(document.getElementById('nv-cantidad').value)||0;
-  const canal=document.getElementById('nv-canal').value;
-  const fpago=document.getElementById('nv-fpago').value;
-  const pagado=document.getElementById('nv-pagado').value;
-  const entrega=document.getElementById('nv-entrega').value;
-  const envio=parseFloat(document.getElementById('nv-envio').value)||0;
-  const espe=document.getElementById('toggle-especial').checked;
-  if(!fecha||!cliente||!prod||!cant){alert('Completá Fecha, Cliente, Producto y Cantidad');return;}
-  const pc=getPrecio(prod,cant);
-  if(!pc){alert('Ingresá precio y costo manual');return;}
-  const subtotal=cant*pc.precio;
-  const costoTotal=cant*pc.costo;
-  const envioTotal=entrega==='Propio'?envio:0;
-  const total=subtotal+envioTotal;
-  const gan=total-costoTotal;
-  const esArrayan2 = prod.startsWith('ARRAYAN:') || (pc.esArrayan === true);
-  const prodNombre2 = prod.startsWith('ARRAYAN:') ? prod.replace('ARRAYAN:','') : prod;
-  const costoOriginal2 = esArrayan2 ? Math.round(cant * pc.costo / 1.05) : costoTotal;
-  const ganReal2 = esArrayan2 ? Math.round(costoOriginal2 * 0.05) : gan;
-  const venta = {
-    fecha:new Date(fecha).toLocaleDateString('es-AR'),
-    canal:canal||'Mayorista',cliente,producto:prodNombre2,
-    cant,precioU:pc.precio,total,costoU:pc.costo,
-    costoT:costoTotal,gan:ganReal2,margen:total>0?ganReal2/total:0,
-    fpago,pagado,entrega,entregado:'No',
-    frozen:true,especial:espe||false,
-    esArrayan:esArrayan2,
-    arrayan:document.getElementById('toggle-arrayan').checked,
-    arrayanTipo: document.getElementById('toggle-arrayan').checked
-      ? (document.getElementById('arr-tipo-parcial').checked ? 'parcial' : 'unico')
-      : ''
-};
-VENTAS.unshift(venta);
-actualizarBadge();
-const _isArr=document.getElementById('toggle-arrayan').checked;
-notify('✓ Venta guardada'+(espe?' con precio especial':'')+(_isArr?' — 🏭 Arrayan':''));
-limpiarForm();
-showPage('ventas');
-await gsGuardarVenta(venta);
+  const fecha   = document.getElementById('nv-fecha').value;
+  const cliente = document.getElementById('nv-cliente').value;
+  const canal   = document.getElementById('nv-canal').value;
+  const fpago   = document.getElementById('nv-fpago').value;
+  const pagado  = document.getElementById('nv-pagado').value;
+  const entrega = document.getElementById('nv-entrega').value;
+  const envio   = parseFloat(document.getElementById('nv-envio').value) || 0;
+  const espe    = document.getElementById('toggle-especial').checked;
+  const esArrToggle = document.getElementById('toggle-arrayan').checked;
+  const tipoArr = esArrToggle
+    ? (document.getElementById('arr-tipo-cobra')?.checked    ? 'arrayanCobra'
+       : document.getElementById('arr-tipo-parcial')?.checked ? 'parcial' : 'unico')
+    : null;
+
+  if(!fecha || !cliente) { alert('Completá Fecha y Cliente'); return; }
+
+  // Recolectar items válidos
+  const itemsData = [];
+  for(let i = 0; i < itemsVenta.length; i++) {
+    const prod = document.getElementById(`item-prod-${i}`)?.value || '';
+    const cant = parseFloat(document.getElementById(`item-cant-${i}`)?.value) || 0;
+    if(!prod || !cant) continue;
+    const pc = getPrecio(prod, cant, i);
+    if(!pc) { alert(`Producto ${i+1}: no se pudo calcular precio.`); return; }
+    itemsData.push({prod, cant, pc});
+  }
+  if(!itemsData.length) { alert('Agregá al menos un producto con cantidad'); return; }
+
+  const fechaFmt = (()=>{ const [y,m,d]=fecha.split('-'); return d.padStart(2,'0')+'/'+m.padStart(2,'0')+'/'+y; })();
+  const envioTotal = entrega === 'Propio' ? envio : 0;
+  const ventasGuardadas = [];
+
+  itemsData.forEach((item, iIdx) => {
+    const {prod, cant, pc} = item;
+    const esArrayan  = prod.startsWith('ARRAYAN:') || !!pc.esArrayan || tipoArr === 'arrayanCobra';
+    const prodNombre = prod.startsWith('ARRAYAN:') ? prod.replace('ARRAYAN:', '') : prod;
+    const envioEste  = iIdx === 0 ? envioTotal : 0;
+    const subtotal   = cant * pc.precio;
+    const costoTotal = cant * pc.costo;
+    const total      = subtotal + envioEste;
+    const gan        = total - costoTotal;
+    const costoOrig  = esArrayan ? Math.round(cant * pc.costo / 1.05) : costoTotal;
+    const ganReal    = esArrayan ? Math.round(costoOrig * 0.05) : gan;
+
+    const venta = {
+      fecha: fechaFmt,
+      canal: canal || 'Mayorista', cliente, producto: prodNombre,
+      cant, precioU: pc.precio, total, costoU: pc.costo,
+      costoT: costoTotal, gan: ganReal, margen: total > 0 ? ganReal / total : 0,
+      fpago, pagado, entrega, entregado: 'No',
+      frozen: true, especial: espe || false,
+      esArrayan, arrayan: esArrayan,
+      arrayanTipo: tipoArr || null,
+    };
+    VENTAS.unshift(venta);
+    ventasGuardadas.push(venta);
+  });
+
+  actualizarBadge();
+  notify(ventasGuardadas.length > 1
+    ? `✓ ${ventasGuardadas.length} ventas guardadas` + (esArrToggle ? ' — 🏭 Arrayan' : '')
+    : '✓ Venta guardada' + (espe ? ' con precio especial' : '') + (esArrToggle ? ' — 🏭 Arrayan' : ''));
+  limpiarForm();
+  showPage('ventas');
+  // Sincronizar cada venta con Sheets
+  for(const v of ventasGuardadas) {
+    await gsGuardarVenta(v);
+  }
 }
 
 // Override guardarCliente
@@ -4473,6 +4708,59 @@ function abrirModalCompra() {
   document.getElementById('modal-compra').classList.add('show');
 }
 
+// =========== PAGO DIRECTO A PROVEEDOR ===========
+function abrirModalPagoProveedor() {
+  const hoy  = new Date();
+  const yyyy = hoy.getFullYear();
+  const mm   = String(hoy.getMonth()+1).padStart(2,'0');
+  const dd   = String(hoy.getDate()).padStart(2,'0');
+  document.getElementById('pp-fecha').value   = `${yyyy}-${mm}-${dd}`;
+  document.getElementById('pp-proveedor').value = '';
+  document.getElementById('pp-monto').value   = '';
+  document.getElementById('pp-fpago').value   = 'Efectivo';
+  document.getElementById('pp-obs').value     = '';
+  // Poblar datalist con proveedores conocidos de COMPRAS
+  const provList = [...new Set(COMPRAS.map(c=>c.proveedor).filter(Boolean))];
+  document.getElementById('pp-prov-list').innerHTML = provList.map(p=>`<option value="${p}">`).join('');
+  document.getElementById('modal-pago-proveedor').classList.add('show');
+}
+
+function guardarPagoProveedor() {
+  const proveedor = document.getElementById('pp-proveedor').value.trim();
+  const fechaRaw  = document.getElementById('pp-fecha').value;
+  const monto     = parseFloat(document.getElementById('pp-monto').value) || 0;
+  const fpago     = document.getElementById('pp-fpago').value;
+  const obs       = document.getElementById('pp-obs').value.trim();
+
+  if(!proveedor || !fechaRaw || !monto) {
+    alert('Completá Proveedor, Fecha y Monto'); return;
+  }
+
+  const partes = fechaRaw.split('-');
+  const fecha  = partes[2].padStart(2,'0')+'/'+partes[1].padStart(2,'0')+'/'+partes[0];
+
+  // Se registra como compra con producto especial PAGO_DIRECTO
+  // cant=0, precioU=0, costoTotal=monto — así no afecta stock pero sí saldo
+  const compra = {
+    fecha, proveedor,
+    producto: `PAGO DIRECTO — ${fpago}${obs ? ' — '+obs : ''}`,
+    cant: 0, unidad: '', precioU: 0,
+    costoTotal: monto,
+    fpago,
+    nroDoc: '',
+    obs,
+    esPagoDirecto: true,   // flag para distinguirlo en tablas
+  };
+
+  COMPRAS.push(compra);
+  cerrarModal('modal-pago-proveedor');
+  renderCompras();
+  // Si es Arrayan, actualizar también esa sección
+  if(proveedor.toLowerCase().includes('arrayan')) renderArrayan();
+  notify('✓ Pago a proveedor registrado');
+  gsGuardarCompra(compra).catch(()=>notify('⚠️ Error al sincronizar pago','#ff4d6a'));
+}
+
 function checkSaldoArrayan() {
   const fpago = document.getElementById('nc-fpago').value;
   const aviso = document.getElementById('aviso-cta-cte');
@@ -4606,16 +4894,18 @@ function renderCompras() {
   if(!tbody) return;
   document.getElementById('comp-count').textContent = filtradas.length + ' compra' + (filtradas.length!==1?'s':'');
 
-  tbody.innerHTML = filtradas.length ? filtradas.map((c,i) => `
-    <tr>
+  tbody.innerHTML = filtradas.length ? filtradas.map((c,i) => {
+    const esPago = !!c.esPagoDirecto;
+    return `<tr style="${esPago ? 'background:#0a1f18;' : ''}">
       <td>${c.fecha}</td>
       <td><strong>${c.proveedor}</strong></td>
-      <td>${c.producto}</td>
-      <td style="text-align:right;font-family:var(--mono)">${c.cant.toLocaleString('es-AR')} ${c.unidad||''}</td>
-      <td style="text-align:right;font-family:var(--mono)">$${c.precioU.toLocaleString('es-AR')}</td>
-      <td style="text-align:right;font-family:var(--mono);font-weight:600;color:var(--accent)">$${c.costoTotal.toLocaleString('es-AR')}</td>
+      <td>${esPago ? `<span style="color:#22c987;font-size:11px;font-weight:600">💳 PAGO DIRECTO</span><br><span style="font-size:11px;color:var(--muted)">${c.obs||c.fpago||''}</span>` : c.producto}</td>
+      <td style="text-align:right;font-family:var(--mono)">${esPago ? '—' : c.cant.toLocaleString('es-AR')+' '+(c.unidad||'')}</td>
+      <td style="text-align:right;font-family:var(--mono)">${esPago ? '—' : '$'+c.precioU.toLocaleString('es-AR')}</td>
+      <td style="text-align:right;font-family:var(--mono);font-weight:600;color:${esPago?'#22c987':'var(--accent)'}">$${c.costoTotal.toLocaleString('es-AR')}</td>
       <td><button class="btn btn-ghost btn-sm" onclick="eliminarCompra(${COMPRAS.indexOf(c)})" style="color:var(--warn)">🗑️</button></td>
-    </tr>`).join('')
+    </tr>`;
+  }).join('')
   : '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">Sin compras registradas</td></tr>';
 
   const total = filtradas.reduce((s,c)=>s+c.costoTotal,0);
