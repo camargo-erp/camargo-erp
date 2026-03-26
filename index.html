@@ -3103,6 +3103,9 @@ function agregarItemVenta() {
   // Guardar valores actuales antes de re-renderizar
   const saved = _guardarValoresItems();
   itemsVenta.push(nextItemId++);
+  // Agregar entrada vacía para el item nuevo — así _renderizarItems
+  // también procesa ese índice y muestra los campos especiales si el toggle está activo
+  saved.push({prod:'', cant:'', tambor:'recambio', pmanu:'', cmanu:''});
   _renderizarItems(saved);
   calcularPrecio();
 }
