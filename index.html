@@ -3254,8 +3254,12 @@ function getPrecio(prod, cant, idx) {
     const cm = idx !== undefined
       ? parseFloat(document.getElementById(`item-costo-manual-${idx}`)?.value) || 0
       : parseFloat(document.getElementById('nv-costo-manual')?.value) || 0;
+    // Si el item tiene precio Y costo manual → usar esos
     if(pm && cm) return {precio: pm, costo: cm, especial: true};
-    return null;
+    // Si solo tiene uno de los dos → no calcular (faltan datos)
+    if(pm || cm) return null;
+    // Si no tiene ninguno → caer al precio de tabla normal (precio especial no aplica a este item)
+    // (continúa abajo con la lógica normal)
   }
   const tri = PRECIOS.find(p => p.prod === prod);
   if(tri) {
@@ -3385,7 +3389,7 @@ function guardarVenta() {
       cant, precioU: pc.precio, total, costoU: pc.costo,
       costoT: costoTotal, gan: ganReal, margen: total > 0 ? ganReal / total : 0,
       fpago, pagado, entrega, entregado: 'No',
-      frozen: true, especial: espe || false,
+      frozen: true, especial: pc.especial || false,
       esArrayan, arrayan: esArrayan,
       arrayanTipo: tipoArr || null,
     };
