@@ -4685,7 +4685,7 @@ function abrirModalReporteExcel() {
   const selAnio = document.getElementById('rep-anio');
   if(selMes) selMes.value = hoy.getMonth() + 1;
   if(selAnio) selAnio.value = hoy.getFullYear();
-  document.getElementById('modal-reporte-excel').style.display = 'flex';
+  document.getElementById('modal-reporte-excel').classList.add('show');
 }
 
 function exportReporteCompletoExcel() {
@@ -4807,20 +4807,22 @@ function exportReporteCompletoExcel() {
   const pctActual = getPctArrayan(totalLts);
   const precioListaCereal  = PRECIO_LISTA_ARRAYAN.cereal;
   const precioListaEtilico = PRECIO_LISTA_ARRAYAN.etilico;
+  const colPrecioCorr = 'Precio Correcto $/Lt (' + (pctActual*100).toFixed(1) + '%)';
 
   const rowsEscala = comprasEscala.map(c => {
     const esCereal = (c.producto||'').toLowerCase().includes('cereal') || (c.producto||'').toLowerCase().includes('tri');
     const lista = esCereal ? precioListaCereal : precioListaEtilico;
     const precioCorrectoPorLitro = Math.round(lista * (1 + pctActual));
-    return {
+    const row = {
       'Fecha': c.fecha,
       'Cantidad (Lts)': c.cant,
       'Producto': c.producto,
       'Forma de Pago': c.fpago || '',
       'Precio Pagado ($/Lt)': c.precioU,
-      'Total Pagado ($)': c.costoTotal,
-      'Precio Correcto $/Lt (' + (pctActual*100).toFixed(1) + '%)': precioCorrectoPorLitro
+      'Total Pagado ($)': c.costoTotal
     };
+    row[colPrecioCorr] = precioCorrectoPorLitro;
+    return row;
   });
 
   // Fila resumen escala
@@ -4831,25 +4833,27 @@ function exportReporteCompletoExcel() {
     return s + c.cant * lista * (1 + pctActual);
   }, 0);
 
-  const colPrecioCorr = 'Precio Correcto $/Lt (' + (pctActual*100).toFixed(1) + '%)';
-  rowsEscala.push({
+  const filaTot = {
     'Fecha': 'TOTAL',
     'Cantidad (Lts)': totalLts,
     'Producto': '',
     'Forma de Pago': '',
     'Precio Pagado ($/Lt)': '',
-    'Total Pagado ($)': Math.round(totalPagadoEscala),
-    [colPrecioCorr]: ''
-  });
-  rowsEscala.push({
+    'Total Pagado ($)': Math.round(totalPagadoEscala)
+  };
+  filaTot[colPrecioCorr] = '';
+  rowsEscala.push(filaTot);
+
+  const filaDif = {
     'Fecha': 'Rango escala: ' + (pctActual*100).toFixed(1) + '%',
     'Cantidad (Lts)': '',
-    'Producto': 'Diferencia: $' + Math.round(Math.abs(totalPagadoEscala - totalCorrectoEscala)).toLocaleString('es-AR') + (totalPagadoEscala >= totalCorrectoEscala ? ' (a tu favor)' : ' (debés)'),
+    'Producto': 'Diferencia: $' + Math.round(Math.abs(totalPagadoEscala - totalCorrectoEscala)).toLocaleString('es-AR') + (totalPagadoEscala >= totalCorrectoEscala ? ' (a tu favor)' : ' (debes)'),
     'Forma de Pago': '',
     'Precio Pagado ($/Lt)': '',
-    'Total Pagado ($)': '',
-    [colPrecioCorr]: Math.round(totalCorrectoEscala)
-  });
+    'Total Pagado ($)': ''
+  };
+  filaDif[colPrecioCorr] = Math.round(totalCorrectoEscala);
+  rowsEscala.push(filaDif);
 
   // ========== SOLAPA 4: VENTAS ARRAYAN CON COMISIÓN 5% ==========
   const ventasArr = VENTAS.filter(v => v.esArrayan === true && fechaEnPeriodo(v.fecha));
