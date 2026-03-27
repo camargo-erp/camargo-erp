@@ -244,7 +244,6 @@
     <div style="display:flex;gap:8px">
       <button class="btn btn-primary" onclick="abrirModalCompra()">➕ Nueva Compra</button>
       <button class="btn btn-warn btn-sm" onclick="exportComprasExcel()">📊 Excel</button>
-      <button class="btn btn-warn btn-sm" onclick="abrirModalReporteExcel()" style="background:#2ecc71;color:#fff">📥 Reporte Completo</button>
     </div>
   </div>
   <!-- Filtros -->
@@ -320,35 +319,6 @@
     <div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end">
       <button class="btn btn-ghost" onclick="cerrarModal('modal-compra')">Cancelar</button>
       <button class="btn btn-primary" onclick="guardarCompra()">💾 Guardar Compra</button>
-    </div>
-  </div>
-</div>
-
-<!-- Modal Reporte Completo Excel -->
-<div class="modal-overlay" id="modal-reporte-excel">
-  <div class="modal" style="max-width:420px">
-    <div class="modal-title">📥 Reporte Completo — Excel</div>
-    <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Descargá un Excel con 4 solapas: Compras, Cuenta Corriente Arrayan, Escala de Volumen y Ventas Arrayan con comisión.</p>
-    <div style="display:flex;gap:12px;margin-bottom:16px">
-      <div style="flex:1">
-        <label style="font-size:12px;color:var(--muted);margin-bottom:4px;display:block">Año</label>
-        <select id="rep-anio" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px">
-          <option value="2024">2024</option><option value="2025">2025</option><option value="2026" selected>2026</option>
-        </select>
-      </div>
-      <div style="flex:1">
-        <label style="font-size:12px;color:var(--muted);margin-bottom:4px;display:block">Mes</label>
-        <select id="rep-mes" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px">
-          <option value="1">Enero</option><option value="2">Febrero</option><option value="3" selected>Marzo</option>
-          <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
-          <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
-          <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
-        </select>
-      </div>
-    </div>
-    <div style="display:flex;gap:10px;justify-content:flex-end">
-      <button class="btn btn-ghost" onclick="cerrarModal('modal-reporte-excel')">Cancelar</button>
-      <button class="btn btn-primary" onclick="exportReporteCompletoExcel()" style="background:#2ecc71">📥 Descargar Excel</button>
     </div>
   </div>
 </div>
@@ -3080,6 +3050,8 @@ function toggleArrayanChange() {
       if(o.value === 'Cuenta corriente') fpago.removeChild(o);
     });
   }
+  // Recalcular resumen para reflejar ganancia correcta (5% si Arrayan)
+  calcularPrecio();
 }
 
 function toggleArrayanTipo() {
@@ -3170,7 +3142,11 @@ function calcularPrecio() {
   const costoTotal=cant*pc.costo;
   const envioTotal=entrega==='Propio'?envio:0;
   const total=subtotal+envioTotal;
-  const gan=total-costoTotal;
+  const ganNormal=total-costoTotal;
+  // Si toggle Arrayan está activo, la ganancia es 5% del total
+  const toggleArr = document.getElementById('toggle-arrayan')?.checked || false;
+  const esArr = toggleArr || prod.startsWith('ARRAYAN:') || (pc.esArrayan === true);
+  const gan = esArr ? Math.round(total * 0.05) : ganNormal;
   const margen=total>0?gan/total:0;
   document.getElementById('nv-precio').value=pc.precio.toLocaleString('es-AR');
   document.getElementById('res-precio').textContent=fmt(pc.precio)+'/L'+(pc.especial?' ⭐':'');
@@ -3179,7 +3155,7 @@ function calcularPrecio() {
   document.getElementById('res-subtotal').textContent=fmt(subtotal);
   document.getElementById('res-envio').textContent=envioTotal>0?fmt(envioTotal):'$0';
   document.getElementById('res-total').textContent=fmt(total);
-  document.getElementById('res-ganancia').textContent=fmt(gan);
+  document.getElementById('res-ganancia').textContent=fmt(gan)+(esArr?' 🏭 5%':'');
   document.getElementById('res-margen').textContent=pct(margen);
 }
 
@@ -3202,11 +3178,11 @@ function guardarVenta() {
   const envioTotal=entrega==='Propio'?envio:0;
   const total=subtotal+envioTotal;
   const gan=total-costoTotal;
-  const esArrayan = prod.startsWith('ARRAYAN:') || (pc.esArrayan === true);
+  const toggleArr = document.getElementById('toggle-arrayan')?.checked || false;
+  const esArrayan = toggleArr || prod.startsWith('ARRAYAN:') || (pc.esArrayan === true);
   const prodNombre = prod.startsWith('ARRAYAN:') ? prod.replace('ARRAYAN:','') : prod;
-  // Para Arrayan: gan real = 5% del costo original (sin mi markup)
-  const costoOriginal = esArrayan ? Math.round(cant * pc.costo / 1.05) : costoTotal;
-  const ganReal = esArrayan ? Math.round(costoOriginal * 0.05) : gan;
+  // Arrayan: ganancia = 5% del total de la venta
+  const ganReal = esArrayan ? Math.round(total * 0.05) : gan;
   VENTAS.unshift({
     fecha: (()=>{ const [y,m,d]=fecha.split('-'); return d.padStart(2,'0')+'/'+m.padStart(2,'0')+'/'+y; })(),
     canal:canal||'Mayorista',cliente,producto:prodNombre,
@@ -3873,7 +3849,7 @@ function guardarTransporte(){
 }
 
 // =========== GOOGLE SHEETS SYNC ===========
-const GS_URL = 'https://script.google.com/macros/s/AKfycbxTCRX9EniMcGVwlW0M9TUqIlW7YkEqNSlQBboMTXSpdTJHuG_94aLlEJD9jz6MZvSx/exec';
+const GS_URL = 'https://script.google.com/macros/s/AKfycbw3jsNtjUVE9-4z2TkO_7iebVgjvtWY72E2Z18ZC5Erd9PeT3-E7QVj-FEGdGscfvJv/exec';
 
 // Indicador de sync en nav
 function setSyncStatus(estado) {
@@ -4044,10 +4020,11 @@ async function guardarVenta() {
   const envioTotal=entrega==='Propio'?envio:0;
   const total=subtotal+envioTotal;
   const gan=total-costoTotal;
-  const esArrayan2 = prod.startsWith('ARRAYAN:') || (pc.esArrayan === true);
+  const toggleArr2 = document.getElementById('toggle-arrayan')?.checked || false;
+  const esArrayan2 = toggleArr2 || prod.startsWith('ARRAYAN:') || (pc.esArrayan === true);
   const prodNombre2 = prod.startsWith('ARRAYAN:') ? prod.replace('ARRAYAN:','') : prod;
-  const costoOriginal2 = esArrayan2 ? Math.round(cant * pc.costo / 1.05) : costoTotal;
-  const ganReal2 = esArrayan2 ? Math.round(costoOriginal2 * 0.05) : gan;
+  // Arrayan: ganancia = 5% del total de la venta
+  const ganReal2 = esArrayan2 ? Math.round(total * 0.05) : gan;
   const venta = {
     fecha:new Date(fecha).toLocaleDateString('es-AR'),
     canal:canal||'Mayorista',cliente,producto:prodNombre2,
@@ -4674,235 +4651,6 @@ function exportComprasExcel() {
   XLSX.utils.book_append_sheet(wb,ws,'Compras');
   XLSX.writeFile(wb,'compras_camargo.xlsx');
   notify('✓ Excel compras exportado');
-}
-
-// =========== REPORTE COMPLETO EXCEL (4 solapas) ===========
-
-function abrirModalReporteExcel() {
-  // Setear mes actual como default
-  const hoy = new Date();
-  const selMes = document.getElementById('rep-mes');
-  const selAnio = document.getElementById('rep-anio');
-  if(selMes) selMes.value = hoy.getMonth() + 1;
-  if(selAnio) selAnio.value = hoy.getFullYear();
-  document.getElementById('modal-reporte-excel').classList.add('show');
-}
-
-function exportReporteCompletoExcel() {
-  const meses = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-  const anio = parseInt(document.getElementById('rep-anio').value);
-  const mes  = parseInt(document.getElementById('rep-mes').value);
-
-  // Helper: parsear fecha dd/mm/yyyy y filtrar por mes/año
-  function fechaEnPeriodo(fechaStr) {
-    const p = (fechaStr||'').split('/');
-    if(p.length < 3) return false;
-    return parseInt(p[1]) === mes && parseInt(p[2]) === anio;
-  }
-
-  // ========== SOLAPA 1: COMPRAS (tal cual la existente, filtrada) ==========
-  const comprasFiltradas = COMPRAS.filter(c => fechaEnPeriodo(c.fecha));
-  const rowsCompras = comprasFiltradas.map(c => ({
-    'Fecha': c.fecha,
-    'Proveedor': c.proveedor,
-    'Producto': c.producto,
-    'Cantidad': c.cant,
-    'Unidad': c.unidad || '',
-    'Precio Unit.': c.precioU,
-    'Costo Total': c.costoTotal,
-    'Forma de Pago': c.fpago,
-    'N° Doc': c.nroDoc || '',
-    'Obs': c.obs || ''
-  }));
-  // Fila total
-  const totalCompras = comprasFiltradas.reduce((s,c) => s + c.costoTotal, 0);
-  rowsCompras.push({
-    'Fecha': '', 'Proveedor': '', 'Producto': 'TOTAL', 'Cantidad': '',
-    'Unidad': '', 'Precio Unit.': '', 'Costo Total': totalCompras,
-    'Forma de Pago': '', 'N° Doc': '', 'Obs': ''
-  });
-
-  // ========== SOLAPA 2: CUENTA CORRIENTE ARRAYAN ==========
-  // Créditos: pagos parciales del período
-  const creditosPagos = PAGOS_ARRAYAN.filter(p => fechaEnPeriodo(p.fecha)).map(p => ({
-    fecha: p.fecha, tipo: 'Crédito',
-    desc: p.concepto + (p.obs ? ' (' + p.obs + ')' : ''),
-    credito: p.monto, debito: 0
-  }));
-
-  // Créditos: ventas Arrayan con pago único (sin pagos parciales asociados)
-  const ventasConPagos = new Set(PAGOS_ARRAYAN.map(p => p.ventaId));
-  const creditosVentas = VENTAS.filter(v =>
-    v.arrayan && !ventasConPagos.has(ventaId(v)) && fechaEnPeriodo(v.fecha)
-  ).map(v => ({
-    fecha: v.fecha, tipo: 'Crédito',
-    desc: v.producto.substring(0,50) + ' (' + v.cant + ' Lts) — Pago único',
-    credito: v.total, debito: 0
-  }));
-
-  // Créditos: ingresos propios a cta cte
-  const creditosIngreso = COMPRAS.filter(c =>
-    (c.proveedor||'').toLowerCase().includes('arrayan') &&
-    (c.fpago||'').toLowerCase().includes('ingreso a cta cte') &&
-    fechaEnPeriodo(c.fecha)
-  ).map(c => ({
-    fecha: c.fecha, tipo: 'Crédito',
-    desc: 'Ingreso propio: ' + c.producto,
-    credito: c.costoTotal, debito: 0
-  }));
-
-  // Débitos: compras cta cte Arrayan
-  const debitosCC = COMPRAS.filter(c =>
-    (c.proveedor||'').toLowerCase().includes('arrayan') &&
-    esCuentaCorrienteArrayan(c.fpago) &&
-    fechaEnPeriodo(c.fecha)
-  ).map(c => ({
-    fecha: c.fecha, tipo: 'Débito',
-    desc: 'Compra: ' + c.producto + ' (' + c.cant + ' ' + (c.unidad||'Lts') + ')',
-    credito: 0, debito: c.costoTotal
-  }));
-
-  // Unir y ordenar
-  const movimientos = [...creditosPagos, ...creditosVentas, ...creditosIngreso, ...debitosCC].sort((a,b) => {
-    const pa = a.fecha.split('/'), pb = b.fecha.split('/');
-    return new Date(+pa[2]||0, +pa[1]-1||0, +pa[0]||1) - new Date(+pb[2]||0, +pb[1]-1||0, +pb[0]||1);
-  });
-
-  let saldoCC = 0;
-  const totalCreditos = movimientos.reduce((s,m) => s + m.credito, 0);
-  const totalDebitos  = movimientos.reduce((s,m) => s + m.debito, 0);
-  const saldoFinal = totalCreditos - totalDebitos;
-
-  const rowsCC = movimientos.map(m => {
-    saldoCC += m.credito - m.debito;
-    return {
-      'Fecha': m.fecha,
-      'Tipo': m.tipo,
-      'Descripción': m.desc,
-      'Crédito ($)': m.credito || '',
-      'Débito ($)': m.debito || '',
-      'Saldo ($)': Math.round(saldoCC)
-    };
-  });
-
-  // Filas resumen arriba
-  const resumenCC = [
-    { 'Fecha': 'RESUMEN', 'Tipo': '', 'Descripción': '', 'Crédito ($)': '', 'Débito ($)': '', 'Saldo ($)': '' },
-    { 'Fecha': 'Saldo Cuenta Corriente', 'Tipo': '', 'Descripción': '', 'Crédito ($)': '', 'Débito ($)': '', 'Saldo ($)': Math.round(saldoFinal) },
-    { 'Fecha': 'Total Créditos', 'Tipo': '', 'Descripción': '', 'Crédito ($)': Math.round(totalCreditos), 'Débito ($)': '', 'Saldo ($)': '' },
-    { 'Fecha': 'Total Débitos', 'Tipo': '', 'Descripción': '', 'Crédito ($)': '', 'Débito ($)': Math.round(totalDebitos), 'Saldo ($)': '' },
-    { 'Fecha': '', 'Tipo': '', 'Descripción': '', 'Crédito ($)': '', 'Débito ($)': '', 'Saldo ($)': '' },
-    { 'Fecha': 'DETALLE MOVIMIENTOS', 'Tipo': '', 'Descripción': '', 'Crédito ($)': '', 'Débito ($)': '', 'Saldo ($)': '' },
-  ];
-  const rowsCCFinal = [...resumenCC, ...rowsCC];
-
-  // ========== SOLAPA 3: ESCALA POR VOLUMEN ==========
-  const comprasEscala = COMPRAS.filter(c => {
-    if(!(c.proveedor||'').toLowerCase().includes('arrayan')) return false;
-    if((c.fpago||'').toLowerCase().includes('ingreso a cta cte')) return false;
-    return fechaEnPeriodo(c.fecha);
-  });
-
-  const totalLts = comprasEscala.reduce((s,c) => s + c.cant, 0);
-  const pctActual = getPctArrayan(totalLts);
-  const precioListaCereal  = PRECIO_LISTA_ARRAYAN.cereal;
-  const precioListaEtilico = PRECIO_LISTA_ARRAYAN.etilico;
-  const colPrecioCorr = 'Precio Correcto $/Lt (' + (pctActual*100).toFixed(1) + '%)';
-
-  const rowsEscala = comprasEscala.map(c => {
-    const esCereal = (c.producto||'').toLowerCase().includes('cereal') || (c.producto||'').toLowerCase().includes('tri');
-    const lista = esCereal ? precioListaCereal : precioListaEtilico;
-    const precioCorrectoPorLitro = Math.round(lista * (1 + pctActual));
-    const row = {
-      'Fecha': c.fecha,
-      'Cantidad (Lts)': c.cant,
-      'Producto': c.producto,
-      'Forma de Pago': c.fpago || '',
-      'Precio Pagado ($/Lt)': c.precioU,
-      'Total Pagado ($)': c.costoTotal
-    };
-    row[colPrecioCorr] = precioCorrectoPorLitro;
-    return row;
-  });
-
-  // Fila resumen escala
-  const totalPagadoEscala = comprasEscala.reduce((s,c) => s + c.costoTotal, 0);
-  const totalCorrectoEscala = comprasEscala.reduce((s,c) => {
-    const esCereal = (c.producto||'').toLowerCase().includes('cereal') || (c.producto||'').toLowerCase().includes('tri');
-    const lista = esCereal ? precioListaCereal : precioListaEtilico;
-    return s + c.cant * lista * (1 + pctActual);
-  }, 0);
-
-  const filaTot = {
-    'Fecha': 'TOTAL',
-    'Cantidad (Lts)': totalLts,
-    'Producto': '',
-    'Forma de Pago': '',
-    'Precio Pagado ($/Lt)': '',
-    'Total Pagado ($)': Math.round(totalPagadoEscala)
-  };
-  filaTot[colPrecioCorr] = '';
-  rowsEscala.push(filaTot);
-
-  const filaDif = {
-    'Fecha': 'Rango escala: ' + (pctActual*100).toFixed(1) + '%',
-    'Cantidad (Lts)': '',
-    'Producto': 'Diferencia: $' + Math.round(Math.abs(totalPagadoEscala - totalCorrectoEscala)).toLocaleString('es-AR') + (totalPagadoEscala >= totalCorrectoEscala ? ' (a tu favor)' : ' (debes)'),
-    'Forma de Pago': '',
-    'Precio Pagado ($/Lt)': '',
-    'Total Pagado ($)': ''
-  };
-  filaDif[colPrecioCorr] = Math.round(totalCorrectoEscala);
-  rowsEscala.push(filaDif);
-
-  // ========== SOLAPA 4: VENTAS ARRAYAN CON COMISIÓN 5% ==========
-  const ventasArr = VENTAS.filter(v => v.esArrayan === true && fechaEnPeriodo(v.fecha));
-  const rowsVentasArr = ventasArr.map(v => ({
-    'Fecha': v.fecha,
-    'Cliente': v.cliente,
-    'Producto': v.producto,
-    'Cantidad': v.cant,
-    'Total Venta ($)': v.total,
-    'Comisión 5% ($)': Math.round(v.total * 0.05)
-  }));
-
-  const totalVentaArr = ventasArr.reduce((s,v) => s + v.total, 0);
-  const totalComisionArr = ventasArr.reduce((s,v) => s + Math.round(v.total * 0.05), 0);
-  rowsVentasArr.push({
-    'Fecha': '', 'Cliente': '', 'Producto': 'TOTAL', 'Cantidad': '',
-    'Total Venta ($)': totalVentaArr,
-    'Comisión 5% ($)': totalComisionArr
-  });
-
-  // ========== GENERAR WORKBOOK ==========
-  const wb = XLSX.utils.book_new();
-
-  // Solapa 1
-  const ws1 = XLSX.utils.json_to_sheet(rowsCompras);
-  ws1['!cols'] = [{wch:12},{wch:20},{wch:25},{wch:10},{wch:8},{wch:12},{wch:14},{wch:16},{wch:12},{wch:20}];
-  XLSX.utils.book_append_sheet(wb, ws1, 'Compras');
-
-  // Solapa 2
-  const ws2 = XLSX.utils.json_to_sheet(rowsCCFinal);
-  ws2['!cols'] = [{wch:24},{wch:10},{wch:45},{wch:14},{wch:14},{wch:14}];
-  XLSX.utils.book_append_sheet(wb, ws2, 'Cuenta Corriente');
-
-  // Solapa 3
-  const ws3 = XLSX.utils.json_to_sheet(rowsEscala);
-  ws3['!cols'] = [{wch:12},{wch:14},{wch:30},{wch:16},{wch:18},{wch:16},{wch:22}];
-  XLSX.utils.book_append_sheet(wb, ws3, 'Escala Volumen');
-
-  // Solapa 4
-  const ws4 = XLSX.utils.json_to_sheet(rowsVentasArr);
-  ws4['!cols'] = [{wch:12},{wch:22},{wch:30},{wch:10},{wch:16},{wch:16}];
-  XLSX.utils.book_append_sheet(wb, ws4, 'Ventas Arrayan');
-
-  // Nombre del archivo
-  const nombreMes = meses[mes].toLowerCase();
-  XLSX.writeFile(wb, 'reporte_camargo_' + nombreMes + '_' + anio + '.xlsx');
-
-  cerrarModal('modal-reporte-excel');
-  notify('✓ Reporte completo descargado — ' + meses[mes] + ' ' + anio);
 }
 
 async function gsGuardarCompra(compra) {
