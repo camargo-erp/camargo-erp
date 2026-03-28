@@ -3929,7 +3929,7 @@ function guardarTransporte(){
 }
 
 // =========== GOOGLE SHEETS SYNC ===========
-const GS_URL = 'https://script.google.com/macros/s/AKfycbz7QPNOYEfTO7vwBUngwThh-_v635E7P_7mpnMlFeymuYjLIcLp74jxYTAz7dbCMUtJ/exec';
+const GS_URL = 'https://script.google.com/macros/s/AKfycbw5sSxpjM9ArNX4L84dIVJ4CSCQEoYoqGYu1gCVYkninZpZdUNsXy51uqlDP4JqMkfX/exec';
 
 // ── SEGURIDAD: Token + Sesión ──
 const API_TOKEN = 'cmg_erp_2026_s3cur3_Kx9mP';
@@ -4024,6 +4024,7 @@ async function cargarDesdeSheets() {
       }
       if(res.compras?.length)    COMPRAS    = res.compras;
       if(res.pagosArrayan?.length) PAGOS_ARRAYAN = res.pagosArrayan;
+      if(res.gastos?.length)     GASTOS     = res.gastos;
       if(res.clientes?.length)   CLIENTES   = res.clientes;
       if(res.transportes?.length) {
         // Combinar: usar Sheets si tiene más que el hardcoded, sino combinar
@@ -4563,6 +4564,7 @@ async function guardarEdicionCliente() {
 // =========== COMPRAS ===========
 let COMPRAS = [];
 let PAGOS_ARRAYAN = []; // Pagos parciales de ventas Arrayan
+let GASTOS = []; // Gastos operativos (módulo Finanzas)
 
 function abrirModalCompra() {
   // Fecha de hoy por defecto
@@ -4758,6 +4760,22 @@ function exportComprasExcel() {
 
 async function gsGuardarCompra(compra) {
   await gsCall('saveCompra', {compra});
+}
+
+// =========== GASTOS (módulo Finanzas) ===========
+async function gsGuardarGasto(gasto) {
+  setSyncStatus('sync');
+  const res = await gsCall('saveGasto', {gasto});
+  setSyncStatus(res.ok ? 'ok' : 'error');
+  return res.ok;
+}
+
+async function gsEliminarGasto(idx) {
+  if(!esAdmin()) { notify('⚠️ Solo admin puede borrar gastos'); return; }
+  setSyncStatus('sync');
+  const res = await gsCall('deleteGasto', {idx});
+  setSyncStatus(res.ok ? 'ok' : 'error');
+  return res.ok;
 }
 
 // =========== ALERTAS ===========
