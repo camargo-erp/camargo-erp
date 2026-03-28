@@ -3050,8 +3050,6 @@ function toggleArrayanChange() {
       if(o.value === 'Cuenta corriente') fpago.removeChild(o);
     });
   }
-  // Recalcular resumen para reflejar ganancia correcta (5% si Arrayan)
-  calcularPrecio();
 }
 
 function toggleArrayanTipo() {
@@ -3142,11 +3140,7 @@ function calcularPrecio() {
   const costoTotal=cant*pc.costo;
   const envioTotal=entrega==='Propio'?envio:0;
   const total=subtotal+envioTotal;
-  const ganNormal=total-costoTotal;
-  // Si toggle Arrayan está activo, la ganancia es 5% del total
-  const toggleArr = document.getElementById('toggle-arrayan')?.checked || false;
-  const esArr = toggleArr || prod.startsWith('ARRAYAN:') || (pc.esArrayan === true);
-  const gan = esArr ? Math.round(total * 0.05) : ganNormal;
+  const gan=total-costoTotal;
   const margen=total>0?gan/total:0;
   document.getElementById('nv-precio').value=pc.precio.toLocaleString('es-AR');
   document.getElementById('res-precio').textContent=fmt(pc.precio)+'/L'+(pc.especial?' ⭐':'');
@@ -3155,7 +3149,7 @@ function calcularPrecio() {
   document.getElementById('res-subtotal').textContent=fmt(subtotal);
   document.getElementById('res-envio').textContent=envioTotal>0?fmt(envioTotal):'$0';
   document.getElementById('res-total').textContent=fmt(total);
-  document.getElementById('res-ganancia').textContent=fmt(gan)+(esArr?' 🏭 5%':'');
+  document.getElementById('res-ganancia').textContent=fmt(gan);
   document.getElementById('res-margen').textContent=pct(margen);
 }
 
@@ -3178,11 +3172,11 @@ function guardarVenta() {
   const envioTotal=entrega==='Propio'?envio:0;
   const total=subtotal+envioTotal;
   const gan=total-costoTotal;
-  const toggleArr = document.getElementById('toggle-arrayan')?.checked || false;
-  const esArrayan = toggleArr || prod.startsWith('ARRAYAN:') || (pc.esArrayan === true);
+  const esArrayan = prod.startsWith('ARRAYAN:') || (pc.esArrayan === true);
   const prodNombre = prod.startsWith('ARRAYAN:') ? prod.replace('ARRAYAN:','') : prod;
-  // Arrayan: ganancia = 5% del total de la venta
-  const ganReal = esArrayan ? Math.round(total * 0.05) : gan;
+  // Para Arrayan: gan real = 5% del costo original (sin mi markup)
+  const costoOriginal = esArrayan ? Math.round(cant * pc.costo / 1.05) : costoTotal;
+  const ganReal = esArrayan ? Math.round(costoOriginal * 0.05) : gan;
   VENTAS.unshift({
     fecha: (()=>{ const [y,m,d]=fecha.split('-'); return d.padStart(2,'0')+'/'+m.padStart(2,'0')+'/'+y; })(),
     canal:canal||'Mayorista',cliente,producto:prodNombre,
@@ -3276,17 +3270,103 @@ function marcarEntregado(idx){VENTAS[idx].entregado='Sí';actualizarBadge();noti
 function marcarCobrado(idx){VENTAS[idx].pagado='Sí';actualizarBadge();notify('✓ Marcado como cobrado');renderPendientes();}
 function actualizarBadge(){const sinE=VENTAS.filter(v=>v.entregado==='No').length;const sinC=VENTAS.filter(v=>v.pagado==='No').length;document.getElementById('badge-pend').textContent=sinE+sinC;}
 
-// =========== LOGIN ===========
-function doLogin(){
-  const u=document.getElementById('login-user').value.trim();
-  const p=document.getElementById('login-pass').value;
-  if(u==='camargo' && p==='Milei2027'){
-    document.getElementById('login-screen').classList.add('hidden');
-    document.getElementById('login-error').style.display='none';
-  } else {
+// =========== LOGIN con hash + backend ===========
+async function doLogin(){
+  const u = document.getElementById('login-user').value.trim();
+  const p = document.getElementById('login-pass').value;
+  if(!u || !p) { document.getElementById('login-error').style.display='block'; return; }
+
+  // Mostrar estado de carga
+  const btn = document.querySelector('.login-box button');
+  const textoOriginal = btn.textContent;
+  btn.textContent = 'Verificando...';
+  btn.disabled = true;
+
+  try {
+    // Hashear contraseña con SHA-256
+    const passHash = await sha256(p);
+
+    // Enviar al backend para validar
+    const res = await fetch(GS_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'login',
+        token: API_TOKEN,
+        usuario: u,
+        passHash: passHash
+      }),
+    });
+    const data = await res.json();
+
+    if(data.ok) {
+      // Guardar sesión
+      SESION = { usuario: data.usuario, rol: data.rol, activo: true };
+      sessionStorage.setItem('erp_sesion', JSON.stringify(SESION));
+      document.getElementById('login-screen').classList.add('hidden');
+      document.getElementById('login-error').style.display='none';
+      // Mostrar usuario en nav
+      mostrarUsuarioNav();
+      // Aplicar restricciones de rol
+      aplicarRol();
+      notify('✓ Bienvenido, ' + data.usuario + ' (' + data.rol + ')');
+    } else {
+      document.getElementById('login-error').textContent = data.error || 'Usuario o contraseña incorrectos';
+      document.getElementById('login-error').style.display='block';
+      document.getElementById('login-pass').value='';
+    }
+  } catch(e) {
+    document.getElementById('login-error').textContent = 'Error de conexión';
     document.getElementById('login-error').style.display='block';
-    document.getElementById('login-pass').value='';
   }
+  btn.textContent = textoOriginal;
+  btn.disabled = false;
+}
+
+// Restaurar sesión si existe en sessionStorage
+function restaurarSesion() {
+  try {
+    const s = JSON.parse(sessionStorage.getItem('erp_sesion'));
+    if(s && s.activo) {
+      SESION = s;
+      document.getElementById('login-screen').classList.add('hidden');
+      mostrarUsuarioNav();
+      aplicarRol();
+    }
+  } catch(e) {}
+}
+
+// Mostrar usuario logueado en la barra de navegación
+function mostrarUsuarioNav() {
+  let el = document.getElementById('nav-usuario');
+  if(!el) {
+    el = document.createElement('span');
+    el.id = 'nav-usuario';
+    el.style.cssText = 'font-size:11px;padding:4px 10px;border-radius:12px;font-family:var(--mono);background:#1a2540;color:#3d7fff;cursor:pointer;';
+    el.title = 'Click para cerrar sesión';
+    el.onclick = cerrarSesion;
+    document.querySelector('.nav-right').prepend(el);
+  }
+  const icono = SESION.rol === 'admin' ? '👑' : '👤';
+  el.textContent = icono + ' ' + SESION.usuario;
+}
+
+// Cerrar sesión
+function cerrarSesion() {
+  if(!confirm('¿Cerrar sesión?')) return;
+  SESION = { usuario: '', rol: '', activo: false };
+  sessionStorage.removeItem('erp_sesion');
+  document.getElementById('login-screen').classList.remove('hidden');
+  const el = document.getElementById('nav-usuario');
+  if(el) el.remove();
+  notify('Sesión cerrada');
+}
+
+// PASO 3: Aplicar restricciones según rol
+function aplicarRol() {
+  // Los botones/elementos con data-admin se ocultan para operadores
+  document.querySelectorAll('[data-admin]').forEach(el => {
+    el.style.display = esAdmin() ? '' : 'none';
+  });
 }
 
 // =========== TABS DE PENDIENTES ===========
@@ -3849,7 +3929,23 @@ function guardarTransporte(){
 }
 
 // =========== GOOGLE SHEETS SYNC ===========
-const GS_URL = 'https://script.google.com/macros/s/AKfycbw3jsNtjUVE9-4z2TkO_7iebVgjvtWY72E2Z18ZC5Erd9PeT3-E7QVj-FEGdGscfvJv/exec';
+const GS_URL = 'https://script.google.com/macros/s/AKfycbz7QPNOYEfTO7vwBUngwThh-_v635E7P_7mpnMlFeymuYjLIcLp74jxYTAz7dbCMUtJ/exec';
+
+// ── SEGURIDAD: Token + Sesión ──
+const API_TOKEN = 'cmg_erp_2026_s3cur3_Kx9mP';
+let SESION = { usuario: '', rol: '', activo: false };
+
+// Helper: generar SHA-256 de un string (para hashear contraseña)
+async function sha256(texto) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(texto);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Helper: verificar si el usuario es admin
+function esAdmin() { return SESION.rol === 'admin'; }
 
 // Indicador de sync en nav
 function setSyncStatus(estado) {
@@ -3876,7 +3972,12 @@ async function gsCall(action, data={}) {
   try {
     const res = await fetch(GS_URL, {
       method: 'POST',
-      body: JSON.stringify({action, ...data}),
+      body: JSON.stringify({
+        action,
+        token: API_TOKEN,
+        _usuario: SESION.usuario,
+        ...data
+      }),
     });
     return await res.json();
   } catch(e) {
@@ -3975,6 +4076,7 @@ async function gsGuardarTransporte(transporte) {
 
 // GUARDAR precios en Sheets
 async function gsGuardarPrecios(precios) {
+  if(!esAdmin()) { notify('⚠️ Solo admin puede modificar precios'); return false; }
   setSyncStatus('sync');
   const res = await gsCall('savePrecios', {precios, productosUSD: PRODUCTOS_USD, valorDolar: VALOR_DOLAR});
   setSyncStatus(res.ok ? 'ok' : 'error');
@@ -4020,11 +4122,10 @@ async function guardarVenta() {
   const envioTotal=entrega==='Propio'?envio:0;
   const total=subtotal+envioTotal;
   const gan=total-costoTotal;
-  const toggleArr2 = document.getElementById('toggle-arrayan')?.checked || false;
-  const esArrayan2 = toggleArr2 || prod.startsWith('ARRAYAN:') || (pc.esArrayan === true);
+  const esArrayan2 = prod.startsWith('ARRAYAN:') || (pc.esArrayan === true);
   const prodNombre2 = prod.startsWith('ARRAYAN:') ? prod.replace('ARRAYAN:','') : prod;
-  // Arrayan: ganancia = 5% del total de la venta
-  const ganReal2 = esArrayan2 ? Math.round(total * 0.05) : gan;
+  const costoOriginal2 = esArrayan2 ? Math.round(cant * pc.costo / 1.05) : costoTotal;
+  const ganReal2 = esArrayan2 ? Math.round(costoOriginal2 * 0.05) : gan;
   const venta = {
     fecha:new Date(fecha).toLocaleDateString('es-AR'),
     canal:canal||'Mayorista',cliente,producto:prodNombre2,
@@ -4177,6 +4278,7 @@ function actualizarPreviewEditar() {
 }
 
 function eliminarVenta(idx) {
+  if(!esAdmin()) { notify('⚠️ Solo admin puede borrar ventas'); return; }
   if(idx < 0 || idx >= VENTAS.length) return;
   const v = VENTAS[idx];
   if(!confirm(`¿Eliminar la venta de ${v.cliente} por ${v.total.toLocaleString('es-AR')}?`)) return;
@@ -4630,6 +4732,7 @@ function renderCompras() {
 }
 
 function eliminarCompra(idx) {
+  if(!esAdmin()) { notify('⚠️ Solo admin puede borrar compras'); return; }
   if(!confirm('¿Eliminar esta compra?')) return;
   gsCall('deleteCompra', {idx});
   COMPRAS.splice(idx,1);
@@ -5114,6 +5217,7 @@ async function guardarPagoArrayan() {
 }
 
 async function eliminarPagoArrayan(idx) {
+  if(!esAdmin()) { notify('⚠️ Solo admin puede borrar pagos'); return; }
   if(!confirm('¿Eliminar este pago?')) return;
   const pago = PAGOS_ARRAYAN[idx];
   PAGOS_ARRAYAN.splice(idx, 1);
@@ -5362,6 +5466,7 @@ function exportVentasArrayanExcel() {
 
 function exportArrayanExcel(){const cred=VENTAS.filter(v=>v.arrayan).map(v=>({'Fecha':v.fecha,'Tipo':'Credito','Descripcion':v.cliente+' - '+v.producto,'Credito ($)':v.total,'Debito ($)':'','Cantidad':v.cant,'Saldo':''}));const deb=COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')).map(c=>({'Fecha':c.fecha,'Tipo':'Debito','Descripcion':'Compra: '+c.producto+' ('+c.cant+' '+(c.unidad||'')+')', 'Credito ($)':'','Debito ($)':c.costoTotal,'Cantidad':c.cant,'Saldo':''}));const movs=[...cred,...deb].sort((a,b)=>{const pa=a['Fecha'].split('/'),pb=b['Fecha'].split('/');return new Date(parseInt(pa[2]),parseInt(pa[1])-1,parseInt(pa[0]))-new Date(parseInt(pb[2]),parseInt(pb[1])-1,parseInt(pb[0]));});let s=0;movs.forEach(m=>{s+=(parseFloat(m['Credito ($)'])||0)-(parseFloat(m['Debito ($)'])||0);m['Saldo']='$'+Math.round(s).toLocaleString('es-AR');});if(!movs.length){notify('Sin movimientos para exportar');return;}const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(movs),'Cuenta Corriente Arrayan');XLSX.writeFile(wb,'cuenta_corriente_arrayan.xlsx');notify('✓ Excel Arrayan exportado');}// =========== INIT ===========
 document.getElementById('nav-fecha').textContent = new Date().toLocaleDateString('es-AR',{month:'long',year:'numeric'});
+restaurarSesion(); // Intentar restaurar sesión previa
 actualizarBadge();
 cargarDesdeSheets(); // Carga datos desde Sheets y luego renderiza
 setTimeout(()=>calcularAlertas(), 3000); // Calcular alertas después de cargar
