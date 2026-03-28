@@ -728,6 +728,12 @@
 
   <div class="kpi-grid" id="dash-kpis"></div>
   <div class="kpi-grid2" id="dash-kpis2"></div>
+
+  <!-- P&L REAL — Finanzas integradas -->
+  <div style="font-size:11px;font-weight:600;letter-spacing:2px;color:var(--accent2);text-transform:uppercase;margin:8px 0 12px">💰 P&L Real — Finanzas</div>
+  <div class="kpi-grid" id="dash-pnl" style="margin-bottom:8px"></div>
+  <div class="kpi-grid" id="dash-pnl2" style="margin-bottom:24px"></div>
+
   <div class="grid3" id="dash-cards2"></div>
   <div class="grid2">
     <div class="card">
@@ -2494,7 +2500,9 @@ function getMesVenta(fecha){ return parseFechaVenta(fecha).mes; }
 function getAnioVenta(fecha){ return parseFechaVenta(fecha).anio; }
 
 function esVentaPropia(v) {
-  return v.esArrayan !== true;
+  // Todas las ventas son propias — las de productos Arrayan 
+  // generan comisión del 5% que es ganancia real del negocio
+  return true;
 }
 
 function getVentasFiltradas() {
@@ -2526,9 +2534,9 @@ function renderDashboard() {
     <div class="kpi"><div class="kpi-label">Ventas ${dashPeriodo==='all'?'Total':dashPeriodo==='year'?'Año':'Mes'}</div>
       <div class="kpi-value accent">${fmt(totalVentas)}</div>
       <div class="kpi-sub">${ops} ops · ${lts.toLocaleString('es-AR')} Lts</div></div>
-    <div class="kpi"><div class="kpi-label">Ganancia Neta</div>
+    <div class="kpi"><div class="kpi-label">Ganancia Bruta</div>
       <div class="kpi-value green">${fmt(totalGan)}</div>
-      <div class="kpi-sub">Sobre $${Math.round(totalCosto/1e6*10)/10}M de costo</div></div>
+      <div class="kpi-sub">Ventas − costo mercadería</div></div>
     <div class="kpi"><div class="kpi-label">Costo Total</div>
       <div class="kpi-value">${fmt(totalCosto)}</div>
       <div class="kpi-sub">${dashPeriodo==='all'?'Histórico completo':dashPeriodo==='year'?'Año '+document.getElementById('dash-anio-sel').value:'Mes seleccionado'}</div></div>
@@ -2612,6 +2620,8 @@ function renderDashboard() {
 
   // Evolución mensual
   renderChartsMensual();
+  // P&L Real — Finanzas
+  renderPnL();
   // KPIs avanzados
   renderKPIsAvanzados();
 }
@@ -2884,6 +2894,144 @@ function renderMargenesPorProducto(vf) {
         </tr></thead>
         <tbody>${filas}</tbody>
       </table>
+    </div>`;
+}
+
+// =========== P&L REAL — Finanzas integradas al Dashboard ===========
+function getGastosFiltrados() {
+  // Filtrar gastos con el mismo criterio de período que el dashboard
+  if(dashPeriodo === 'all') return GASTOS;
+  const anio = parseInt(document.getElementById('dash-anio-sel').value);
+  return GASTOS.filter(g => {
+    const p = String(g.fecha || '').split('/');
+    if(p.length !== 3) return false;
+    const ga = parseInt(p[2]), gm = parseInt(p[1]);
+    if(ga !== anio) return false;
+    if(dashPeriodo === 'month') {
+      const mes = parseInt(document.getElementById('dash-mes-sel').value);
+      return gm === mes;
+    }
+    return true;
+  });
+}
+
+function renderPnL() {
+  const vf = getVentasFiltradas();
+  const gf = getGastosFiltrados();
+
+  // --- Métricas base ---
+  const totalVentas = vf.reduce((s,v) => s + v.total, 0);
+  const costoMerc = vf.reduce((s,v) => s + v.costoT, 0);
+  const ganBruta = totalVentas - costoMerc; // Ganancia bruta (sin gastos operativos)
+  const totalGastos = gf.reduce((s,g) => s + (g.monto || 0), 0);
+
+  // Gastos fijos (recurrentes) vs variables
+  const gastosFijos = gf.filter(g => g.recurrente === true || g.recurrente === 'TRUE' || g.recurrente === 'true' || g.recurrente === 'Sí');
+  const totalFijos = gastosFijos.reduce((s,g) => s + (g.monto || 0), 0);
+  const totalVariables = totalGastos - totalFijos;
+
+  // 1) Ganancia neta real = ventas - costo mercadería - gastos operativos
+  const ganNetaReal = ganBruta - totalGastos;
+
+  // 2) Margen neto real
+  const margenNetoReal = totalVentas > 0 ? (ganNetaReal / totalVentas * 100) : 0;
+
+  // 3) Punto de equilibrio mensual = gastos fijos / (margen bruto %)
+  const margenBrutoPct = totalVentas > 0 ? (ganBruta / totalVentas) : 0;
+  const puntoEquilibrio = margenBrutoPct > 0 ? (totalFijos / margenBrutoPct) : 0;
+
+  // 4) Flujo de caja = cobrado - gastos pagados
+  const cobrado = vf.filter(v => v.pagado === 'Sí').reduce((s,v) => s + v.total, 0);
+  const flujoCaja = cobrado - totalGastos;
+
+  // 5) Ratio gastos fijos / ventas
+  const ratioFijosVentas = totalVentas > 0 ? (totalFijos / totalVentas * 100) : 0;
+
+  // 6) CAC = gasto Publicidad / clientes nuevos del período
+  const gastoPublicidad = gf.filter(g => g.categoria === 'Publicidad').reduce((s,g) => s + (g.monto || 0), 0);
+  // Clientes nuevos: primera compra en el período
+  const clientesPrevios = new Set();
+  const clientesPeriodo = new Set();
+  VENTAS.filter(esVentaPropia).forEach(v => {
+    const pa = parseFechaVenta(v.fecha);
+    const anioSel = parseInt(document.getElementById('dash-anio-sel')?.value || 2026);
+    const mesSel = parseInt(document.getElementById('dash-mes-sel')?.value || 0);
+    let enPeriodo = false;
+    if(dashPeriodo === 'all') enPeriodo = true;
+    else if(dashPeriodo === 'year') enPeriodo = pa.anio === anioSel;
+    else enPeriodo = pa.anio === anioSel && pa.mes === mesSel;
+
+    if(enPeriodo) clientesPeriodo.add(v.cliente);
+    else clientesPrevios.add(v.cliente);
+  });
+  const clientesNuevos = [...clientesPeriodo].filter(c => !clientesPrevios.has(c)).length;
+  const cac = clientesNuevos > 0 ? (gastoPublicidad / clientesNuevos) : 0;
+
+  // 7) Alertas de vencimientos (gastos con vencimiento próximo)
+  const hoy = new Date();
+  const vencProximos = GASTOS.filter(g => {
+    if(!g.vencimiento) return false;
+    const p = String(g.vencimiento).split('/');
+    if(p.length !== 3) return false;
+    const d = new Date(parseInt(p[2]), parseInt(p[1])-1, parseInt(p[0]));
+    const diff = (d - hoy) / 86400000;
+    return diff >= -3 && diff <= 15; // vencidos hace 3 días a 15 días por vencer
+  });
+
+  // --- Render fila 1: P&L ---
+  const colorNeta = ganNetaReal >= 0 ? 'var(--green)' : 'var(--red)';
+  const colorFlujo = flujoCaja >= 0 ? 'var(--green)' : 'var(--red)';
+  const pnl1 = document.getElementById('dash-pnl');
+  if(pnl1) pnl1.innerHTML = `
+    <div class="kpi highlight2">
+      <div class="kpi-label">💵 Ganancia Neta Real</div>
+      <div class="kpi-value" style="color:${colorNeta}">${fmt(ganNetaReal)}</div>
+      <div class="kpi-sub">Ventas ${fmt(totalVentas)} − Costo ${fmt(costoMerc)} − Gastos ${fmt(totalGastos)}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">📊 Margen Neto Real</div>
+      <div class="kpi-value" style="color:${margenNetoReal>=15?'var(--green)':margenNetoReal>=5?'var(--yellow)':'var(--red)'}">${margenNetoReal.toFixed(1)}%</div>
+      <div class="kpi-sub">Después de gastos operativos</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">🏁 Punto de Equilibrio</div>
+      <div class="kpi-value accent">${puntoEquilibrio > 0 ? fmt(puntoEquilibrio) : '—'}</div>
+      <div class="kpi-sub">${puntoEquilibrio > 0 ? 'Vender esto para cubrir gastos fijos' : 'Sin gastos fijos cargados'}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">💸 Gastos Operativos</div>
+      <div class="kpi-value" style="color:var(--red)">${fmt(totalGastos)}</div>
+      <div class="kpi-sub">Fijos ${fmt(totalFijos)} · Variables ${fmt(totalVariables)}</div>
+    </div>`;
+
+  // --- Render fila 2: Flujo, ratio, CAC, vencimientos ---
+  const pnl2 = document.getElementById('dash-pnl2');
+  if(pnl2) pnl2.innerHTML = `
+    <div class="kpi">
+      <div class="kpi-label">💰 Flujo de Caja</div>
+      <div class="kpi-value" style="color:${colorFlujo}">${fmt(flujoCaja)}</div>
+      <div class="kpi-sub">Cobrado ${fmt(cobrado)} − Gastos ${fmt(totalGastos)}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">📏 Ratio Gastos Fijos / Ventas</div>
+      <div class="kpi-value" style="color:${ratioFijosVentas<=20?'var(--green)':ratioFijosVentas<=35?'var(--yellow)':'var(--red)'}">${ratioFijosVentas.toFixed(1)}%</div>
+      <div class="kpi-sub">${ratioFijosVentas<=20?'Saludable':'Atención: gastos fijos altos'}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">📣 CAC (Costo Adquisición)</div>
+      <div class="kpi-value">${cac > 0 ? fmt(cac) : '—'}</div>
+      <div class="kpi-sub">${gastoPublicidad > 0 ? fmt(gastoPublicidad)+' en Ads · '+clientesNuevos+' nuevos' : 'Sin gastos de publicidad'}</div>
+    </div>
+    <div class="kpi" style="border-color:${vencProximos.length > 0 ? 'var(--warn)' : 'var(--border)'}">
+      <div class="kpi-label">🚦 Vencimientos</div>
+      <div class="kpi-value" style="color:${vencProximos.length > 0 ? 'var(--warn)' : 'var(--green)'}">${vencProximos.length > 0 ? vencProximos.length : '✓'}</div>
+      <div class="kpi-sub">${vencProximos.length > 0 ? vencProximos.slice(0,2).map(g => {
+        const p = g.vencimiento.split('/');
+        const d = new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0]));
+        const diff = Math.ceil((d - hoy)/86400000);
+        const estado = diff < 0 ? '🔴 Vencido' : diff <= 3 ? '🟡 '+diff+'d' : '🟢 '+diff+'d';
+        return g.categoria + ' ' + estado;
+      }).join(' · ') : 'Todo al día'}</div>
     </div>`;
 }
 
