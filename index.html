@@ -430,7 +430,7 @@
 </div>
 
 <!-- Modal nuevo gasto -->
-<div class="modal-overlay" id="modal-gasto" style="display:none" onclick="if(event.target===this)cerrarModal('modal-gasto')">
+<div class="modal-overlay" id="modal-gasto" onclick="if(event.target===this)cerrarModal('modal-gasto')">
   <div class="modal" style="width:500px">
     <div class="modal-header"><div class="modal-title">💸 Nuevo Gasto</div><div class="modal-close" onclick="cerrarModal('modal-gasto')">✕</div></div>
     <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
@@ -2465,8 +2465,8 @@ function notify(msg,color) {
   setTimeout(()=>el.classList.remove('show'),2800);
 }
 
-function abrirModal(id){document.getElementById(id).classList.add('show');}
-function cerrarModal(id){document.getElementById(id).classList.remove('show');}
+function abrirModal(id){const el=document.getElementById(id);el.classList.add('show');el.style.display='flex';}
+function cerrarModal(id){const el=document.getElementById(id);el.classList.remove('show');el.style.display='none';}
 
 // =========== DASHBOARD ===========
 function setDashPeriodo(p) {
@@ -5222,7 +5222,7 @@ function abrirModalGasto() {
   document.getElementById('ng-vencimiento').value = '';
   document.getElementById('ng-recurrente').checked = false;
   document.getElementById('ng-obs').value = '';
-  document.getElementById('modal-gasto').style.display = 'flex';
+  abrirModal('modal-gasto');
 }
 
 async function guardarGasto() {
