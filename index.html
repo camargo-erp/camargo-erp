@@ -16,14 +16,15 @@
   *{margin:0;padding:0;box-sizing:border-box;}
   body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;min-height:100vh;}
   nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;gap:0;height:52px;overflow-x:auto;}
-  .nav-brand{font-weight:600;font-size:16px;color:var(--accent);letter-spacing:-.5px;margin-right:24px;white-space:nowrap;}
+  .nav-brand{font-weight:600;font-size:16px;color:var(--accent);letter-spacing:-.5px;margin-right:24px;white-space:nowrap;transition:opacity .15s;}
+  .nav-brand:hover{opacity:.75;}
   .nav-brand span{color:var(--muted);font-weight:300;}
   .nav-tab{padding:0 14px;height:52px;display:flex;align-items:center;font-size:13px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;gap:6px;white-space:nowrap;}
   .nav-tab:hover{color:var(--text);}
   .nav-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
   /* Sub-navegación modular */
   /* ===== LAUNCHER (pantalla de inicio) ===== */
-  #launcher{display:none;min-height:calc(100vh - 52px);padding:48px 24px;background:var(--bg);}
+  #launcher{display:none;min-height:100vh;padding:48px 24px;background:var(--bg);}
   #launcher.active{display:flex;flex-direction:column;align-items:center;justify-content:center;}
   .launcher-title{font-size:28px;font-weight:600;margin-bottom:6px;color:var(--text);text-align:center;}
   .launcher-title span{color:var(--accent2);}
@@ -36,8 +37,6 @@
   .launcher-card .lc-title{font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px;}
   .launcher-card .lc-desc{font-size:11px;color:var(--muted);line-height:1.4;}
   .launcher-card .lc-badge{position:absolute;top:10px;right:10px;background:var(--warn);color:#fff;border-radius:8px;font-size:10px;padding:2px 7px;font-weight:700;font-family:var(--mono);}
-  .nav-home{padding:0 10px;height:52px;display:flex;align-items:center;font-size:16px;cursor:pointer;color:var(--muted);transition:color .15s;}
-  .nav-home:hover{color:var(--text);}
 
   .subnav{background:var(--surface2);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;gap:0;height:40px;overflow-x:auto;}
   .subnav .sub-tab{padding:0 14px;height:40px;display:flex;align-items:center;font-size:12px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;gap:5px;white-space:nowrap;}
@@ -174,9 +173,8 @@
 </head>
 <body>
 
-<nav>
-  <div class="nav-brand">Camargo <span>ERP</span></div>
-  <div class="nav-home" onclick="volverHome()" title="Inicio">🏠</div>
+<nav id="main-nav">
+  <div class="nav-brand" onclick="volverHome()" style="cursor:pointer" title="Volver al inicio">Camargo <span>ERP</span></div>
   <div class="nav-tab active" onclick="showModulo('resumen')">📊 Resumen</div>
   <div class="nav-tab" onclick="showModulo('comercial')">🧾 Comercial</div>
   <div class="nav-tab" onclick="showModulo('logistica')">🚚 Logística</div>
@@ -5836,13 +5834,12 @@ let _enHome = true; // Arranca mostrando el launcher
 function mostrarHome() {
   _enHome = true;
   document.getElementById('launcher').classList.add('active');
-  // Ocultar todas las páginas
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  // Ocultar sub-nav
+  // Ocultar nav y subnav
+  document.getElementById('main-nav').style.display = 'none';
   document.getElementById('subnav').style.display = 'none';
   document.getElementById('subnav').innerHTML = '';
-  // Desmarcar todos los tabs de módulos
-  document.querySelectorAll('nav .nav-tab').forEach(t => t.classList.remove('active'));
+  // Ocultar todas las páginas
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   // Actualizar badge de pendientes en el launcher
   actualizarBadgeHome();
 }
@@ -5850,6 +5847,8 @@ function mostrarHome() {
 function irDesdeHome(modulo) {
   _enHome = false;
   document.getElementById('launcher').classList.remove('active');
+  // Mostrar nav
+  document.getElementById('main-nav').style.display = 'flex';
   showModulo(modulo);
 }
 
