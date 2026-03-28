@@ -497,7 +497,28 @@
   </div>
 </div>
 
-<!-- ===== ARRAYAN ===== --><div class="page" id="page-arrayan"><div class="section-header"><div class="section-title">🏭 Cuenta Corriente — Arrayan</div><div style="display:flex;gap:8px"><button class="btn btn-warn btn-sm" onclick="exportArrayanExcel()">📊 Excel</button></div></div><div class="kpi-grid" id="arrayan-kpis" style="margin-bottom:24px"></div><div class="card" id="arrayan-escala" style="margin-bottom:16px"></div><div class="card"><div class="card-title">Movimientos — Créditos (pagos de clientes) y Débitos (compras en Arrayan)</div><div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Descripción</th><th style="text-align:right">Crédito</th><th style="text-align:right">Débito</th><th style="text-align:right">Saldo</th></tr></thead><tbody id="arrayan-body"></tbody></table></div></div></div><!-- ===== VENTAS ARRAYAN ===== -->
+<!-- ===== CTA CTE PROVEEDORES (multi-proveedor) ===== -->
+<div class="page" id="page-arrayan">
+  <div class="section-header">
+    <div class="section-title" id="ctacte-titulo">🏭 Cuenta Corriente — Proveedor</div>
+    <div style="display:flex;gap:8px">
+      <select id="sel-proveedor" onchange="renderArrayan()" style="padding:7px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;min-width:180px"></select>
+      <button class="btn btn-warn btn-sm" onclick="exportArrayanExcel()">📊 Excel</button>
+    </div>
+  </div>
+  <div class="kpi-grid" id="arrayan-kpis" style="margin-bottom:24px"></div>
+  <div class="card" id="arrayan-escala" style="margin-bottom:16px"></div>
+  <div class="card">
+    <div class="card-title" id="ctacte-movs-titulo">Movimientos — Créditos y Débitos</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Fecha</th><th>Tipo</th><th>Descripción</th><th style="text-align:right">Crédito</th><th style="text-align:right">Débito</th><th style="text-align:right">Saldo</th></tr></thead>
+        <tbody id="arrayan-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<!-- ===== VENTAS ARRAYAN ===== -->
 <div class="page" id="page-ventas-arrayan">
   <div class="section-header">
     <div class="section-title">📊 Ventas Arrayan</div>
@@ -4980,6 +5001,8 @@ function checkSaldoArrayan() {
   const fpago = document.getElementById('nc-fpago').value;
   const aviso = document.getElementById('aviso-cta-cte');
   const difDiv = document.getElementById('diferencia-fpago');
+  const provModal = (document.getElementById('nc-proveedor')?.value || '').toLowerCase();
+  const esArrProv = provModal.includes('arrayan');
   
   if(fpago !== 'Cuenta corriente') {
     aviso.style.display = 'none';
@@ -4989,19 +5012,21 @@ function checkSaldoArrayan() {
       aviso.style.background = '#1a3d2e';
       aviso.style.borderColor = '#22c987';
       aviso.style.color = '#22c987';
-      aviso.innerHTML = '➕ Este monto se sumará como <b>crédito</b> en la cuenta corriente Arrayan';
+      aviso.innerHTML = '➕ Este monto se sumará como <b>crédito</b> en la cuenta corriente ' + (document.getElementById('nc-proveedor')?.value || 'del proveedor');
     }
     return;
   }
 
-  // Calcular saldo actual Arrayan (usando pagos parciales si existen)
+  // Calcular saldo actual del proveedor seleccionado
+  const matchP = (nombre) => provModal && (nombre||'').toLowerCase().includes(provModal);
   const ventasConPagos2 = new Set(PAGOS_ARRAYAN.map(p => p.ventaId));
-  const creditosPagos2 = PAGOS_ARRAYAN.reduce((s,p)=>s+p.monto, 0);
-  const creditosDirectos2 = VENTAS.filter(v=>v.arrayan && v.arrayanTipo !== 'parcial' && !ventasConPagos2.has(ventaId(v))).reduce((s,v)=>s+v.total, 0);
-  const creditosIngreso2 = COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')&&(c.fpago||'').toLowerCase().includes('ingreso a cta cte')).reduce((s,c)=>s+c.costoTotal, 0);
+  const creditosPagos2 = esArrProv ? PAGOS_ARRAYAN.reduce((s,p)=>s+p.monto, 0) : 0;
+  const creditosDirectos2 = esArrProv ? VENTAS.filter(v=>v.arrayan && v.arrayanTipo !== 'parcial' && !ventasConPagos2.has(ventaId(v))).reduce((s,v)=>s+v.total, 0) : 0;
+  const creditosIngreso2 = COMPRAS.filter(c=>matchP(c.proveedor)&&(c.fpago||'').toLowerCase().includes('ingreso a cta cte')).reduce((s,c)=>s+c.costoTotal, 0);
   const creditos = creditosPagos2 + creditosDirectos2 + creditosIngreso2;
-  const debitos  = COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')&&esCuentaCorrienteArrayan(c.fpago)).reduce((s,c)=>s+c.costoTotal, 0);
+  const debitos  = COMPRAS.filter(c=>matchP(c.proveedor)&&esCuentaCorrienteArrayan(c.fpago)).reduce((s,c)=>s+c.costoTotal, 0);
   const saldo    = creditos - debitos;
+  const provNombre = document.getElementById('nc-proveedor')?.value || 'Proveedor';
 
   const costoTotal = parseFloat(document.getElementById('nc-costoTotal').value) || 0;
 
@@ -5016,7 +5041,7 @@ function checkSaldoArrayan() {
     aviso.style.background = '#1a3d2e';
     aviso.style.borderColor = '#22c987';
     aviso.style.color = '#22c987';
-    aviso.innerHTML = `✅ Saldo Arrayan suficiente: <strong>${fmt(saldo)}</strong> — se descuentan <strong>${fmt(costoTotal)}</strong>`;
+    aviso.innerHTML = `✅ Saldo ${provNombre} suficiente: <strong>${fmt(saldo)}</strong> — se descuentan <strong>${fmt(costoTotal)}</strong>`;
     difDiv.style.display = 'none';
   } else {
     const diferencia = costoTotal - saldo;
@@ -5024,7 +5049,7 @@ function checkSaldoArrayan() {
     aviso.style.background = '#2d1a0a';
     aviso.style.borderColor = '#8b4513';
     aviso.style.color = 'var(--yellow)';
-    aviso.innerHTML = `⚠️ Saldo Arrayan: <strong>${fmt(saldo)}</strong> — Esta compra: <strong>${fmt(costoTotal)}</strong> — Te faltan: <strong>${fmt(diferencia)}</strong>`;
+    aviso.innerHTML = `⚠️ Saldo ${provNombre}: <strong>${fmt(saldo)}</strong> — Esta compra: <strong>${fmt(costoTotal)}</strong> — Te faltan: <strong>${fmt(diferencia)}</strong>`;
     difDiv.style.display = 'block';
   }
 }
@@ -5616,11 +5641,21 @@ function getPctArrayan(lts) {
 }
 
 function renderEscalaArrayan() {
+  const contenedor = document.getElementById('arrayan-escala');
+  if(!contenedor) return;
+
+  // La escala de volumen solo aplica a Arrayan
+  const provSel = (document.getElementById('sel-proveedor')?.value || 'Arrayan').toLowerCase();
+  if(!provSel.includes('arrayan')) {
+    contenedor.style.display = 'none';
+    return;
+  }
+  contenedor.style.display = '';
+
   const meses=['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   const hoy = new Date();
 
   // Selectores de filtro — los crea si no existen
-  const contenedor = document.getElementById('arrayan-escala');
   const anioSel = document.getElementById('escala-anio')?.value || String(hoy.getFullYear());
   const mesSel  = parseInt(document.getElementById('escala-mes')?.value  || hoy.getMonth()+1);
 
@@ -5840,18 +5875,49 @@ async function eliminarPagoArrayan(idx) {
 }
 
 function renderArrayan() {
-  // Créditos: pagos parciales registrados
-  const creditosPagos = PAGOS_ARRAYAN.map(p => ({
+  // Poblar selector de proveedores (de COMPRAS_ERP)
+  const sel = document.getElementById('sel-proveedor');
+  if(sel) {
+    const proveedoresSet = new Set();
+    proveedoresSet.add('Arrayan'); // siempre presente
+    COMPRAS.forEach(c => {
+      if(c.proveedor && String(c.proveedor).trim()) proveedoresSet.add(String(c.proveedor).trim());
+    });
+    const proveedores = [...proveedoresSet].sort((a,b) => {
+      if(a.toLowerCase().includes('arrayan')) return -1; // Arrayan primero
+      if(b.toLowerCase().includes('arrayan')) return 1;
+      return a.localeCompare(b);
+    });
+    const actual = sel.value || proveedores[0] || 'Arrayan';
+    sel.innerHTML = proveedores.map(p => 
+      `<option value="${p}" ${p === actual ? 'selected' : ''}>${p}</option>`
+    ).join('');
+  }
+
+  // Proveedor seleccionado
+  const provSel = (sel?.value || 'Arrayan').toLowerCase();
+  const matchProv = (nombre) => (nombre||'').toLowerCase().includes(provSel.toLowerCase()) || provSel.toLowerCase().includes((nombre||'').toLowerCase());
+
+  // Actualizar título
+  const titulo = document.getElementById('ctacte-titulo');
+  if(titulo) titulo.textContent = '🏭 Cuenta Corriente — ' + (sel?.value || 'Arrayan');
+  const movsTitulo = document.getElementById('ctacte-movs-titulo');
+  if(movsTitulo) movsTitulo.textContent = 'Movimientos — Créditos y Débitos — ' + (sel?.value || 'Arrayan');
+
+  // Verificar si es Arrayan (tiene lógica especial de ventas con toggle)
+  const esArrayan = provSel.includes('arrayan');
+
+  // Créditos: pagos parciales registrados (solo para Arrayan)
+  const creditosPagos = esArrayan ? PAGOS_ARRAYAN.map(p => ({
     fecha: p.fecha, tipo: 'credito',
     desc: p.concepto + (p.obs ? ' (' + p.obs + ')' : ''),
     monto: p.monto, fpago: 'Pago parcial',
     pagoIdx: PAGOS_ARRAYAN.indexOf(p)
-  }));
+  })) : [];
 
-  // Créditos: ventas Arrayan con pago único (arrayanTipo='unico' o sin tipo = backward compat)
-  // Las ventas con arrayanTipo='parcial' NO son crédito directo — solo sus pagos parciales cuentan
+  // Créditos: ventas con pago único (solo Arrayan tiene toggle de ventas)
   const ventasConPagos = new Set(PAGOS_ARRAYAN.map(p => p.ventaId));
-  const creditosVentasDirectas = VENTAS.filter(v =>
+  const creditosVentasDirectas = esArrayan ? VENTAS.filter(v =>
     v.arrayan &&
     v.arrayanTipo !== 'parcial' &&
     !ventasConPagos.has(ventaId(v))
@@ -5859,11 +5925,11 @@ function renderArrayan() {
     fecha: v.fecha, tipo: 'credito',
     desc: v.producto.substring(0,50) + ' (' + v.cant + ' Lts)',
     monto: v.total, fpago: 'Pago único'
-  }));
+  })) : [];
 
   // Créditos: ingresos propios a cta cte
   const creditosIngreso = COMPRAS.filter(c =>
-    (c.proveedor||'').toLowerCase().includes('arrayan') &&
+    matchProv(c.proveedor) &&
     (c.fpago||'').toLowerCase().includes('ingreso a cta cte')
   ).map(c => ({
     fecha: c.fecha, tipo: 'credito',
@@ -5873,9 +5939,9 @@ function renderArrayan() {
 
   const creditos = [...creditosPagos, ...creditosVentasDirectas, ...creditosIngreso];
 
-  // Débitos: solo compras cta cte
+  // Débitos: solo compras cta cte del proveedor seleccionado
   const debitosCC = COMPRAS.filter(c =>
-    (c.proveedor||'').toLowerCase().includes('arrayan') && esCuentaCorrienteArrayan(c.fpago)
+    matchProv(c.proveedor) && esCuentaCorrienteArrayan(c.fpago)
   ).map(c => ({
     fecha: c.fecha, tipo: 'debito',
     desc: 'Compra: ' + c.producto + ' (' + c.cant + ' ' + (c.unidad||'Lts') + ') — ' + c.proveedor,
@@ -5911,10 +5977,10 @@ function renderArrayan() {
   const totalDeb  = debitosCC.reduce((s,m) => s+m.monto, 0);
   const sf = totalCred - totalDeb;
   const sc2 = sf >= 0 ? 'var(--green)' : 'var(--red)';
-  const saldoLabel = sf >= 0 ? 'A tu favor — Arrayan te debe mercadería' : 'Debés a Arrayan — retirá mercadería para saldar';
+  const saldoLabel = sf >= 0 ? 'A tu favor — ' + (sel?.value||'Proveedor') + ' te debe mercadería' : 'Debés a ' + (sel?.value||'Proveedor') + ' — retirá mercadería para saldar';
 
   const comprasOtras = COMPRAS.filter(c =>
-    (c.proveedor||'').toLowerCase().includes('arrayan') && !esCuentaCorrienteArrayan(c.fpago) &&
+    matchProv(c.proveedor) && !esCuentaCorrienteArrayan(c.fpago) &&
     !(c.fpago||'').toLowerCase().includes('ingreso a cta cte')
   );
   const totalOtras = comprasOtras.reduce((s,c) => s+c.costoTotal, 0);
@@ -5926,9 +5992,8 @@ function renderArrayan() {
     '<div class="kpi"><div class="kpi-label">➖ Débitos Cta Cte</div><div class="kpi-value" style="color:var(--red)">' + fmt(totalDeb) + '</div><div class="kpi-sub">' + debitosCC.length + ' compras descontadas' + subLabelOtras + '</div></div>' +
     '<div class="kpi"><div class="kpi-label">📦 Movimientos</div><div class="kpi-value">' + movs.length + '</div><div class="kpi-sub">Total operaciones</div></div>';
 
-  // Ventas Arrayan con detalle de pagos
-  // Solo ventas con pago parcial van al estado de cobro
-  const ventasArrayan = VENTAS.filter(v => v.arrayan && ventasConPagos.has(ventaId(v)));
+  // Ventas con detalle de pagos (solo Arrayan tiene este flujo)
+  const ventasArrayan = esArrayan ? VENTAS.filter(v => v.arrayan && ventasConPagos.has(ventaId(v))) : [];
   if(ventasArrayan.length > 0) {
     const ventasHTML = ventasArrayan.map(v => {
       const pagos = getPagosDeVenta(v);
@@ -5978,6 +6043,10 @@ function renderArrayan() {
       escala.parentNode.insertBefore(seccion, escala);
     }
     seccion.innerHTML = '<div class="card-title">🧾 Ventas Arrayan — Estado de cobro</div>' + ventasHTML;
+  } else {
+    // Si no es Arrayan o no hay ventas con pagos, limpiar la sección
+    const seccion = document.getElementById('arrayan-ventas-detalle');
+    if(seccion) seccion.remove();
   }
 
   renderEscalaArrayan();
