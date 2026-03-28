@@ -21,6 +21,11 @@
   .nav-tab{padding:0 14px;height:52px;display:flex;align-items:center;font-size:13px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;gap:6px;white-space:nowrap;}
   .nav-tab:hover{color:var(--text);}
   .nav-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+  /* Sub-navegación modular */
+  .subnav{background:var(--surface2);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;gap:0;height:40px;overflow-x:auto;}
+  .subnav .sub-tab{padding:0 14px;height:40px;display:flex;align-items:center;font-size:12px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;gap:5px;white-space:nowrap;}
+  .subnav .sub-tab:hover{color:var(--text);}
+  .subnav .sub-tab.active{color:var(--accent2);border-bottom-color:var(--accent2);}
   .nav-right{margin-left:auto;display:flex;align-items:center;gap:12px;}
   .badge{background:var(--accent);color:#fff;border-radius:10px;font-size:11px;padding:2px 7px;font-weight:600;}
   .badge.warn{background:var(--warn);}
@@ -154,15 +159,12 @@
 
 <nav>
   <div class="nav-brand">Camargo <span>ERP</span></div>
-  <div class="nav-tab active" onclick="showPage('dashboard')">📊 Dashboard</div>
-  <div class="nav-tab" onclick="showPage('ventas')">🧾 Ventas</div>
-  <div class="nav-tab" onclick="showPage('nueva-venta')">➕ Nueva Venta</div>
-  <div class="nav-tab" onclick="showPage('pendientes')">⏳ Pendientes <span class="badge warn" id="badge-pend">0</span></div>
-  <div class="nav-tab" onclick="showPage('precios')">💲 Precios/Costos</div>
-  <div class="nav-tab" onclick="showPage('clientes')">👥 Clientes</div>
-  <div class="nav-tab" onclick="showPage('transportes')">🚚 Transportes</div>
-  <div class="nav-tab" onclick="showPage('reporte-contador')">📋 Reporte Contador</div>
-  <div class="nav-tab" onclick="showPage('compras')">🛒 Compras</div><div class="nav-tab" onclick="showPage('arrayan')">🏭 Arrayan</div><div class="nav-tab" onclick="showPage('ventas-arrayan')">📊 Ventas Arrayan</div>
+  <div class="nav-tab active" onclick="showModulo('resumen')">📊 Resumen</div>
+  <div class="nav-tab" onclick="showModulo('comercial')">🧾 Comercial</div>
+  <div class="nav-tab" onclick="showModulo('logistica')">🚚 Logística</div>
+  <div class="nav-tab" onclick="showModulo('finanzas')">💰 Finanzas</div>
+  <div class="nav-tab" onclick="showModulo('catalogo')">💲 Catálogo</div>
+  <div class="nav-tab" onclick="showModulo('proveedores')">🏭 Proveedores</div>
   <div class="nav-right" style="display:flex;align-items:center;gap:8px">
     <div style="position:relative;cursor:pointer" onclick="toggleAlertas()" id="btn-alertas" title="Alertas">
       <span style="font-size:18px">🔔</span>
@@ -171,6 +173,8 @@
     <span style="font-size:12px;color:var(--muted)" id="nav-fecha"></span>
   </div>
 </nav>
+<!-- Sub-navegación dinámica -->
+<div class="subnav" id="subnav"></div>
 
 <!-- PANEL ALERTAS -->
 <div id="panel-alertas" style="display:none;position:fixed;top:56px;right:12px;width:340px;max-height:480px;overflow-y:auto;background:var(--surface2);border:1px solid var(--border);border-radius:12px;z-index:800;box-shadow:0 8px 32px rgba(0,0,0,0.4);font-family:DM Sans,sans-serif">
@@ -319,6 +323,101 @@
     <div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end">
       <button class="btn btn-ghost" onclick="cerrarModal('modal-compra')">Cancelar</button>
       <button class="btn btn-primary" onclick="guardarCompra()">💾 Guardar Compra</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== GASTOS (Módulo Finanzas) ===== -->
+<div class="page" id="page-gastos">
+  <div class="section-header">
+    <div class="section-title">💸 Gastos Operativos</div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" onclick="abrirModalGasto()">+ Nuevo Gasto</button>
+    </div>
+  </div>
+  <div class="kpi-grid" id="gastos-kpis" style="margin-bottom:16px"></div>
+  <div class="card">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+      <select id="gastos-mes" onchange="renderGastos()" style="padding:7px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px">
+        <option value="0">Todos los meses</option>
+        <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option>
+        <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
+        <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
+        <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+      </select>
+      <select id="gastos-cat" onchange="renderGastos()" style="padding:7px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px">
+        <option value="">Todas las categorías</option>
+        <option value="Alquiler">Alquiler</option>
+        <option value="Servicios">Servicios</option>
+        <option value="Sueldos">Sueldos</option>
+        <option value="Impuestos">Impuestos</option>
+        <option value="Transporte">Transporte</option>
+        <option value="Publicidad">Publicidad</option>
+        <option value="Insumos">Insumos</option>
+        <option value="Mantenimiento">Mantenimiento</option>
+        <option value="Otros">Otros</option>
+      </select>
+      <span id="gastos-count" style="font-size:12px;color:var(--muted)"></span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Fecha</th><th>Categoría</th><th>Subcategoría</th><th>Descripción</th>
+          <th style="text-align:right">Monto</th><th>F.Pago</th><th>Recurrente</th><th>Vencimiento</th><th></th>
+        </tr></thead>
+        <tbody id="gastos-body"></tbody>
+      </table>
+    </div>
+    <div style="text-align:right;margin-top:12px;font-family:var(--mono);font-size:14px;font-weight:600">
+      Total: <span id="gastos-total" style="color:var(--red)">$0</span>
+    </div>
+  </div>
+</div>
+
+<!-- Modal nuevo gasto -->
+<div class="modal-overlay" id="modal-gasto" style="display:none" onclick="if(event.target===this)cerrarModal('modal-gasto')">
+  <div class="modal" style="width:500px">
+    <div class="modal-header"><div class="modal-title">💸 Nuevo Gasto</div><div class="modal-close" onclick="cerrarModal('modal-gasto')">✕</div></div>
+    <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
+      <div class="form-grid cols2">
+        <div class="form-group"><label>Fecha</label><input type="date" id="ng-fecha"></div>
+        <div class="form-group"><label>Monto ($)</label><input type="number" id="ng-monto" placeholder="0"></div>
+      </div>
+      <div class="form-grid cols2">
+        <div class="form-group"><label>Categoría</label>
+          <select id="ng-categoria">
+            <option value="">Seleccionar...</option>
+            <option value="Alquiler">Alquiler</option>
+            <option value="Servicios">Servicios (luz, gas, internet)</option>
+            <option value="Sueldos">Sueldos</option>
+            <option value="Impuestos">Impuestos</option>
+            <option value="Transporte">Transporte / Combustible</option>
+            <option value="Publicidad">Publicidad (Meta Ads)</option>
+            <option value="Insumos">Insumos (envases, etiquetas)</option>
+            <option value="Mantenimiento">Mantenimiento</option>
+            <option value="Otros">Otros</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Subcategoría</label><input type="text" id="ng-subcategoria" placeholder="Ej: Luz, IIBB, Nafta..."></div>
+      </div>
+      <div class="form-group"><label>Descripción</label><input type="text" id="ng-descripcion" placeholder="Detalle del gasto"></div>
+      <div class="form-grid cols2">
+        <div class="form-group"><label>Forma de pago</label>
+          <select id="ng-fpago">
+            <option value="Transferencia">Transferencia</option>
+            <option value="Efectivo">Efectivo</option>
+            <option value="Débito automático">Débito automático</option>
+            <option value="Cheque">Cheque</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Vencimiento</label><input type="date" id="ng-vencimiento"></div>
+      </div>
+      <div class="form-group" style="flex-direction:row;align-items:center;gap:8px">
+        <input type="checkbox" id="ng-recurrente" style="width:auto">
+        <label for="ng-recurrente" style="text-transform:none;font-size:13px;color:var(--text)">Gasto recurrente (mensual)</label>
+      </div>
+      <div class="form-group"><label>Observaciones</label><input type="text" id="ng-obs" placeholder="Opcional"></div>
+      <button class="btn btn-primary" onclick="guardarGasto()">💾 Guardar Gasto</button>
     </div>
   </div>
 </div>
@@ -2212,21 +2311,88 @@ function getNroRemito(){
   return String(n).padStart(6,'0');
 }
 
+// =========== NAVEGACIÓN MODULAR ===========
+// Mapa de módulos → sub-secciones
+const MODULOS = {
+  resumen:     [{ id: 'dashboard',        label: '📊 Dashboard' }],
+  comercial:   [{ id: 'ventas',           label: '🧾 Historial' },
+                { id: 'nueva-venta',      label: '➕ Nueva Venta' },
+                { id: 'clientes',         label: '👥 Clientes' },
+                { id: 'reporte-contador', label: '📋 Reporte' }],
+  logistica:   [{ id: 'pendientes',       label: '⏳ Pendientes' },
+                { id: 'transportes',      label: '🚚 Transportes' }],
+  finanzas:    [{ id: 'compras',          label: '🛒 Compras' },
+                { id: 'gastos',           label: '💸 Gastos' }],
+  catalogo:    [{ id: 'precios',          label: '💲 Precios/Costos' }],
+  proveedores: [{ id: 'arrayan',          label: '🏭 Cta. Cte.' },
+                { id: 'ventas-arrayan',   label: '📊 Ventas' }]
+};
+
+// Mapa inverso: página → módulo
+const PAGE_TO_MODULO = {};
+Object.entries(MODULOS).forEach(([mod, subs]) => {
+  subs.forEach(s => PAGE_TO_MODULO[s.id] = mod);
+});
+
+let _moduloActivo = 'resumen';
+
+function showModulo(modulo, subPage) {
+  _moduloActivo = modulo;
+  // Marcar tab de módulo activo
+  const tabs = document.querySelectorAll('nav .nav-tab');
+  const moduloKeys = Object.keys(MODULOS);
+  tabs.forEach((t, i) => {
+    t.classList.toggle('active', moduloKeys[i] === modulo);
+  });
+  // Renderizar sub-navegación
+  const subnav = document.getElementById('subnav');
+  const subs = MODULOS[modulo] || [];
+  if (subs.length <= 1) {
+    subnav.innerHTML = '';
+    subnav.style.display = 'none';
+  } else {
+    subnav.style.display = 'flex';
+    subnav.innerHTML = subs.map(s =>
+      `<div class="sub-tab" onclick="showPage('${s.id}')">${s.label}${s.id === 'pendientes' ? ' <span class="badge warn" id="badge-pend">0</span>' : ''}</div>`
+    ).join('');
+  }
+  // Mostrar la primera sub-página o la indicada
+  const target = subPage || subs[0]?.id || 'dashboard';
+  showPage(target);
+}
+
 function showPage(id) {
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
-  document.getElementById('page-'+id).classList.add('active');
-  const tabs={'dashboard':0,'ventas':1,'nueva-venta':2,'pendientes':3,'precios':4,'clientes':5,'transportes':6,'reporte-contador':7,'compras':8,'arrayan':9,'ventas-arrayan':10};
-  document.querySelectorAll('.nav-tab')[tabs[id]]?.classList.add('active');
+  // Ocultar todas las páginas
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  // Mostrar la página pedida
+  const page = document.getElementById('page-' + id);
+  if (page) page.classList.add('active');
+  // Marcar sub-tab activa
+  document.querySelectorAll('.subnav .sub-tab').forEach(t => t.classList.remove('active'));
+  const subs = MODULOS[_moduloActivo] || [];
+  const subIdx = subs.findIndex(s => s.id === id);
+  if (subIdx >= 0) {
+    const subTabs = document.querySelectorAll('.subnav .sub-tab');
+    if (subTabs[subIdx]) subTabs[subIdx].classList.add('active');
+  }
+  // Si la página es de otro módulo (ej: click en "Nueva Venta" desde historial), activar ese módulo
+  if (PAGE_TO_MODULO[id] && PAGE_TO_MODULO[id] !== _moduloActivo) {
+    showModulo(PAGE_TO_MODULO[id], id);
+    return;
+  }
+  // Renderizar contenido según la página
   if(id==='ventas') renderVentas();
-  if(id==='pendientes') renderPendientes();
+  if(id==='pendientes') { renderPendientes(); actualizarBadge(); }
   if(id==='reporte-contador') renderReporteContador();
-  if(id==='compras') renderCompras();if(id==='arrayan') renderArrayan();if(id==='ventas-arrayan') renderVentasArrayan();
+  if(id==='compras') renderCompras();
+  if(id==='arrayan') renderArrayan();
+  if(id==='ventas-arrayan') renderVentasArrayan();
   if(id==='precios') renderPrecios();
   if(id==='nueva-venta') initForm();
   if(id==='dashboard') renderDashboard();
   if(id==='clientes') renderClientes();
   if(id==='transportes') renderTransportes();
+  if(id==='gastos' && typeof renderGastos === 'function') renderGastos();
 }
 
 function notify(msg,color) {
@@ -4778,6 +4944,128 @@ async function gsEliminarGasto(idx) {
   return res.ok;
 }
 
+// =========== RENDER GASTOS ===========
+function renderGastos() {
+  const mesF = parseInt(document.getElementById('gastos-mes')?.value || 0);
+  const catF = document.getElementById('gastos-cat')?.value || '';
+  const ahora = new Date();
+  // Setear mes actual por defecto la primera vez
+  if(!document.getElementById('gastos-mes')._init) {
+    document.getElementById('gastos-mes').value = String(ahora.getMonth() + 1);
+    document.getElementById('gastos-mes')._init = true;
+  }
+  const mes = parseInt(document.getElementById('gastos-mes').value || 0);
+  const cat = document.getElementById('gastos-cat').value || '';
+
+  const filtrados = GASTOS.filter(g => {
+    if(mes > 0) {
+      const p = String(g.fecha || '').split('/');
+      const m = parseInt(p[1]);
+      if(m !== mes) return false;
+    }
+    if(cat && g.categoria !== cat) return false;
+    return true;
+  });
+
+  const tbody = document.getElementById('gastos-body');
+  if(!tbody) return;
+  tbody.innerHTML = filtrados.length ? filtrados.map((g, i) => {
+    const idx = GASTOS.indexOf(g);
+    const esRec = g.recurrente === true || g.recurrente === 'TRUE' || g.recurrente === 'true' || g.recurrente === 'Sí';
+    return `<tr>
+      <td>${g.fecha || '—'}</td>
+      <td><span class="chip blue">${g.categoria || '—'}</span></td>
+      <td>${g.subcategoria || '—'}</td>
+      <td>${g.descripcion || '—'}</td>
+      <td style="text-align:right;font-family:var(--mono);color:var(--red)">$${(g.monto||0).toLocaleString('es-AR')}</td>
+      <td>${g.fpago || '—'}</td>
+      <td>${esRec ? '<span class="chip yellow">Mensual</span>' : '—'}</td>
+      <td>${g.vencimiento || '—'}</td>
+      <td><span style="cursor:pointer;font-size:16px" onclick="eliminarGasto(${idx})" title="Eliminar">🗑️</span></td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">Sin gastos registrados</td></tr>';
+
+  const total = filtrados.reduce((s, g) => s + (g.monto || 0), 0);
+  document.getElementById('gastos-total').textContent = '$' + total.toLocaleString('es-AR');
+  document.getElementById('gastos-count').textContent = filtrados.length + ' gastos';
+
+  // KPIs rápidos
+  const kpis = document.getElementById('gastos-kpis');
+  if(kpis) {
+    const totalMes = filtrados.reduce((s, g) => s + (g.monto || 0), 0);
+    const recurrentes = filtrados.filter(g => g.recurrente === true || g.recurrente === 'TRUE' || g.recurrente === 'true' || g.recurrente === 'Sí');
+    const totalRec = recurrentes.reduce((s, g) => s + (g.monto || 0), 0);
+    const cats = {};
+    filtrados.forEach(g => { cats[g.categoria] = (cats[g.categoria] || 0) + (g.monto || 0); });
+    const topCat = Object.entries(cats).sort((a, b) => b[1] - a[1])[0];
+    kpis.innerHTML = `
+      <div class="kpi"><div class="kpi-label">Total gastos</div><div class="kpi-value" style="color:var(--red)">$${totalMes.toLocaleString('es-AR')}</div></div>
+      <div class="kpi"><div class="kpi-label">Gastos fijos</div><div class="kpi-value accent">$${totalRec.toLocaleString('es-AR')}</div><div class="kpi-sub">${recurrentes.length} recurrentes</div></div>
+      <div class="kpi"><div class="kpi-label">Gastos variables</div><div class="kpi-value">$${(totalMes - totalRec).toLocaleString('es-AR')}</div></div>
+      <div class="kpi"><div class="kpi-label">Mayor categoría</div><div class="kpi-value" style="font-size:16px">${topCat ? topCat[0] : '—'}</div><div class="kpi-sub">${topCat ? '$' + topCat[1].toLocaleString('es-AR') : ''}</div></div>
+    `;
+  }
+}
+
+function abrirModalGasto() {
+  const hoy = new Date();
+  document.getElementById('ng-fecha').value = hoy.toISOString().split('T')[0];
+  document.getElementById('ng-monto').value = '';
+  document.getElementById('ng-categoria').value = '';
+  document.getElementById('ng-subcategoria').value = '';
+  document.getElementById('ng-descripcion').value = '';
+  document.getElementById('ng-fpago').value = 'Transferencia';
+  document.getElementById('ng-vencimiento').value = '';
+  document.getElementById('ng-recurrente').checked = false;
+  document.getElementById('ng-obs').value = '';
+  document.getElementById('modal-gasto').style.display = 'flex';
+}
+
+async function guardarGasto() {
+  const monto = parseFloat(document.getElementById('ng-monto').value) || 0;
+  const categoria = document.getElementById('ng-categoria').value;
+  if(!monto || !categoria) { notify('⚠️ Completá monto y categoría', 'var(--warn)'); return; }
+
+  const gasto = {
+    fecha: document.getElementById('ng-fecha').value,
+    categoria: categoria,
+    subcategoria: document.getElementById('ng-subcategoria').value,
+    descripcion: document.getElementById('ng-descripcion').value,
+    monto: monto,
+    fpago: document.getElementById('ng-fpago').value,
+    recurrente: document.getElementById('ng-recurrente').checked ? 'Sí' : 'No',
+    vencimiento: document.getElementById('ng-vencimiento').value,
+    obs: document.getElementById('ng-obs').value
+  };
+
+  const ok = await gsGuardarGasto(gasto);
+  if(ok) {
+    // Normalizar fecha para el array local
+    let f = gasto.fecha;
+    if(f.includes('-')) { const p = f.split('-'); f = p[2] + '/' + p[1] + '/' + p[0]; }
+    gasto.fecha = f;
+    // Normalizar vencimiento
+    if(gasto.vencimiento && gasto.vencimiento.includes('-')) { const p = gasto.vencimiento.split('-'); gasto.vencimiento = p[2] + '/' + p[1] + '/' + p[0]; }
+    GASTOS.push(gasto);
+    cerrarModal('modal-gasto');
+    renderGastos();
+    notify('✓ Gasto registrado');
+  } else {
+    notify('⚠️ Error al guardar', 'var(--red)');
+  }
+}
+
+async function eliminarGasto(idx) {
+  if(!esAdmin()) { notify('⚠️ Solo admin puede borrar gastos'); return; }
+  if(!confirm('¿Eliminar este gasto?')) return;
+  const ok = await gsEliminarGasto(idx);
+  if(ok) {
+    GASTOS.splice(idx, 1);
+    renderGastos();
+    notify('🗑️ Gasto eliminado');
+  }
+}
+
 // =========== ALERTAS ===========
 function toggleAlertas() {
   const panel = document.getElementById('panel-alertas');
@@ -5485,6 +5773,7 @@ function exportVentasArrayanExcel() {
 function exportArrayanExcel(){const cred=VENTAS.filter(v=>v.arrayan).map(v=>({'Fecha':v.fecha,'Tipo':'Credito','Descripcion':v.cliente+' - '+v.producto,'Credito ($)':v.total,'Debito ($)':'','Cantidad':v.cant,'Saldo':''}));const deb=COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')).map(c=>({'Fecha':c.fecha,'Tipo':'Debito','Descripcion':'Compra: '+c.producto+' ('+c.cant+' '+(c.unidad||'')+')', 'Credito ($)':'','Debito ($)':c.costoTotal,'Cantidad':c.cant,'Saldo':''}));const movs=[...cred,...deb].sort((a,b)=>{const pa=a['Fecha'].split('/'),pb=b['Fecha'].split('/');return new Date(parseInt(pa[2]),parseInt(pa[1])-1,parseInt(pa[0]))-new Date(parseInt(pb[2]),parseInt(pb[1])-1,parseInt(pb[0]));});let s=0;movs.forEach(m=>{s+=(parseFloat(m['Credito ($)'])||0)-(parseFloat(m['Debito ($)'])||0);m['Saldo']='$'+Math.round(s).toLocaleString('es-AR');});if(!movs.length){notify('Sin movimientos para exportar');return;}const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(movs),'Cuenta Corriente Arrayan');XLSX.writeFile(wb,'cuenta_corriente_arrayan.xlsx');notify('✓ Excel Arrayan exportado');}// =========== INIT ===========
 document.getElementById('nav-fecha').textContent = new Date().toLocaleDateString('es-AR',{month:'long',year:'numeric'});
 restaurarSesion(); // Intentar restaurar sesión previa
+showModulo('resumen'); // Iniciar en módulo Resumen
 actualizarBadge();
 cargarDesdeSheets(); // Carga datos desde Sheets y luego renderiza
 setTimeout(()=>calcularAlertas(), 3000); // Calcular alertas después de cargar
