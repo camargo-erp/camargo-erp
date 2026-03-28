@@ -4390,16 +4390,6 @@ async function cargarDesdeSheets() {
           return !aniosSheets.has(anio);
         });
         VENTAS = [...soloLocalesHistoricos, ...ventasSheets];
-        // DEBUG: diagnóstico de carga (quitar después)
-        const marzo26 = ventasSheets.filter(v => getMesVenta(v.fecha)===3 && getAnioVenta(v.fecha)===2026);
-        console.log('📊 DIAG CARGA:', {
-          totalSheets: ventasSheets.length,
-          aniosSheets: [...aniosSheets],
-          localesMantenidos: soloLocalesHistoricos.length,
-          totalFinal: VENTAS.length,
-          marzo2026Sheets: marzo26.length,
-          ultimasMarzo: marzo26.slice(-5).map(v => v.fecha + ' ' + v.cliente)
-        });
       }
       if(res.compras?.length)    COMPRAS    = res.compras;
       if(res.pagosArrayan?.length) PAGOS_ARRAYAN = res.pagosArrayan;
