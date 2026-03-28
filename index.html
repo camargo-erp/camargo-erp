@@ -5875,16 +5875,20 @@ async function eliminarPagoArrayan(idx) {
 }
 
 function renderArrayan() {
-  // Poblar selector de proveedores (de COMPRAS_ERP)
+  // Poblar selector de proveedores (de COMPRAS_ERP, deduplicados por nombre)
   const sel = document.getElementById('sel-proveedor');
   if(sel) {
-    const proveedoresSet = new Set();
-    proveedoresSet.add('Arrayan'); // siempre presente
+    const provMap = {}; // clave: nombre lowercase, valor: nombre con mejor capitalización
+    provMap['arrayan'] = 'Arrayan'; // siempre presente
     COMPRAS.forEach(c => {
-      if(c.proveedor && String(c.proveedor).trim()) proveedoresSet.add(String(c.proveedor).trim());
+      const raw = String(c.proveedor || '').trim();
+      if(!raw) return;
+      const key = raw.toLowerCase();
+      // Preferir la versión con mayúscula inicial
+      if(!provMap[key] || raw[0] === raw[0].toUpperCase()) provMap[key] = raw;
     });
-    const proveedores = [...proveedoresSet].sort((a,b) => {
-      if(a.toLowerCase().includes('arrayan')) return -1; // Arrayan primero
+    const proveedores = Object.values(provMap).sort((a,b) => {
+      if(a.toLowerCase().includes('arrayan')) return -1;
       if(b.toLowerCase().includes('arrayan')) return 1;
       return a.localeCompare(b);
     });
