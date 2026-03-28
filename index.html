@@ -477,6 +477,26 @@
   </div>
 </div>
 
+<!-- ===== VENCIMIENTOS (Módulo Finanzas) ===== -->
+<div class="page" id="page-vencimientos">
+  <div class="section-header">
+    <div class="section-title">🚦 Vencimientos</div>
+  </div>
+  <div class="kpi-grid" id="venc-kpis" style="margin-bottom:16px"></div>
+  <div class="card">
+    <div class="card-title">Próximos Vencimientos — Gastos con fecha de vencimiento</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Estado</th><th>Vencimiento</th><th>Categoría</th><th>Descripción</th>
+          <th style="text-align:right">Monto</th><th>F.Pago</th><th>Días</th>
+        </tr></thead>
+        <tbody id="venc-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 <!-- ===== ARRAYAN ===== --><div class="page" id="page-arrayan"><div class="section-header"><div class="section-title">🏭 Cuenta Corriente — Arrayan</div><div style="display:flex;gap:8px"><button class="btn btn-warn btn-sm" onclick="exportArrayanExcel()">📊 Excel</button></div></div><div class="kpi-grid" id="arrayan-kpis" style="margin-bottom:24px"></div><div class="card" id="arrayan-escala" style="margin-bottom:16px"></div><div class="card"><div class="card-title">Movimientos — Créditos (pagos de clientes) y Débitos (compras en Arrayan)</div><div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Descripción</th><th style="text-align:right">Crédito</th><th style="text-align:right">Débito</th><th style="text-align:right">Saldo</th></tr></thead><tbody id="arrayan-body"></tbody></table></div></div></div><!-- ===== VENTAS ARRAYAN ===== -->
 <div class="page" id="page-ventas-arrayan">
   <div class="section-header">
@@ -2383,7 +2403,8 @@ const MODULOS = {
   logistica:   [{ id: 'pendientes',       label: '⏳ Pendientes' },
                 { id: 'transportes',      label: '🚚 Transportes' }],
   finanzas:    [{ id: 'compras',          label: '🛒 Compras' },
-                { id: 'gastos',           label: '💸 Gastos' }],
+                { id: 'gastos',           label: '💸 Gastos' },
+                { id: 'vencimientos',     label: '🚦 Vencimientos' }],
   catalogo:    [{ id: 'precios',          label: '💲 Precios/Costos' }],
   proveedores: [{ id: 'arrayan',          label: '🏭 Cta. Cte.' },
                 { id: 'ventas-arrayan',   label: '📊 Ventas' }]
@@ -2454,6 +2475,7 @@ function showPage(id) {
   if(id==='clientes') renderClientes();
   if(id==='transportes') renderTransportes();
   if(id==='gastos' && typeof renderGastos === 'function') renderGastos();
+  if(id==='vencimientos' && typeof renderVencimientos === 'function') renderVencimientos();
 }
 
 function notify(msg,color) {
@@ -5270,6 +5292,77 @@ async function eliminarGasto(idx) {
   }
 }
 
+// =========== VENCIMIENTOS (paso 5) ===========
+function renderVencimientos() {
+  const hoy = new Date();
+  // Tomar todos los gastos con fecha de vencimiento
+  const conVenc = GASTOS.filter(g => g.vencimiento && String(g.vencimiento).trim());
+
+  // Parsear y clasificar
+  const items = conVenc.map(g => {
+    const p = String(g.vencimiento).split('/');
+    let d = null;
+    if(p.length === 3) d = new Date(parseInt(p[2]), parseInt(p[1])-1, parseInt(p[0]));
+    const diff = d ? Math.ceil((d - hoy) / 86400000) : 999;
+    let estado = '🟢'; // > 15 días
+    let color = 'var(--green)';
+    let label = diff + 'd';
+    if(diff < 0) { estado = '🔴'; color = 'var(--red)'; label = 'Vencido ' + Math.abs(diff) + 'd'; }
+    else if(diff <= 3) { estado = '🔴'; color = 'var(--red)'; label = diff + 'd — ¡Urgente!'; }
+    else if(diff <= 7) { estado = '🟡'; color = 'var(--yellow)'; label = diff + 'd'; }
+    else if(diff <= 15) { estado = '🟢'; color = 'var(--green)'; label = diff + 'd'; }
+    else { label = diff + 'd'; }
+    return { ...g, fechaVenc: d, diff, estado, color, label };
+  }).sort((a,b) => a.diff - b.diff);
+
+  // KPIs
+  const vencidos = items.filter(i => i.diff < 0);
+  const urgentes = items.filter(i => i.diff >= 0 && i.diff <= 7);
+  const proximos = items.filter(i => i.diff > 7 && i.diff <= 30);
+  const totalVencido = vencidos.reduce((s,i) => s + (i.monto||0), 0);
+  const totalUrgente = urgentes.reduce((s,i) => s + (i.monto||0), 0);
+
+  const kpis = document.getElementById('venc-kpis');
+  if(kpis) kpis.innerHTML = `
+    <div class="kpi" style="border-color:${vencidos.length ? 'var(--red)' : 'var(--border)'}">
+      <div class="kpi-label">🔴 Vencidos</div>
+      <div class="kpi-value" style="color:var(--red)">${vencidos.length}</div>
+      <div class="kpi-sub">${totalVencido > 0 ? fmt(totalVencido) : 'Todo al día'}</div>
+    </div>
+    <div class="kpi" style="border-color:${urgentes.length ? 'var(--yellow)' : 'var(--border)'}">
+      <div class="kpi-label">🟡 Próximos 7 días</div>
+      <div class="kpi-value" style="color:var(--yellow)">${urgentes.length}</div>
+      <div class="kpi-sub">${totalUrgente > 0 ? fmt(totalUrgente) : 'Sin urgencias'}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">🟢 Próximos 30 días</div>
+      <div class="kpi-value" style="color:var(--green)">${proximos.length}</div>
+      <div class="kpi-sub">${fmt(proximos.reduce((s,i)=>s+(i.monto||0),0))}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Total con vencimiento</div>
+      <div class="kpi-value">${items.length}</div>
+      <div class="kpi-sub">De ${GASTOS.length} gastos totales</div>
+    </div>`;
+
+  // Tabla
+  const tbody = document.getElementById('venc-body');
+  if(!tbody) return;
+  if(!items.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">Sin gastos con vencimiento cargado. Agregá vencimientos desde Gastos.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = items.map(i => `<tr style="${i.diff < 0 ? 'background:rgba(255,77,106,0.08)' : i.diff <= 3 ? 'background:rgba(255,209,102,0.08)' : ''}">
+    <td style="font-size:18px;text-align:center">${i.estado}</td>
+    <td>${i.vencimiento || '—'}</td>
+    <td><span class="chip blue">${i.categoria || '—'}</span></td>
+    <td>${i.descripcion || i.subcategoria || '—'}</td>
+    <td style="text-align:right;font-family:var(--mono);color:var(--red)">${fmt(i.monto||0)}</td>
+    <td>${i.fpago || '—'}</td>
+    <td style="font-family:var(--mono);font-weight:600;color:${i.color}">${i.label}</td>
+  </tr>`).join('');
+}
+
 // =========== ALERTAS ===========
 function toggleAlertas() {
   const panel = document.getElementById('panel-alertas');
@@ -5756,9 +5849,11 @@ function renderArrayan() {
   }));
 
   // Créditos: ventas Arrayan con pago único (arrayanTipo='unico' o sin tipo = backward compat)
+  // Las ventas con arrayanTipo='parcial' NO son crédito directo — solo sus pagos parciales cuentan
   const ventasConPagos = new Set(PAGOS_ARRAYAN.map(p => p.ventaId));
   const creditosVentasDirectas = VENTAS.filter(v =>
     v.arrayan &&
+    v.arrayanTipo !== 'parcial' &&
     !ventasConPagos.has(ventaId(v))
   ).map(v => ({
     fecha: v.fecha, tipo: 'credito',
