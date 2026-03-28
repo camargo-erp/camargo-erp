@@ -3637,7 +3637,7 @@ function renderPendientes() {
 
 function marcarEntregado(idx){VENTAS[idx].entregado='Sí';actualizarBadge();notify('✓ Marcado como entregado');renderPendientes();}
 function marcarCobrado(idx){VENTAS[idx].pagado='Sí';actualizarBadge();notify('✓ Marcado como cobrado');renderPendientes();}
-function actualizarBadge(){const sinE=VENTAS.filter(v=>v.entregado==='No').length;const sinC=VENTAS.filter(v=>v.pagado==='No').length;document.getElementById('badge-pend').textContent=sinE+sinC;}
+function actualizarBadge(){const sinE=VENTAS.filter(v=>v.entregado==='No').length;const sinC=VENTAS.filter(v=>v.pagado==='No').length;const el=document.getElementById('badge-pend');if(el)el.textContent=sinE+sinC;}
 
 // =========== LOGIN con hash + backend ===========
 async function doLogin(){
