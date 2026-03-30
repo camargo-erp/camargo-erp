@@ -16,28 +16,12 @@
   *{margin:0;padding:0;box-sizing:border-box;}
   body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;min-height:100vh;}
   nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;gap:0;height:52px;overflow-x:auto;}
-  .nav-brand{font-weight:600;font-size:16px;color:var(--accent);letter-spacing:-.5px;margin-right:24px;white-space:nowrap;transition:opacity .15s;}
-  .nav-brand:hover{opacity:.75;}
+  .nav-brand{font-weight:600;font-size:16px;color:var(--accent);letter-spacing:-.5px;margin-right:24px;white-space:nowrap;}
   .nav-brand span{color:var(--muted);font-weight:300;}
   .nav-tab{padding:0 14px;height:52px;display:flex;align-items:center;font-size:13px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;gap:6px;white-space:nowrap;}
   .nav-tab:hover{color:var(--text);}
   .nav-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
   /* Sub-navegación modular */
-  /* ===== LAUNCHER (pantalla de inicio) ===== */
-  #launcher{display:none;min-height:100vh;padding:48px 24px;background:var(--bg);}
-  #launcher.active{display:flex;flex-direction:column;align-items:center;justify-content:center;}
-  .launcher-title{font-size:28px;font-weight:600;margin-bottom:6px;color:var(--text);text-align:center;}
-  .launcher-title span{color:var(--accent2);}
-  .launcher-sub{font-size:14px;color:var(--muted);margin-bottom:40px;text-align:center;}
-  .launcher-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:720px;width:100%;}
-  @media(max-width:640px){.launcher-grid{grid-template-columns:repeat(2,1fr);gap:14px;}}
-  .launcher-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px 20px;text-align:center;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;}
-  .launcher-card:hover{border-color:var(--accent);transform:translateY(-3px);box-shadow:0 8px 24px rgba(61,127,255,0.12);}
-  .launcher-card .lc-icon{font-size:32px;margin-bottom:12px;}
-  .launcher-card .lc-title{font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px;}
-  .launcher-card .lc-desc{font-size:11px;color:var(--muted);line-height:1.4;}
-  .launcher-card .lc-badge{position:absolute;top:10px;right:10px;background:var(--warn);color:#fff;border-radius:8px;font-size:10px;padding:2px 7px;font-weight:700;font-family:var(--mono);}
-
   .subnav{background:var(--surface2);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;gap:0;height:40px;overflow-x:auto;}
   .subnav .sub-tab{padding:0 14px;height:40px;display:flex;align-items:center;font-size:12px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;gap:5px;white-space:nowrap;}
   .subnav .sub-tab:hover{color:var(--text);}
@@ -173,8 +157,8 @@
 </head>
 <body>
 
-<nav id="main-nav">
-  <div class="nav-brand" onclick="volverHome()" style="cursor:pointer" title="Volver al inicio">Camargo <span>ERP</span></div>
+<nav>
+  <div class="nav-brand">Camargo <span>ERP</span></div>
   <div class="nav-tab active" onclick="showModulo('resumen')">📊 Resumen</div>
   <div class="nav-tab" onclick="showModulo('comercial')">🧾 Comercial</div>
   <div class="nav-tab" onclick="showModulo('logistica')">🚚 Logística</div>
@@ -191,45 +175,6 @@
 </nav>
 <!-- Sub-navegación dinámica -->
 <div class="subnav" id="subnav"></div>
-
-<!-- ===== LAUNCHER (pantalla de inicio) ===== -->
-<div id="launcher">
-  <div class="launcher-title">Camargo<span>ERP</span></div>
-  <div class="launcher-sub">Distribución de Químicos · Sistema de Gestión</div>
-  <div class="launcher-grid">
-    <div class="launcher-card" onclick="irDesdeHome('resumen')">
-      <div class="lc-icon">📊</div>
-      <div class="lc-title">Resumen</div>
-      <div class="lc-desc">Dashboard, KPIs y análisis general</div>
-    </div>
-    <div class="launcher-card" onclick="irDesdeHome('comercial')">
-      <div class="lc-icon">🧾</div>
-      <div class="lc-title">Comercial</div>
-      <div class="lc-desc">Ventas, clientes y facturación</div>
-    </div>
-    <div class="launcher-card" onclick="irDesdeHome('logistica')">
-      <div class="lc-icon">🚚</div>
-      <div class="lc-title">Logística</div>
-      <div class="lc-desc">Pendientes de entrega y transportes</div>
-      <div class="lc-badge" id="home-badge-pend" style="display:none">0</div>
-    </div>
-    <div class="launcher-card" onclick="irDesdeHome('finanzas')">
-      <div class="lc-icon">💰</div>
-      <div class="lc-title">Finanzas</div>
-      <div class="lc-desc">Compras, gastos y tesorería</div>
-    </div>
-    <div class="launcher-card" onclick="irDesdeHome('catalogo')">
-      <div class="lc-icon">💲</div>
-      <div class="lc-title">Catálogo</div>
-      <div class="lc-desc">Precios, costos y dólar</div>
-    </div>
-    <div class="launcher-card" onclick="irDesdeHome('proveedores')">
-      <div class="lc-icon">🏭</div>
-      <div class="lc-title">Proveedores</div>
-      <div class="lc-desc">Cuenta corriente y consignación</div>
-    </div>
-  </div>
-</div>
 
 <!-- PANEL ALERTAS -->
 <div id="panel-alertas" style="display:none;position:fixed;top:56px;right:12px;width:340px;max-height:480px;overflow-y:auto;background:var(--surface2);border:1px solid var(--border);border-radius:12px;z-index:800;box-shadow:0 8px 32px rgba(0,0,0,0.4);font-family:DM Sans,sans-serif">
@@ -430,7 +375,7 @@
 </div>
 
 <!-- Modal nuevo gasto -->
-<div class="modal-overlay" id="modal-gasto" onclick="if(event.target===this)cerrarModal('modal-gasto')">
+<div class="modal-overlay" id="modal-gasto" style="display:none" onclick="if(event.target===this)cerrarModal('modal-gasto')">
   <div class="modal" style="width:500px">
     <div class="modal-header"><div class="modal-title">💸 Nuevo Gasto</div><div class="modal-close" onclick="cerrarModal('modal-gasto')">✕</div></div>
     <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
@@ -477,48 +422,7 @@
   </div>
 </div>
 
-<!-- ===== VENCIMIENTOS (Módulo Finanzas) ===== -->
-<div class="page" id="page-vencimientos">
-  <div class="section-header">
-    <div class="section-title">🚦 Vencimientos</div>
-  </div>
-  <div class="kpi-grid" id="venc-kpis" style="margin-bottom:16px"></div>
-  <div class="card">
-    <div class="card-title">Próximos Vencimientos — Gastos con fecha de vencimiento</div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr>
-          <th>Estado</th><th>Vencimiento</th><th>Categoría</th><th>Descripción</th>
-          <th style="text-align:right">Monto</th><th>F.Pago</th><th>Días</th>
-        </tr></thead>
-        <tbody id="venc-body"></tbody>
-      </table>
-    </div>
-  </div>
-</div>
-
-<!-- ===== CTA CTE PROVEEDORES (multi-proveedor) ===== -->
-<div class="page" id="page-arrayan">
-  <div class="section-header">
-    <div class="section-title" id="ctacte-titulo">🏭 Cuenta Corriente — Proveedor</div>
-    <div style="display:flex;gap:8px">
-      <select id="sel-proveedor" onchange="renderArrayan()" style="padding:7px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;min-width:180px"></select>
-      <button class="btn btn-warn btn-sm" onclick="exportArrayanExcel()">📊 Excel</button>
-    </div>
-  </div>
-  <div class="kpi-grid" id="arrayan-kpis" style="margin-bottom:24px"></div>
-  <div class="card" id="arrayan-escala" style="margin-bottom:16px"></div>
-  <div class="card">
-    <div class="card-title" id="ctacte-movs-titulo">Movimientos — Créditos y Débitos</div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Fecha</th><th>Tipo</th><th>Descripción</th><th style="text-align:right">Crédito</th><th style="text-align:right">Débito</th><th style="text-align:right">Saldo</th></tr></thead>
-        <tbody id="arrayan-body"></tbody>
-      </table>
-    </div>
-  </div>
-</div>
-<!-- ===== VENTAS ARRAYAN ===== -->
+<!-- ===== ARRAYAN ===== --><div class="page" id="page-arrayan"><div class="section-header"><div class="section-title">🏭 Cuenta Corriente — Arrayan</div><div style="display:flex;gap:8px"><button class="btn btn-warn btn-sm" onclick="exportArrayanExcel()">📊 Excel</button></div></div><div class="kpi-grid" id="arrayan-kpis" style="margin-bottom:24px"></div><div class="card" id="arrayan-escala" style="margin-bottom:16px"></div><div class="card"><div class="card-title">Movimientos — Créditos (pagos de clientes) y Débitos (compras en Arrayan)</div><div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Descripción</th><th style="text-align:right">Crédito</th><th style="text-align:right">Débito</th><th style="text-align:right">Saldo</th></tr></thead><tbody id="arrayan-body"></tbody></table></div></div></div><!-- ===== VENTAS ARRAYAN ===== -->
 <div class="page" id="page-ventas-arrayan">
   <div class="section-header">
     <div class="section-title">📊 Ventas Arrayan</div>
@@ -769,12 +673,6 @@
 
   <div class="kpi-grid" id="dash-kpis"></div>
   <div class="kpi-grid2" id="dash-kpis2"></div>
-
-  <!-- P&L REAL — Finanzas integradas -->
-  <div style="font-size:11px;font-weight:600;letter-spacing:2px;color:var(--accent2);text-transform:uppercase;margin:8px 0 12px">💰 P&L Real — Finanzas</div>
-  <div class="kpi-grid" id="dash-pnl" style="margin-bottom:8px"></div>
-  <div class="kpi-grid" id="dash-pnl2" style="margin-bottom:24px"></div>
-
   <div class="grid3" id="dash-cards2"></div>
   <div class="grid2">
     <div class="card">
@@ -2424,8 +2322,7 @@ const MODULOS = {
   logistica:   [{ id: 'pendientes',       label: '⏳ Pendientes' },
                 { id: 'transportes',      label: '🚚 Transportes' }],
   finanzas:    [{ id: 'compras',          label: '🛒 Compras' },
-                { id: 'gastos',           label: '💸 Gastos' },
-                { id: 'vencimientos',     label: '🚦 Vencimientos' }],
+                { id: 'gastos',           label: '💸 Gastos' }],
   catalogo:    [{ id: 'precios',          label: '💲 Precios/Costos' }],
   proveedores: [{ id: 'arrayan',          label: '🏭 Cta. Cte.' },
                 { id: 'ventas-arrayan',   label: '📊 Ventas' }]
@@ -2496,7 +2393,6 @@ function showPage(id) {
   if(id==='clientes') renderClientes();
   if(id==='transportes') renderTransportes();
   if(id==='gastos' && typeof renderGastos === 'function') renderGastos();
-  if(id==='vencimientos' && typeof renderVencimientos === 'function') renderVencimientos();
 }
 
 function notify(msg,color) {
@@ -2508,8 +2404,8 @@ function notify(msg,color) {
   setTimeout(()=>el.classList.remove('show'),2800);
 }
 
-function abrirModal(id){const el=document.getElementById(id);el.classList.add('show');el.style.display='flex';}
-function cerrarModal(id){const el=document.getElementById(id);el.classList.remove('show');el.style.display='none';}
+function abrirModal(id){document.getElementById(id).classList.add('show');}
+function cerrarModal(id){document.getElementById(id).classList.remove('show');}
 
 // =========== DASHBOARD ===========
 function setDashPeriodo(p) {
@@ -2543,9 +2439,7 @@ function getMesVenta(fecha){ return parseFechaVenta(fecha).mes; }
 function getAnioVenta(fecha){ return parseFechaVenta(fecha).anio; }
 
 function esVentaPropia(v) {
-  // Todas las ventas son propias — las de productos Arrayan 
-  // generan comisión del 5% que es ganancia real del negocio
-  return true;
+  return v.esArrayan !== true;
 }
 
 function getVentasFiltradas() {
@@ -2577,9 +2471,9 @@ function renderDashboard() {
     <div class="kpi"><div class="kpi-label">Ventas ${dashPeriodo==='all'?'Total':dashPeriodo==='year'?'Año':'Mes'}</div>
       <div class="kpi-value accent">${fmt(totalVentas)}</div>
       <div class="kpi-sub">${ops} ops · ${lts.toLocaleString('es-AR')} Lts</div></div>
-    <div class="kpi"><div class="kpi-label">Ganancia Bruta</div>
+    <div class="kpi"><div class="kpi-label">Ganancia Neta</div>
       <div class="kpi-value green">${fmt(totalGan)}</div>
-      <div class="kpi-sub">Ventas − costo mercadería</div></div>
+      <div class="kpi-sub">Sobre $${Math.round(totalCosto/1e6*10)/10}M de costo</div></div>
     <div class="kpi"><div class="kpi-label">Costo Total</div>
       <div class="kpi-value">${fmt(totalCosto)}</div>
       <div class="kpi-sub">${dashPeriodo==='all'?'Histórico completo':dashPeriodo==='year'?'Año '+document.getElementById('dash-anio-sel').value:'Mes seleccionado'}</div></div>
@@ -2663,8 +2557,6 @@ function renderDashboard() {
 
   // Evolución mensual
   renderChartsMensual();
-  // P&L Real — Finanzas
-  renderPnL();
   // KPIs avanzados
   renderKPIsAvanzados();
 }
@@ -2937,144 +2829,6 @@ function renderMargenesPorProducto(vf) {
         </tr></thead>
         <tbody>${filas}</tbody>
       </table>
-    </div>`;
-}
-
-// =========== P&L REAL — Finanzas integradas al Dashboard ===========
-function getGastosFiltrados() {
-  // Filtrar gastos con el mismo criterio de período que el dashboard
-  if(dashPeriodo === 'all') return GASTOS;
-  const anio = parseInt(document.getElementById('dash-anio-sel').value);
-  return GASTOS.filter(g => {
-    const p = String(g.fecha || '').split('/');
-    if(p.length !== 3) return false;
-    const ga = parseInt(p[2]), gm = parseInt(p[1]);
-    if(ga !== anio) return false;
-    if(dashPeriodo === 'month') {
-      const mes = parseInt(document.getElementById('dash-mes-sel').value);
-      return gm === mes;
-    }
-    return true;
-  });
-}
-
-function renderPnL() {
-  const vf = getVentasFiltradas();
-  const gf = getGastosFiltrados();
-
-  // --- Métricas base ---
-  const totalVentas = vf.reduce((s,v) => s + v.total, 0);
-  const costoMerc = vf.reduce((s,v) => s + v.costoT, 0);
-  const ganBruta = totalVentas - costoMerc; // Ganancia bruta (sin gastos operativos)
-  const totalGastos = gf.reduce((s,g) => s + (g.monto || 0), 0);
-
-  // Gastos fijos (recurrentes) vs variables
-  const gastosFijos = gf.filter(g => g.recurrente === true || g.recurrente === 'TRUE' || g.recurrente === 'true' || g.recurrente === 'Sí');
-  const totalFijos = gastosFijos.reduce((s,g) => s + (g.monto || 0), 0);
-  const totalVariables = totalGastos - totalFijos;
-
-  // 1) Ganancia neta real = ventas - costo mercadería - gastos operativos
-  const ganNetaReal = ganBruta - totalGastos;
-
-  // 2) Margen neto real
-  const margenNetoReal = totalVentas > 0 ? (ganNetaReal / totalVentas * 100) : 0;
-
-  // 3) Punto de equilibrio mensual = gastos fijos / (margen bruto %)
-  const margenBrutoPct = totalVentas > 0 ? (ganBruta / totalVentas) : 0;
-  const puntoEquilibrio = margenBrutoPct > 0 ? (totalFijos / margenBrutoPct) : 0;
-
-  // 4) Flujo de caja = cobrado - gastos pagados
-  const cobrado = vf.filter(v => v.pagado === 'Sí').reduce((s,v) => s + v.total, 0);
-  const flujoCaja = cobrado - totalGastos;
-
-  // 5) Ratio gastos fijos / ventas
-  const ratioFijosVentas = totalVentas > 0 ? (totalFijos / totalVentas * 100) : 0;
-
-  // 6) CAC = gasto Publicidad / clientes nuevos del período
-  const gastoPublicidad = gf.filter(g => g.categoria === 'Publicidad').reduce((s,g) => s + (g.monto || 0), 0);
-  // Clientes nuevos: primera compra en el período
-  const clientesPrevios = new Set();
-  const clientesPeriodo = new Set();
-  VENTAS.filter(esVentaPropia).forEach(v => {
-    const pa = parseFechaVenta(v.fecha);
-    const anioSel = parseInt(document.getElementById('dash-anio-sel')?.value || 2026);
-    const mesSel = parseInt(document.getElementById('dash-mes-sel')?.value || 0);
-    let enPeriodo = false;
-    if(dashPeriodo === 'all') enPeriodo = true;
-    else if(dashPeriodo === 'year') enPeriodo = pa.anio === anioSel;
-    else enPeriodo = pa.anio === anioSel && pa.mes === mesSel;
-
-    if(enPeriodo) clientesPeriodo.add(v.cliente);
-    else clientesPrevios.add(v.cliente);
-  });
-  const clientesNuevos = [...clientesPeriodo].filter(c => !clientesPrevios.has(c)).length;
-  const cac = clientesNuevos > 0 ? (gastoPublicidad / clientesNuevos) : 0;
-
-  // 7) Alertas de vencimientos (gastos con vencimiento próximo)
-  const hoy = new Date();
-  const vencProximos = GASTOS.filter(g => {
-    if(!g.vencimiento) return false;
-    const p = String(g.vencimiento).split('/');
-    if(p.length !== 3) return false;
-    const d = new Date(parseInt(p[2]), parseInt(p[1])-1, parseInt(p[0]));
-    const diff = (d - hoy) / 86400000;
-    return diff >= -3 && diff <= 15; // vencidos hace 3 días a 15 días por vencer
-  });
-
-  // --- Render fila 1: P&L ---
-  const colorNeta = ganNetaReal >= 0 ? 'var(--green)' : 'var(--red)';
-  const colorFlujo = flujoCaja >= 0 ? 'var(--green)' : 'var(--red)';
-  const pnl1 = document.getElementById('dash-pnl');
-  if(pnl1) pnl1.innerHTML = `
-    <div class="kpi highlight2">
-      <div class="kpi-label">💵 Ganancia Neta Real</div>
-      <div class="kpi-value" style="color:${colorNeta}">${fmt(ganNetaReal)}</div>
-      <div class="kpi-sub">Ventas ${fmt(totalVentas)} − Costo ${fmt(costoMerc)} − Gastos ${fmt(totalGastos)}</div>
-    </div>
-    <div class="kpi">
-      <div class="kpi-label">📊 Margen Neto Real</div>
-      <div class="kpi-value" style="color:${margenNetoReal>=15?'var(--green)':margenNetoReal>=5?'var(--yellow)':'var(--red)'}">${margenNetoReal.toFixed(1)}%</div>
-      <div class="kpi-sub">Después de gastos operativos</div>
-    </div>
-    <div class="kpi">
-      <div class="kpi-label">🏁 Punto de Equilibrio</div>
-      <div class="kpi-value accent">${puntoEquilibrio > 0 ? fmt(puntoEquilibrio) : '—'}</div>
-      <div class="kpi-sub">${puntoEquilibrio > 0 ? 'Vender esto para cubrir gastos fijos' : 'Sin gastos fijos cargados'}</div>
-    </div>
-    <div class="kpi">
-      <div class="kpi-label">💸 Gastos Operativos</div>
-      <div class="kpi-value" style="color:var(--red)">${fmt(totalGastos)}</div>
-      <div class="kpi-sub">Fijos ${fmt(totalFijos)} · Variables ${fmt(totalVariables)}</div>
-    </div>`;
-
-  // --- Render fila 2: Flujo, ratio, CAC, vencimientos ---
-  const pnl2 = document.getElementById('dash-pnl2');
-  if(pnl2) pnl2.innerHTML = `
-    <div class="kpi">
-      <div class="kpi-label">💰 Flujo de Caja</div>
-      <div class="kpi-value" style="color:${colorFlujo}">${fmt(flujoCaja)}</div>
-      <div class="kpi-sub">Cobrado ${fmt(cobrado)} − Gastos ${fmt(totalGastos)}</div>
-    </div>
-    <div class="kpi">
-      <div class="kpi-label">📏 Ratio Gastos Fijos / Ventas</div>
-      <div class="kpi-value" style="color:${ratioFijosVentas<=20?'var(--green)':ratioFijosVentas<=35?'var(--yellow)':'var(--red)'}">${ratioFijosVentas.toFixed(1)}%</div>
-      <div class="kpi-sub">${ratioFijosVentas<=20?'Saludable':'Atención: gastos fijos altos'}</div>
-    </div>
-    <div class="kpi">
-      <div class="kpi-label">📣 CAC (Costo Adquisición)</div>
-      <div class="kpi-value">${cac > 0 ? fmt(cac) : '—'}</div>
-      <div class="kpi-sub">${gastoPublicidad > 0 ? fmt(gastoPublicidad)+' en Ads · '+clientesNuevos+' nuevos' : 'Sin gastos de publicidad'}</div>
-    </div>
-    <div class="kpi" style="border-color:${vencProximos.length > 0 ? 'var(--warn)' : 'var(--border)'}">
-      <div class="kpi-label">🚦 Vencimientos</div>
-      <div class="kpi-value" style="color:${vencProximos.length > 0 ? 'var(--warn)' : 'var(--green)'}">${vencProximos.length > 0 ? vencProximos.length : '✓'}</div>
-      <div class="kpi-sub">${vencProximos.length > 0 ? vencProximos.slice(0,2).map(g => {
-        const p = g.vencimiento.split('/');
-        const d = new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0]));
-        const diff = Math.ceil((d - hoy)/86400000);
-        const estado = diff < 0 ? '🔴 Vencido' : diff <= 3 ? '🟡 '+diff+'d' : '🟢 '+diff+'d';
-        return g.categoria + ' ' + estado;
-      }).join(' · ') : 'Todo al día'}</div>
     </div>`;
 }
 
@@ -3680,7 +3434,7 @@ function renderPendientes() {
 
 function marcarEntregado(idx){VENTAS[idx].entregado='Sí';actualizarBadge();notify('✓ Marcado como entregado');renderPendientes();}
 function marcarCobrado(idx){VENTAS[idx].pagado='Sí';actualizarBadge();notify('✓ Marcado como cobrado');renderPendientes();}
-function actualizarBadge(){const sinE=VENTAS.filter(v=>v.entregado==='No').length;const sinC=VENTAS.filter(v=>v.pagado==='No').length;const el=document.getElementById('badge-pend');if(el)el.textContent=sinE+sinC;}
+function actualizarBadge(){const sinE=VENTAS.filter(v=>v.entregado==='No').length;const sinC=VENTAS.filter(v=>v.pagado==='No').length;document.getElementById('badge-pend').textContent=sinE+sinC;}
 
 // =========== LOGIN con hash + backend ===========
 async function doLogin(){
@@ -4453,7 +4207,6 @@ async function cargarDesdeSheets() {
       if(res.valorDolar)         VALOR_DOLAR = res.valorDolar;
       setSyncStatus('ok');
       actualizarBadge();
-      actualizarBadgeHome(); // Actualizar badge pendientes en launcher
       renderDashboard();
       initForm();
     } else {
@@ -4767,60 +4520,61 @@ function imprimirRemito(idx) {
 <head>
 <meta charset="UTF-8">
 <style>
-  @page { size: 170mm 220mm; margin: 6mm 8mm; }
+  /* Remito: 16.5cm ancho x 20cm alto */
+  @page { size: 165mm 200mm; margin: 4mm 5mm; }
   * { visibility: visible !important; display: revert; }
   body > * { display: block; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: Arial, sans-serif; font-size: 10px; color: #111; }
+  body { font-family: Arial, sans-serif; font-size: 9px; color: #111; }
 
-  .remito-wrap { border: 2px solid #111; padding: 0; }
+  .remito-wrap { border: 2px solid #111; padding: 0; width: 155mm; max-height: 192mm; overflow: hidden; }
 
   /* HEADER */
   .header { display: flex; border-bottom: 2px solid #111; }
-  .header-left { padding: 12px 16px; flex: 1; border-right: 2px solid #111; }
-  .header-right { padding: 12px 16px; flex: 1; }
-  .empresa-nombre { font-size: 15px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; line-height: 1.1; }
-  .empresa-sub { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #444; margin-top: 2px; }
-  .empresa-dir { font-size: 11px; margin-top: 10px; text-align: center; }
-  .empresa-categoria { font-size: 10px; font-weight: 700; text-align: center; margin-top: 4px; border-top: 1px solid #aaa; padding-top: 4px; letter-spacing: 1px; }
-  .remito-titulo { font-size: 17px; font-weight: 900; letter-spacing: 3px; margin-bottom: 8px; }
-  .remito-num { font-size: 13px; margin-bottom: 6px; }
-  .remito-num span { font-size: 13px; font-weight: 700; }
-  .fecha-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 12px; }
-  .fecha-box { border: 1.5px solid #111; padding: 4px 14px; font-size: 13px; font-weight: 700; min-width: 90px; }
-  .fiscal-row { font-size: 10px; margin-top: 6px; color: #333; line-height: 1.6; }
+  .header-left { padding: 8px 12px; flex: 1; border-right: 2px solid #111; }
+  .header-right { padding: 8px 12px; flex: 1; }
+  .empresa-nombre { font-size: 14px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; line-height: 1.1; }
+  .empresa-sub { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: #444; margin-top: 1px; }
+  .empresa-dir { font-size: 10px; margin-top: 6px; text-align: center; }
+  .empresa-categoria { font-size: 9px; font-weight: 700; text-align: center; margin-top: 3px; border-top: 1px solid #aaa; padding-top: 3px; letter-spacing: 1px; }
+  .remito-titulo { font-size: 16px; font-weight: 900; letter-spacing: 3px; margin-bottom: 5px; }
+  .remito-num { font-size: 12px; margin-bottom: 4px; }
+  .remito-num span { font-size: 12px; font-weight: 700; }
+  .fecha-row { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 11px; }
+  .fecha-box { border: 1.5px solid #111; padding: 3px 10px; font-size: 12px; font-weight: 700; min-width: 80px; }
+  .fiscal-row { font-size: 9px; margin-top: 4px; color: #333; line-height: 1.5; }
 
   /* DESTINATARIO */
-  .dest-section { border-bottom: 1.5px solid #111; padding: 10px 16px; }
-  .dest-row { display: flex; align-items: flex-end; gap: 4px; margin-bottom: 7px; font-size: 12px; }
-  .dest-label { font-weight: 700; font-size: 11px; white-space: nowrap; }
-  .dest-line { flex: 1; border-bottom: 1px solid #555; padding-bottom: 1px; padding-left: 6px; font-size: 12px; }
-  .dest-cuit { border-bottom: 1px solid #555; padding-bottom: 1px; padding-left: 6px; min-width: 130px; font-size: 12px; }
+  .dest-section { border-bottom: 1.5px solid #111; padding: 7px 12px; }
+  .dest-row { display: flex; align-items: flex-end; gap: 4px; margin-bottom: 5px; font-size: 11px; }
+  .dest-label { font-weight: 700; font-size: 10px; white-space: nowrap; }
+  .dest-line { flex: 1; border-bottom: 1px solid #555; padding-bottom: 1px; padding-left: 4px; font-size: 11px; }
+  .dest-cuit { border-bottom: 1px solid #555; padding-bottom: 1px; padding-left: 4px; min-width: 110px; font-size: 11px; }
 
   /* TABLA */
   .tabla { width: 100%; border-collapse: collapse; }
   .tabla thead tr { background: #555; color: #fff; }
-  .tabla th { padding: 7px 12px; text-align: left; font-size: 11px; letter-spacing: .5px; text-transform: uppercase; }
+  .tabla th { padding: 5px 8px; text-align: left; font-size: 10px; letter-spacing: .5px; text-transform: uppercase; }
   .tabla th.right { text-align: right; }
-  .tabla td { padding: 7px 12px; border-bottom: 1px solid #ddd; font-size: 12px; }
+  .tabla td { padding: 5px 8px; border-bottom: 1px solid #ddd; font-size: 11px; }
   .tabla td.right { text-align: right; font-family: monospace; }
   .tabla tr:nth-child(even) td { background: #f9f9f9; }
   /* filas vacías */
-  .tabla tr.empty td { border-bottom: 1px solid #e0e0e0; height: 26px; }
+  .tabla tr.empty td { border-bottom: 1px solid #e0e0e0; height: 22px; }
 
   /* TOTAL */
-  .total-row { display: flex; justify-content: flex-end; border-top: 2px solid #111; padding: 10px 16px; }
-  .total-box { font-size: 12px; font-weight: 700; }
-  .total-box span { font-size: 13px; }
+  .total-row { display: flex; justify-content: flex-end; border-top: 2px solid #111; padding: 7px 12px; }
+  .total-box { font-size: 11px; font-weight: 700; }
+  .total-box span { font-size: 12px; }
 
   /* FIRMAS */
   .firmas { display: flex; border-top: 2px solid #111; }
-  .firma-box { flex: 1; padding: 14px 16px 10px; font-size: 11px; font-weight: 700; letter-spacing: .5px; }
+  .firma-box { flex: 1; padding: 10px 12px 8px; font-size: 10px; font-weight: 700; letter-spacing: .5px; }
   .firma-box:first-child { border-right: 1.5px solid #111; }
-  .firma-linea { border-top: 1px dashed #555; margin-top: 28px; padding-top: 4px; font-size: 10px; color: #555; }
+  .firma-linea { border-top: 1px dashed #555; margin-top: 22px; padding-top: 3px; font-size: 9px; color: #555; }
 
   /* PIE */
-  .pie { text-align: center; padding: 6px 16px; font-size: 9px; color: #666; border-top: 1px solid #ccc; }
+  .pie { text-align: center; padding: 4px 12px; font-size: 8px; color: #666; border-top: 1px solid #ccc; }
 </style>
 </head>
 <body>
@@ -4875,10 +4629,10 @@ function imprimirRemito(idx) {
   <table class="tabla">
     <thead>
       <tr>
-        <th style="width:90px">Cantidad</th>
+        <th style="width:80px">Cantidad</th>
         <th>Descripción</th>
-        <th class="right" style="width:120px">Precio Unit.</th>
-        <th class="right" style="width:120px">Total</th>
+        <th class="right" style="width:100px">Precio Unit.</th>
+        <th class="right" style="width:100px">Total</th>
       </tr>
     </thead>
     <tbody>
@@ -4888,7 +4642,7 @@ function imprimirRemito(idx) {
         <td class="right">$${v.precioU.toLocaleString('es-AR')}</td>
         <td class="right">$${v.total.toLocaleString('es-AR')}</td>
       </tr>
-      ${[...Array(8)].map(()=>'<tr class="empty"><td></td><td></td><td></td><td></td></tr>').join('')}
+      ${[...Array(5)].map(()=>'<tr class="empty"><td></td><td></td><td></td><td></td></tr>').join('')}
     </tbody>
   </table>
 
@@ -4922,7 +4676,7 @@ function imprimirRemito(idx) {
 
   const blob = new Blob([html], {type:'text/html'});
   const url = URL.createObjectURL(blob);
-  const w = window.open(url, '_blank', 'width=643,height=832');
+  const w = window.open(url, '_blank', 'width=624,height=756');
   setTimeout(()=>{ w.focus(); w.print(); URL.revokeObjectURL(url); }, 600);
 }
 
@@ -5001,8 +4755,6 @@ function checkSaldoArrayan() {
   const fpago = document.getElementById('nc-fpago').value;
   const aviso = document.getElementById('aviso-cta-cte');
   const difDiv = document.getElementById('diferencia-fpago');
-  const provModal = (document.getElementById('nc-proveedor')?.value || '').toLowerCase();
-  const esArrProv = provModal.includes('arrayan');
   
   if(fpago !== 'Cuenta corriente') {
     aviso.style.display = 'none';
@@ -5012,21 +4764,19 @@ function checkSaldoArrayan() {
       aviso.style.background = '#1a3d2e';
       aviso.style.borderColor = '#22c987';
       aviso.style.color = '#22c987';
-      aviso.innerHTML = '➕ Este monto se sumará como <b>crédito</b> en la cuenta corriente ' + (document.getElementById('nc-proveedor')?.value || 'del proveedor');
+      aviso.innerHTML = '➕ Este monto se sumará como <b>crédito</b> en la cuenta corriente Arrayan';
     }
     return;
   }
 
-  // Calcular saldo actual del proveedor seleccionado
-  const matchP = (nombre) => provModal && (nombre||'').toLowerCase().includes(provModal);
+  // Calcular saldo actual Arrayan (usando pagos parciales si existen)
   const ventasConPagos2 = new Set(PAGOS_ARRAYAN.map(p => p.ventaId));
-  const creditosPagos2 = esArrProv ? PAGOS_ARRAYAN.reduce((s,p)=>s+p.monto, 0) : 0;
-  const creditosDirectos2 = esArrProv ? VENTAS.filter(v=>v.arrayan && v.arrayanTipo !== 'parcial' && !ventasConPagos2.has(ventaId(v))).reduce((s,v)=>s+v.total, 0) : 0;
-  const creditosIngreso2 = COMPRAS.filter(c=>matchP(c.proveedor)&&(c.fpago||'').toLowerCase().includes('ingreso a cta cte')).reduce((s,c)=>s+c.costoTotal, 0);
+  const creditosPagos2 = PAGOS_ARRAYAN.reduce((s,p)=>s+p.monto, 0);
+  const creditosDirectos2 = VENTAS.filter(v=>v.arrayan && v.arrayanTipo !== 'parcial' && !ventasConPagos2.has(ventaId(v))).reduce((s,v)=>s+v.total, 0);
+  const creditosIngreso2 = COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')&&(c.fpago||'').toLowerCase().includes('ingreso a cta cte')).reduce((s,c)=>s+c.costoTotal, 0);
   const creditos = creditosPagos2 + creditosDirectos2 + creditosIngreso2;
-  const debitos  = COMPRAS.filter(c=>matchP(c.proveedor)&&esCuentaCorrienteArrayan(c.fpago)).reduce((s,c)=>s+c.costoTotal, 0);
+  const debitos  = COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')&&esCuentaCorrienteArrayan(c.fpago)).reduce((s,c)=>s+c.costoTotal, 0);
   const saldo    = creditos - debitos;
-  const provNombre = document.getElementById('nc-proveedor')?.value || 'Proveedor';
 
   const costoTotal = parseFloat(document.getElementById('nc-costoTotal').value) || 0;
 
@@ -5041,7 +4791,7 @@ function checkSaldoArrayan() {
     aviso.style.background = '#1a3d2e';
     aviso.style.borderColor = '#22c987';
     aviso.style.color = '#22c987';
-    aviso.innerHTML = `✅ Saldo ${provNombre} suficiente: <strong>${fmt(saldo)}</strong> — se descuentan <strong>${fmt(costoTotal)}</strong>`;
+    aviso.innerHTML = `✅ Saldo Arrayan suficiente: <strong>${fmt(saldo)}</strong> — se descuentan <strong>${fmt(costoTotal)}</strong>`;
     difDiv.style.display = 'none';
   } else {
     const diferencia = costoTotal - saldo;
@@ -5049,7 +4799,7 @@ function checkSaldoArrayan() {
     aviso.style.background = '#2d1a0a';
     aviso.style.borderColor = '#8b4513';
     aviso.style.color = 'var(--yellow)';
-    aviso.innerHTML = `⚠️ Saldo ${provNombre}: <strong>${fmt(saldo)}</strong> — Esta compra: <strong>${fmt(costoTotal)}</strong> — Te faltan: <strong>${fmt(diferencia)}</strong>`;
+    aviso.innerHTML = `⚠️ Saldo Arrayan: <strong>${fmt(saldo)}</strong> — Esta compra: <strong>${fmt(costoTotal)}</strong> — Te faltan: <strong>${fmt(diferencia)}</strong>`;
     difDiv.style.display = 'block';
   }
 }
@@ -5269,7 +5019,7 @@ function abrirModalGasto() {
   document.getElementById('ng-vencimiento').value = '';
   document.getElementById('ng-recurrente').checked = false;
   document.getElementById('ng-obs').value = '';
-  abrirModal('modal-gasto');
+  document.getElementById('modal-gasto').style.display = 'flex';
 }
 
 async function guardarGasto() {
@@ -5315,77 +5065,6 @@ async function eliminarGasto(idx) {
     renderGastos();
     notify('🗑️ Gasto eliminado');
   }
-}
-
-// =========== VENCIMIENTOS (paso 5) ===========
-function renderVencimientos() {
-  const hoy = new Date();
-  // Tomar todos los gastos con fecha de vencimiento
-  const conVenc = GASTOS.filter(g => g.vencimiento && String(g.vencimiento).trim());
-
-  // Parsear y clasificar
-  const items = conVenc.map(g => {
-    const p = String(g.vencimiento).split('/');
-    let d = null;
-    if(p.length === 3) d = new Date(parseInt(p[2]), parseInt(p[1])-1, parseInt(p[0]));
-    const diff = d ? Math.ceil((d - hoy) / 86400000) : 999;
-    let estado = '🟢'; // > 15 días
-    let color = 'var(--green)';
-    let label = diff + 'd';
-    if(diff < 0) { estado = '🔴'; color = 'var(--red)'; label = 'Vencido ' + Math.abs(diff) + 'd'; }
-    else if(diff <= 3) { estado = '🔴'; color = 'var(--red)'; label = diff + 'd — ¡Urgente!'; }
-    else if(diff <= 7) { estado = '🟡'; color = 'var(--yellow)'; label = diff + 'd'; }
-    else if(diff <= 15) { estado = '🟢'; color = 'var(--green)'; label = diff + 'd'; }
-    else { label = diff + 'd'; }
-    return { ...g, fechaVenc: d, diff, estado, color, label };
-  }).sort((a,b) => a.diff - b.diff);
-
-  // KPIs
-  const vencidos = items.filter(i => i.diff < 0);
-  const urgentes = items.filter(i => i.diff >= 0 && i.diff <= 7);
-  const proximos = items.filter(i => i.diff > 7 && i.diff <= 30);
-  const totalVencido = vencidos.reduce((s,i) => s + (i.monto||0), 0);
-  const totalUrgente = urgentes.reduce((s,i) => s + (i.monto||0), 0);
-
-  const kpis = document.getElementById('venc-kpis');
-  if(kpis) kpis.innerHTML = `
-    <div class="kpi" style="border-color:${vencidos.length ? 'var(--red)' : 'var(--border)'}">
-      <div class="kpi-label">🔴 Vencidos</div>
-      <div class="kpi-value" style="color:var(--red)">${vencidos.length}</div>
-      <div class="kpi-sub">${totalVencido > 0 ? fmt(totalVencido) : 'Todo al día'}</div>
-    </div>
-    <div class="kpi" style="border-color:${urgentes.length ? 'var(--yellow)' : 'var(--border)'}">
-      <div class="kpi-label">🟡 Próximos 7 días</div>
-      <div class="kpi-value" style="color:var(--yellow)">${urgentes.length}</div>
-      <div class="kpi-sub">${totalUrgente > 0 ? fmt(totalUrgente) : 'Sin urgencias'}</div>
-    </div>
-    <div class="kpi">
-      <div class="kpi-label">🟢 Próximos 30 días</div>
-      <div class="kpi-value" style="color:var(--green)">${proximos.length}</div>
-      <div class="kpi-sub">${fmt(proximos.reduce((s,i)=>s+(i.monto||0),0))}</div>
-    </div>
-    <div class="kpi">
-      <div class="kpi-label">Total con vencimiento</div>
-      <div class="kpi-value">${items.length}</div>
-      <div class="kpi-sub">De ${GASTOS.length} gastos totales</div>
-    </div>`;
-
-  // Tabla
-  const tbody = document.getElementById('venc-body');
-  if(!tbody) return;
-  if(!items.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">Sin gastos con vencimiento cargado. Agregá vencimientos desde Gastos.</td></tr>';
-    return;
-  }
-  tbody.innerHTML = items.map(i => `<tr style="${i.diff < 0 ? 'background:rgba(255,77,106,0.08)' : i.diff <= 3 ? 'background:rgba(255,209,102,0.08)' : ''}">
-    <td style="font-size:18px;text-align:center">${i.estado}</td>
-    <td>${i.vencimiento || '—'}</td>
-    <td><span class="chip blue">${i.categoria || '—'}</span></td>
-    <td>${i.descripcion || i.subcategoria || '—'}</td>
-    <td style="text-align:right;font-family:var(--mono);color:var(--red)">${fmt(i.monto||0)}</td>
-    <td>${i.fpago || '—'}</td>
-    <td style="font-family:var(--mono);font-weight:600;color:${i.color}">${i.label}</td>
-  </tr>`).join('');
 }
 
 // =========== ALERTAS ===========
@@ -5641,21 +5320,11 @@ function getPctArrayan(lts) {
 }
 
 function renderEscalaArrayan() {
-  const contenedor = document.getElementById('arrayan-escala');
-  if(!contenedor) return;
-
-  // La escala de volumen solo aplica a Arrayan
-  const provSel = (document.getElementById('sel-proveedor')?.value || 'Arrayan').toLowerCase();
-  if(!provSel.includes('arrayan')) {
-    contenedor.style.display = 'none';
-    return;
-  }
-  contenedor.style.display = '';
-
   const meses=['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   const hoy = new Date();
 
   // Selectores de filtro — los crea si no existen
+  const contenedor = document.getElementById('arrayan-escala');
   const anioSel = document.getElementById('escala-anio')?.value || String(hoy.getFullYear());
   const mesSel  = parseInt(document.getElementById('escala-mes')?.value  || hoy.getMonth()+1);
 
@@ -5875,65 +5544,28 @@ async function eliminarPagoArrayan(idx) {
 }
 
 function renderArrayan() {
-  // Poblar selector de proveedores (de COMPRAS_ERP, deduplicados por nombre)
-  const sel = document.getElementById('sel-proveedor');
-  if(sel) {
-    const provMap = {}; // clave: nombre lowercase, valor: nombre con mejor capitalización
-    provMap['arrayan'] = 'Arrayan'; // siempre presente
-    COMPRAS.forEach(c => {
-      const raw = String(c.proveedor || '').trim();
-      if(!raw) return;
-      const key = raw.toLowerCase();
-      // Preferir la versión con mayúscula inicial
-      if(!provMap[key] || raw[0] === raw[0].toUpperCase()) provMap[key] = raw;
-    });
-    const proveedores = Object.values(provMap).sort((a,b) => {
-      if(a.toLowerCase().includes('arrayan')) return -1;
-      if(b.toLowerCase().includes('arrayan')) return 1;
-      return a.localeCompare(b);
-    });
-    const actual = sel.value || proveedores[0] || 'Arrayan';
-    sel.innerHTML = proveedores.map(p => 
-      `<option value="${p}" ${p === actual ? 'selected' : ''}>${p}</option>`
-    ).join('');
-  }
-
-  // Proveedor seleccionado
-  const provSel = (sel?.value || 'Arrayan').toLowerCase();
-  const matchProv = (nombre) => (nombre||'').toLowerCase().includes(provSel.toLowerCase()) || provSel.toLowerCase().includes((nombre||'').toLowerCase());
-
-  // Actualizar título
-  const titulo = document.getElementById('ctacte-titulo');
-  if(titulo) titulo.textContent = '🏭 Cuenta Corriente — ' + (sel?.value || 'Arrayan');
-  const movsTitulo = document.getElementById('ctacte-movs-titulo');
-  if(movsTitulo) movsTitulo.textContent = 'Movimientos — Créditos y Débitos — ' + (sel?.value || 'Arrayan');
-
-  // Verificar si es Arrayan (tiene lógica especial de ventas con toggle)
-  const esArrayan = provSel.includes('arrayan');
-
-  // Créditos: pagos parciales registrados (solo para Arrayan)
-  const creditosPagos = esArrayan ? PAGOS_ARRAYAN.map(p => ({
+  // Créditos: pagos parciales registrados
+  const creditosPagos = PAGOS_ARRAYAN.map(p => ({
     fecha: p.fecha, tipo: 'credito',
     desc: p.concepto + (p.obs ? ' (' + p.obs + ')' : ''),
     monto: p.monto, fpago: 'Pago parcial',
     pagoIdx: PAGOS_ARRAYAN.indexOf(p)
-  })) : [];
+  }));
 
-  // Créditos: ventas con pago único (solo Arrayan tiene toggle de ventas)
+  // Créditos: ventas Arrayan con pago único (arrayanTipo='unico' o sin tipo = backward compat)
   const ventasConPagos = new Set(PAGOS_ARRAYAN.map(p => p.ventaId));
-  const creditosVentasDirectas = esArrayan ? VENTAS.filter(v =>
+  const creditosVentasDirectas = VENTAS.filter(v =>
     v.arrayan &&
-    v.arrayanTipo !== 'parcial' &&
     !ventasConPagos.has(ventaId(v))
   ).map(v => ({
     fecha: v.fecha, tipo: 'credito',
     desc: v.producto.substring(0,50) + ' (' + v.cant + ' Lts)',
     monto: v.total, fpago: 'Pago único'
-  })) : [];
+  }));
 
   // Créditos: ingresos propios a cta cte
   const creditosIngreso = COMPRAS.filter(c =>
-    matchProv(c.proveedor) &&
+    (c.proveedor||'').toLowerCase().includes('arrayan') &&
     (c.fpago||'').toLowerCase().includes('ingreso a cta cte')
   ).map(c => ({
     fecha: c.fecha, tipo: 'credito',
@@ -5943,9 +5575,9 @@ function renderArrayan() {
 
   const creditos = [...creditosPagos, ...creditosVentasDirectas, ...creditosIngreso];
 
-  // Débitos: solo compras cta cte del proveedor seleccionado
+  // Débitos: solo compras cta cte
   const debitosCC = COMPRAS.filter(c =>
-    matchProv(c.proveedor) && esCuentaCorrienteArrayan(c.fpago)
+    (c.proveedor||'').toLowerCase().includes('arrayan') && esCuentaCorrienteArrayan(c.fpago)
   ).map(c => ({
     fecha: c.fecha, tipo: 'debito',
     desc: 'Compra: ' + c.producto + ' (' + c.cant + ' ' + (c.unidad||'Lts') + ') — ' + c.proveedor,
@@ -5981,10 +5613,10 @@ function renderArrayan() {
   const totalDeb  = debitosCC.reduce((s,m) => s+m.monto, 0);
   const sf = totalCred - totalDeb;
   const sc2 = sf >= 0 ? 'var(--green)' : 'var(--red)';
-  const saldoLabel = sf >= 0 ? 'A tu favor — ' + (sel?.value||'Proveedor') + ' te debe mercadería' : 'Debés a ' + (sel?.value||'Proveedor') + ' — retirá mercadería para saldar';
+  const saldoLabel = sf >= 0 ? 'A tu favor — Arrayan te debe mercadería' : 'Debés a Arrayan — retirá mercadería para saldar';
 
   const comprasOtras = COMPRAS.filter(c =>
-    matchProv(c.proveedor) && !esCuentaCorrienteArrayan(c.fpago) &&
+    (c.proveedor||'').toLowerCase().includes('arrayan') && !esCuentaCorrienteArrayan(c.fpago) &&
     !(c.fpago||'').toLowerCase().includes('ingreso a cta cte')
   );
   const totalOtras = comprasOtras.reduce((s,c) => s+c.costoTotal, 0);
@@ -5996,8 +5628,9 @@ function renderArrayan() {
     '<div class="kpi"><div class="kpi-label">➖ Débitos Cta Cte</div><div class="kpi-value" style="color:var(--red)">' + fmt(totalDeb) + '</div><div class="kpi-sub">' + debitosCC.length + ' compras descontadas' + subLabelOtras + '</div></div>' +
     '<div class="kpi"><div class="kpi-label">📦 Movimientos</div><div class="kpi-value">' + movs.length + '</div><div class="kpi-sub">Total operaciones</div></div>';
 
-  // Ventas con detalle de pagos (solo Arrayan tiene este flujo)
-  const ventasArrayan = esArrayan ? VENTAS.filter(v => v.arrayan && ventasConPagos.has(ventaId(v))) : [];
+  // Ventas Arrayan con detalle de pagos
+  // Solo ventas con pago parcial van al estado de cobro
+  const ventasArrayan = VENTAS.filter(v => v.arrayan && ventasConPagos.has(ventaId(v)));
   if(ventasArrayan.length > 0) {
     const ventasHTML = ventasArrayan.map(v => {
       const pagos = getPagosDeVenta(v);
@@ -6047,10 +5680,6 @@ function renderArrayan() {
       escala.parentNode.insertBefore(seccion, escala);
     }
     seccion.innerHTML = '<div class="card-title">🧾 Ventas Arrayan — Estado de cobro</div>' + ventasHTML;
-  } else {
-    // Si no es Arrayan o no hay ventas con pagos, limpiar la sección
-    const seccion = document.getElementById('arrayan-ventas-detalle');
-    if(seccion) seccion.remove();
   }
 
   renderEscalaArrayan();
@@ -6142,54 +5771,10 @@ function exportVentasArrayanExcel() {
   notify('✓ Excel exportado');
 }
 
-function exportArrayanExcel(){const cred=VENTAS.filter(v=>v.arrayan).map(v=>({'Fecha':v.fecha,'Tipo':'Credito','Descripcion':v.cliente+' - '+v.producto,'Credito ($)':v.total,'Debito ($)':'','Cantidad':v.cant,'Saldo':''}));const deb=COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')).map(c=>({'Fecha':c.fecha,'Tipo':'Debito','Descripcion':'Compra: '+c.producto+' ('+c.cant+' '+(c.unidad||'')+')', 'Credito ($)':'','Debito ($)':c.costoTotal,'Cantidad':c.cant,'Saldo':''}));const movs=[...cred,...deb].sort((a,b)=>{const pa=a['Fecha'].split('/'),pb=b['Fecha'].split('/');return new Date(parseInt(pa[2]),parseInt(pa[1])-1,parseInt(pa[0]))-new Date(parseInt(pb[2]),parseInt(pb[1])-1,parseInt(pb[0]));});let s=0;movs.forEach(m=>{s+=(parseFloat(m['Credito ($)'])||0)-(parseFloat(m['Debito ($)'])||0);m['Saldo']='$'+Math.round(s).toLocaleString('es-AR');});if(!movs.length){notify('Sin movimientos para exportar');return;}const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(movs),'Cuenta Corriente Arrayan');XLSX.writeFile(wb,'cuenta_corriente_arrayan.xlsx');notify('✓ Excel Arrayan exportado');}
-
-// =========== LAUNCHER (pantalla de inicio) ===========
-let _enHome = true; // Arranca mostrando el launcher
-
-function mostrarHome() {
-  _enHome = true;
-  document.getElementById('launcher').classList.add('active');
-  // Ocultar nav y subnav
-  document.getElementById('main-nav').style.display = 'none';
-  document.getElementById('subnav').style.display = 'none';
-  document.getElementById('subnav').innerHTML = '';
-  // Ocultar todas las páginas
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  // Actualizar badge de pendientes en el launcher
-  actualizarBadgeHome();
-}
-
-function irDesdeHome(modulo) {
-  _enHome = false;
-  document.getElementById('launcher').classList.remove('active');
-  // Mostrar nav
-  document.getElementById('main-nav').style.display = 'flex';
-  showModulo(modulo);
-}
-
-function volverHome() {
-  mostrarHome();
-}
-
-// Badge de pendientes en el launcher
-function actualizarBadgeHome() {
-  const sinE = VENTAS.filter(v => v.entregado === 'No');
-  const badge = document.getElementById('home-badge-pend');
-  if(badge) {
-    if(sinE.length > 0) {
-      badge.textContent = sinE.length;
-      badge.style.display = 'block';
-    } else {
-      badge.style.display = 'none';
-    }
-  }
-}
-
-// =========== INIT ===========
+function exportArrayanExcel(){const cred=VENTAS.filter(v=>v.arrayan).map(v=>({'Fecha':v.fecha,'Tipo':'Credito','Descripcion':v.cliente+' - '+v.producto,'Credito ($)':v.total,'Debito ($)':'','Cantidad':v.cant,'Saldo':''}));const deb=COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')).map(c=>({'Fecha':c.fecha,'Tipo':'Debito','Descripcion':'Compra: '+c.producto+' ('+c.cant+' '+(c.unidad||'')+')', 'Credito ($)':'','Debito ($)':c.costoTotal,'Cantidad':c.cant,'Saldo':''}));const movs=[...cred,...deb].sort((a,b)=>{const pa=a['Fecha'].split('/'),pb=b['Fecha'].split('/');return new Date(parseInt(pa[2]),parseInt(pa[1])-1,parseInt(pa[0]))-new Date(parseInt(pb[2]),parseInt(pb[1])-1,parseInt(pb[0]));});let s=0;movs.forEach(m=>{s+=(parseFloat(m['Credito ($)'])||0)-(parseFloat(m['Debito ($)'])||0);m['Saldo']='$'+Math.round(s).toLocaleString('es-AR');});if(!movs.length){notify('Sin movimientos para exportar');return;}const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(movs),'Cuenta Corriente Arrayan');XLSX.writeFile(wb,'cuenta_corriente_arrayan.xlsx');notify('✓ Excel Arrayan exportado');}// =========== INIT ===========
 document.getElementById('nav-fecha').textContent = new Date().toLocaleDateString('es-AR',{month:'long',year:'numeric'});
 restaurarSesion(); // Intentar restaurar sesión previa
-mostrarHome(); // Iniciar en pantalla de inicio (launcher)
+showModulo('resumen'); // Iniciar en módulo Resumen
 actualizarBadge();
 cargarDesdeSheets(); // Carga datos desde Sheets y luego renderiza
 setTimeout(()=>calcularAlertas(), 3000); // Calcular alertas después de cargar
