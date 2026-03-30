@@ -3434,7 +3434,7 @@ function renderPendientes() {
 
 function marcarEntregado(idx){VENTAS[idx].entregado='Sí';actualizarBadge();notify('✓ Marcado como entregado');renderPendientes();}
 function marcarCobrado(idx){VENTAS[idx].pagado='Sí';actualizarBadge();notify('✓ Marcado como cobrado');renderPendientes();}
-function actualizarBadge(){const sinE=VENTAS.filter(v=>v.entregado==='No').length;const sinC=VENTAS.filter(v=>v.pagado==='No').length;document.getElementById('badge-pend').textContent=sinE+sinC;}
+function actualizarBadge(){const sinE=VENTAS.filter(v=>v.entregado==='No').length;const sinC=VENTAS.filter(v=>v.pagado==='No').length;const el=document.getElementById('badge-pend');if(el) el.textContent=sinE+sinC;}
 
 // =========== LOGIN con hash + backend ===========
 async function doLogin(){
@@ -4520,61 +4520,60 @@ function imprimirRemito(idx) {
 <head>
 <meta charset="UTF-8">
 <style>
-  /* Remito: 16.5cm ancho x 20cm alto */
-  @page { size: 165mm 200mm; margin: 4mm 5mm; }
+  @page { size: 170mm 220mm; margin: 6mm 8mm; }
   * { visibility: visible !important; display: revert; }
   body > * { display: block; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: Arial, sans-serif; font-size: 9px; color: #111; }
+  body { font-family: Arial, sans-serif; font-size: 10px; color: #111; }
 
-  .remito-wrap { border: 2px solid #111; padding: 0; width: 155mm; max-height: 192mm; overflow: hidden; }
+  .remito-wrap { border: 2px solid #111; padding: 0; }
 
   /* HEADER */
   .header { display: flex; border-bottom: 2px solid #111; }
-  .header-left { padding: 8px 12px; flex: 1; border-right: 2px solid #111; }
-  .header-right { padding: 8px 12px; flex: 1; }
-  .empresa-nombre { font-size: 14px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; line-height: 1.1; }
-  .empresa-sub { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: #444; margin-top: 1px; }
-  .empresa-dir { font-size: 10px; margin-top: 6px; text-align: center; }
-  .empresa-categoria { font-size: 9px; font-weight: 700; text-align: center; margin-top: 3px; border-top: 1px solid #aaa; padding-top: 3px; letter-spacing: 1px; }
-  .remito-titulo { font-size: 16px; font-weight: 900; letter-spacing: 3px; margin-bottom: 5px; }
-  .remito-num { font-size: 12px; margin-bottom: 4px; }
-  .remito-num span { font-size: 12px; font-weight: 700; }
-  .fecha-row { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 11px; }
-  .fecha-box { border: 1.5px solid #111; padding: 3px 10px; font-size: 12px; font-weight: 700; min-width: 80px; }
-  .fiscal-row { font-size: 9px; margin-top: 4px; color: #333; line-height: 1.5; }
+  .header-left { padding: 12px 16px; flex: 1; border-right: 2px solid #111; }
+  .header-right { padding: 12px 16px; flex: 1; }
+  .empresa-nombre { font-size: 15px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; line-height: 1.1; }
+  .empresa-sub { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #444; margin-top: 2px; }
+  .empresa-dir { font-size: 11px; margin-top: 10px; text-align: center; }
+  .empresa-categoria { font-size: 10px; font-weight: 700; text-align: center; margin-top: 4px; border-top: 1px solid #aaa; padding-top: 4px; letter-spacing: 1px; }
+  .remito-titulo { font-size: 17px; font-weight: 900; letter-spacing: 3px; margin-bottom: 8px; }
+  .remito-num { font-size: 13px; margin-bottom: 6px; }
+  .remito-num span { font-size: 13px; font-weight: 700; }
+  .fecha-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 12px; }
+  .fecha-box { border: 1.5px solid #111; padding: 4px 14px; font-size: 13px; font-weight: 700; min-width: 90px; }
+  .fiscal-row { font-size: 10px; margin-top: 6px; color: #333; line-height: 1.6; }
 
   /* DESTINATARIO */
-  .dest-section { border-bottom: 1.5px solid #111; padding: 7px 12px; }
-  .dest-row { display: flex; align-items: flex-end; gap: 4px; margin-bottom: 5px; font-size: 11px; }
-  .dest-label { font-weight: 700; font-size: 10px; white-space: nowrap; }
-  .dest-line { flex: 1; border-bottom: 1px solid #555; padding-bottom: 1px; padding-left: 4px; font-size: 11px; }
-  .dest-cuit { border-bottom: 1px solid #555; padding-bottom: 1px; padding-left: 4px; min-width: 110px; font-size: 11px; }
+  .dest-section { border-bottom: 1.5px solid #111; padding: 10px 16px; }
+  .dest-row { display: flex; align-items: flex-end; gap: 4px; margin-bottom: 7px; font-size: 12px; }
+  .dest-label { font-weight: 700; font-size: 11px; white-space: nowrap; }
+  .dest-line { flex: 1; border-bottom: 1px solid #555; padding-bottom: 1px; padding-left: 6px; font-size: 12px; }
+  .dest-cuit { border-bottom: 1px solid #555; padding-bottom: 1px; padding-left: 6px; min-width: 130px; font-size: 12px; }
 
   /* TABLA */
   .tabla { width: 100%; border-collapse: collapse; }
   .tabla thead tr { background: #555; color: #fff; }
-  .tabla th { padding: 5px 8px; text-align: left; font-size: 10px; letter-spacing: .5px; text-transform: uppercase; }
+  .tabla th { padding: 7px 12px; text-align: left; font-size: 11px; letter-spacing: .5px; text-transform: uppercase; }
   .tabla th.right { text-align: right; }
-  .tabla td { padding: 5px 8px; border-bottom: 1px solid #ddd; font-size: 11px; }
+  .tabla td { padding: 7px 12px; border-bottom: 1px solid #ddd; font-size: 12px; }
   .tabla td.right { text-align: right; font-family: monospace; }
   .tabla tr:nth-child(even) td { background: #f9f9f9; }
   /* filas vacías */
-  .tabla tr.empty td { border-bottom: 1px solid #e0e0e0; height: 22px; }
+  .tabla tr.empty td { border-bottom: 1px solid #e0e0e0; height: 26px; }
 
   /* TOTAL */
-  .total-row { display: flex; justify-content: flex-end; border-top: 2px solid #111; padding: 7px 12px; }
-  .total-box { font-size: 11px; font-weight: 700; }
-  .total-box span { font-size: 12px; }
+  .total-row { display: flex; justify-content: flex-end; border-top: 2px solid #111; padding: 10px 16px; }
+  .total-box { font-size: 12px; font-weight: 700; }
+  .total-box span { font-size: 13px; }
 
   /* FIRMAS */
   .firmas { display: flex; border-top: 2px solid #111; }
-  .firma-box { flex: 1; padding: 10px 12px 8px; font-size: 10px; font-weight: 700; letter-spacing: .5px; }
+  .firma-box { flex: 1; padding: 14px 16px 10px; font-size: 11px; font-weight: 700; letter-spacing: .5px; }
   .firma-box:first-child { border-right: 1.5px solid #111; }
-  .firma-linea { border-top: 1px dashed #555; margin-top: 22px; padding-top: 3px; font-size: 9px; color: #555; }
+  .firma-linea { border-top: 1px dashed #555; margin-top: 28px; padding-top: 4px; font-size: 10px; color: #555; }
 
   /* PIE */
-  .pie { text-align: center; padding: 4px 12px; font-size: 8px; color: #666; border-top: 1px solid #ccc; }
+  .pie { text-align: center; padding: 6px 16px; font-size: 9px; color: #666; border-top: 1px solid #ccc; }
 </style>
 </head>
 <body>
@@ -4629,10 +4628,10 @@ function imprimirRemito(idx) {
   <table class="tabla">
     <thead>
       <tr>
-        <th style="width:80px">Cantidad</th>
+        <th style="width:90px">Cantidad</th>
         <th>Descripción</th>
-        <th class="right" style="width:100px">Precio Unit.</th>
-        <th class="right" style="width:100px">Total</th>
+        <th class="right" style="width:120px">Precio Unit.</th>
+        <th class="right" style="width:120px">Total</th>
       </tr>
     </thead>
     <tbody>
@@ -4642,7 +4641,7 @@ function imprimirRemito(idx) {
         <td class="right">$${v.precioU.toLocaleString('es-AR')}</td>
         <td class="right">$${v.total.toLocaleString('es-AR')}</td>
       </tr>
-      ${[...Array(5)].map(()=>'<tr class="empty"><td></td><td></td><td></td><td></td></tr>').join('')}
+      ${[...Array(8)].map(()=>'<tr class="empty"><td></td><td></td><td></td><td></td></tr>').join('')}
     </tbody>
   </table>
 
@@ -4676,7 +4675,7 @@ function imprimirRemito(idx) {
 
   const blob = new Blob([html], {type:'text/html'});
   const url = URL.createObjectURL(blob);
-  const w = window.open(url, '_blank', 'width=624,height=756');
+  const w = window.open(url, '_blank', 'width=643,height=832');
   setTimeout(()=>{ w.focus(); w.print(); URL.revokeObjectURL(url); }, 600);
 }
 
