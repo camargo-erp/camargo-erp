@@ -5033,8 +5033,9 @@ function checkSaldoArrayan() {
 
   // Calcular saldo actual del proveedor seleccionado
   const matchP = (nombre) => provModal && (nombre||'').toLowerCase().includes(provModal);
-  const ventasConPagos2 = new Set(PAGOS_ARRAYAN.map(p => p.ventaId));
-  const creditosPagos2 = esArrProv ? PAGOS_ARRAYAN.reduce((s,p)=>s+p.monto, 0) : 0;
+  const pagosVal2 = PAGOS_ARRAYAN.filter(p => p.ventaId && typeof p.fecha === 'string' && p.fecha.includes('/'));
+  const ventasConPagos2 = new Set(pagosVal2.map(p => p.ventaId));
+  const creditosPagos2 = esArrProv ? pagosVal2.reduce((s,p)=>s+p.monto, 0) : 0;
   const creditosDirectos2 = esArrProv ? VENTAS.filter(v=>v.arrayan && v.arrayanTipo !== 'parcial' && !ventasConPagos2.has(ventaId(v))).reduce((s,v)=>s+v.total, 0) : 0;
   const creditosIngreso2 = COMPRAS.filter(c=>matchP(c.proveedor)&&(c.fpago||'').toLowerCase().includes('ingreso a cta cte')).reduce((s,c)=>s+c.costoTotal, 0);
   const creditos = creditosPagos2 + creditosDirectos2 + creditosIngreso2;
@@ -5780,7 +5781,7 @@ function ventaId(v) {
 
 function getPagosDeVenta(v) {
   const id = ventaId(v);
-  return PAGOS_ARRAYAN.filter(p => p.ventaId === id);
+  return PAGOS_ARRAYAN.filter(p => p.ventaId === id && typeof p.fecha === 'string' && p.fecha.includes('/'));
 }
 
 function getTotalPagadoVenta(v) {
@@ -5926,15 +5927,17 @@ function renderArrayan() {
   const esArrayan = provSel.includes('arrayan');
 
   // Créditos: pagos parciales registrados (solo para Arrayan)
-  const creditosPagos = esArrayan ? PAGOS_ARRAYAN.map(p => ({
+  // Filtrar pagos con datos válidos (descartar filas basura sin ventaId o fecha)
+  const pagosValidos = PAGOS_ARRAYAN.filter(p => p.ventaId && typeof p.fecha === 'string' && p.fecha.includes('/'));
+  const creditosPagos = esArrayan ? pagosValidos.map(p => ({
     fecha: p.fecha, tipo: 'credito',
-    desc: p.concepto + (p.obs ? ' (' + p.obs + ')' : ''),
+    desc: p.concepto + (p.obs && typeof p.obs === 'string' ? ' (' + p.obs + ')' : ''),
     monto: p.monto, fpago: 'Pago parcial',
     pagoIdx: PAGOS_ARRAYAN.indexOf(p)
   })) : [];
 
   // Créditos: ventas con pago único (solo Arrayan tiene toggle de ventas)
-  const ventasConPagos = new Set(PAGOS_ARRAYAN.map(p => p.ventaId));
+  const ventasConPagos = new Set(pagosValidos.map(p => p.ventaId));
   const creditosVentasDirectas = esArrayan ? VENTAS.filter(v =>
     v.arrayan &&
     v.arrayanTipo !== 'parcial' &&
@@ -5967,7 +5970,7 @@ function renderArrayan() {
   }));
 
   const movs = [...creditos, ...debitosCC].sort((a,b) => {
-    const pa = a.fecha.split('/'), pb = b.fecha.split('/');
+    const pa = String(a.fecha||'').split('/'), pb = String(b.fecha||'').split('/');
     return new Date(+pa[2]||0, +pa[1]-1||0, +pa[0]||1) - new Date(+pb[2]||0, +pb[1]-1||0, +pb[0]||1);
   });
 
