@@ -2883,10 +2883,40 @@ function renderMargenesPorProducto(vf) {
   if(!el) return;
   if(!vf.length){ el.innerHTML='<div style="color:var(--muted);padding:16px">Sin datos</div>'; return; }
 
-  // Agrupar por producto
+  // Normalizar nombre de producto — nombres limpios y cortos
+  function normProd(nombre) {
+    const n = (nombre||'').toLowerCase().trim();
+    // Cereal Tridestilado — 5 variantes
+    if(n.includes('fracc envase caja') || (n.includes('cereal') && n.includes('caja'))) return 'Cereal Tridest. c/env c/caja';
+    if(n.includes('fracc envase') && !n.includes('caja') && !n.includes('recambio')) return 'Cereal Tridest. c/env s/caja';
+    if(n.includes('fracc recambio') || (n.includes('cereal') && n.includes('recambio') && !n.includes('tambor'))) return 'Cereal Tridest. recambio';
+    if(n.includes('cereal') && n.includes('tambor') && n.includes('recambio')) return 'Cereal Tridest. tambor recambio';
+    if(n.includes('cereal') && n.includes('tambor') && n.includes('venta')) return 'Cereal Tridest. tambor venta';
+    // Cereal genérico (TRIDESTILADO, "Alcohol de Cereal Tridestilado", etc.)
+    if(n.includes('cereal') || n.includes('tridestilado') || n === 'tridestilado') return 'Cereal Tridest. c/env s/caja';
+    // Etílico 96% — 2 variantes
+    if((n.includes('etíl') || n.includes('etil')) && n.includes('tambor') && n.includes('recambio')) return 'Etílico 96% tambor recambio';
+    if((n.includes('etíl') || n.includes('etil')) && n.includes('tambor') && n.includes('venta')) return 'Etílico 96% tambor venta';
+    if(n.includes('etíl') || n.includes('etil') || n === 'etilico') return 'Etílico 96% tambor recambio';
+    // Productos USD y otros
+    if(n.includes('sulfónico') || n.includes('sulfonico') || n === 'sulfo') return 'Ácido Sulfónico';
+    if(n.includes('soda') || n.includes('cáustica') || n.includes('caustica')) return 'Soda Cáustica 99%';
+    if(n.includes('glicerina')) return 'Glicerina USP Vegetal';
+    if(n.includes('nonilfenol') || n === 'nonil') return 'Nonilfenol 10M';
+    if(n.includes('isoprop') || n === 'ipa') return 'Alcohol Isopropílico';
+    if(n.includes('butilglicol')) return 'Butilglicol';
+    if(n.includes('amoni') || n === 'agua amonic') return 'Agua Amoniacal';
+    if(n.includes('thinner') && n.includes('501')) return 'Thinner Profesional 501';
+    if(n.includes('thinner') && n.includes('sello')) return 'Thinner Sello de Oro';
+    if(n.includes('aguarrás') || n.includes('aguarras')) return 'Aguarrás';
+    // Fallback: nombre original limpio
+    return nombre.length > 45 ? nombre.substring(0,45)+'…' : nombre;
+  }
+
+  // Agrupar por producto normalizado
   const byProd = {};
   vf.forEach(v=>{
-    const prod = v.producto.length>40 ? v.producto.substring(0,40)+'…' : v.producto;
+    const prod = normProd(v.producto);
     if(!byProd[prod]) byProd[prod]={ventas:0,gan:0,cant:0,ops:0,meses:{}};
     byProd[prod].ventas+=v.total;
     byProd[prod].gan+=v.gan;
