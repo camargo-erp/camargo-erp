@@ -3511,10 +3511,15 @@ function getPrecio(prod,cant) {
   const tri=PRECIOS.find(p=>p.prod===prod);
   if(tri){
     let precio;
-    if(cant>=200) precio=tri.m200;
-    else if(cant>=120) precio=tri.m120;
-    else if(cant>=80) precio=tri.m80;
-    else precio=tri.lista;
+    // Productos tambor usan precioFijo directo, no tramos de cantidad
+    if(tri.esTambor){
+      precio=tri.precioFijo||0;
+    } else {
+      if(cant>=200) precio=tri.m200;
+      else if(cant>=120) precio=tri.m120;
+      else if(cant>=80) precio=tri.m80;
+      else precio=tri.lista;
+    }
     return {precio,costo:tri.costo};
   }
   const otro=OTROS_PROD.find(p=>p.nombre===prod);
