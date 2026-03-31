@@ -1231,9 +1231,9 @@ let PRECIOS = [
   {modal:"CON Envase 5L CON caja",costo:1596.4,lista:2390,m80:2294,m120:2223,m200:2151,prod:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO fracc envase caja"},
   {modal:"SIN Envase 5L SIN caja",costo:1440,lista:2110,m80:2026,m120:1962,m200:1899,prod:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO fracc recambio"},
   {modal:"CEREAL TAMBOR 200L RECAMBIO",costo:1440,precioFijo:1600,costoTambor:null,precioTambor:null,esTambor:true,esRecambio:true,prod:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO tambor recambio"},
-  {modal:"CEREAL TAMBOR 200L VENTA",costo:1520,precioFijo:1726.25,costoTambor:null,precioTambor:null,esTambor:true,esRecambio:false,prod:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO tambor venta"},
+  {modal:"CEREAL TAMBOR 200L VENTA",costo:1520,precioFijo:1726.25,costoTambor:17000,precioTambor:41250,esTambor:true,esRecambio:false,prod:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO tambor venta"},
   {modal:"ETÍLICO TAMBOR 200L RECAMBIO",costo:1315,precioFijo:1505,costoTambor:null,precioTambor:null,esTambor:true,esRecambio:true,prod:"Alcohol Etílico al 96% Buen gusto tambor recambio"},
-  {modal:"ETÍLICO TAMBOR 200L VENTA",costo:1395,precioFijo:1631.25,costoTambor:null,precioTambor:null,esTambor:true,esRecambio:false,prod:"Alcohol Etílico al 96% Buen gusto tambor venta"},
+  {modal:"ETÍLICO TAMBOR 200L VENTA",costo:1395,precioFijo:1631.25,costoTambor:17000,precioTambor:41250,esTambor:true,esRecambio:false,prod:"Alcohol Etílico al 96% Buen gusto tambor venta"},
 ];
 
 let VALOR_DOLAR = 1200;
@@ -3513,10 +3513,10 @@ function getPrecio(prod,cant) {
     let precio;
     // Productos tambor usan precioFijo directo, no tramos de cantidad
     if(tri.esTambor){
-      precio=tri.precioFijo||0;
+      precio=parseFloat(tri.precioFijo)||0;
       // Tambor venta: incluir costo y precio del tambor físico
-      const costoTambor = (!tri.esRecambio && tri.costoTambor) ? tri.costoTambor : 0;
-      const precioTambor = (!tri.esRecambio && tri.precioTambor) ? tri.precioTambor : 0;
+      const costoTambor = (!tri.esRecambio && tri.costoTambor) ? parseFloat(tri.costoTambor)||0 : 0;
+      const precioTambor = (!tri.esRecambio && tri.precioTambor) ? parseFloat(tri.precioTambor)||0 : 0;
       return {precio, costo:tri.costo, esTambor:true, esRecambio:tri.esRecambio, costoTambor, precioTambor};
     } else {
       if(cant>=200) precio=tri.m200;
