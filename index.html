@@ -3514,6 +3514,10 @@ function getPrecio(prod,cant) {
     // Productos tambor usan precioFijo directo, no tramos de cantidad
     if(tri.esTambor){
       precio=tri.precioFijo||0;
+      // Tambor venta: incluir costo y precio del tambor físico
+      const costoTambor = (!tri.esRecambio && tri.costoTambor) ? tri.costoTambor : 0;
+      const precioTambor = (!tri.esRecambio && tri.precioTambor) ? tri.precioTambor : 0;
+      return {precio, costo:tri.costo, esTambor:true, esRecambio:tri.esRecambio, costoTambor, precioTambor};
     } else {
       if(cant>=200) precio=tri.m200;
       else if(cant>=120) precio=tri.m120;
@@ -3555,15 +3559,18 @@ function calcularPrecio() {
   }
   const subtotal=cant*pc.precio;
   const costoTotal=cant*pc.costo;
+  // Tambor venta: sumar costo y precio del tambor físico
+  const costoTamborTotal = pc.costoTambor || 0;
+  const precioTamborTotal = pc.precioTambor || 0;
   const envioTotal=entrega==='Propio'?envio:0;
-  const total=subtotal+envioTotal;
-  const gan=total-costoTotal;
+  const total=subtotal+precioTamborTotal+envioTotal;
+  const gan=total-(costoTotal+costoTamborTotal);
   const margen=total>0?gan/total:0;
   document.getElementById('nv-precio').value=pc.precio.toLocaleString('es-AR');
-  document.getElementById('res-precio').textContent=fmt(pc.precio)+'/L'+(pc.especial?' ⭐':'');
-  document.getElementById('res-costo').textContent=fmt(pc.costo)+'/L'+(pc.especial?' ⭐':'');
+  document.getElementById('res-precio').textContent=fmt(pc.precio)+'/L'+(pc.especial?' ⭐':'')+(precioTamborTotal?' + tambor '+fmt(precioTamborTotal):'');
+  document.getElementById('res-costo').textContent=fmt(pc.costo)+'/L'+(pc.especial?' ⭐':'')+(costoTamborTotal?' + tambor '+fmt(costoTamborTotal):'');
   document.getElementById('res-cant').textContent=cant+' Lts';
-  document.getElementById('res-subtotal').textContent=fmt(subtotal);
+  document.getElementById('res-subtotal').textContent=fmt(subtotal)+(precioTamborTotal?' + '+fmt(precioTamborTotal):'');
   document.getElementById('res-envio').textContent=envioTotal>0?fmt(envioTotal):'$0';
   document.getElementById('res-total').textContent=fmt(total);
   document.getElementById('res-ganancia').textContent=fmt(gan);
@@ -4538,18 +4545,20 @@ async function guardarVenta() {
   if(!pc){alert('Ingresá precio y costo manual');return;}
   const subtotal=cant*pc.precio;
   const costoTotal=cant*pc.costo;
+  const costoTamborTotal2 = pc.costoTambor || 0;
+  const precioTamborTotal2 = pc.precioTambor || 0;
   const envioTotal=entrega==='Propio'?envio:0;
-  const total=subtotal+envioTotal;
-  const gan=total-costoTotal;
+  const total=subtotal+precioTamborTotal2+envioTotal;
+  const gan=total-(costoTotal+costoTamborTotal2);
   const esArrayan2 = prod.startsWith('ARRAYAN:') || (pc.esArrayan === true);
   const prodNombre2 = prod.startsWith('ARRAYAN:') ? prod.replace('ARRAYAN:','') : prod;
-  const costoOriginal2 = esArrayan2 ? Math.round(cant * pc.costo / 1.05) : costoTotal;
+  const costoOriginal2 = esArrayan2 ? Math.round(cant * pc.costo / 1.05) : (costoTotal+costoTamborTotal2);
   const ganReal2 = esArrayan2 ? Math.round(costoOriginal2 * 0.05) : gan;
   const venta = {
     fecha:new Date(fecha).toLocaleDateString('es-AR'),
     canal:canal||'Mayorista',cliente,producto:prodNombre2,
     cant,precioU:pc.precio,total,costoU:pc.costo,
-    costoT:costoTotal,gan:ganReal2,margen:total>0?ganReal2/total:0,
+    costoT:costoTotal+costoTamborTotal2,gan:ganReal2,margen:total>0?ganReal2/total:0,
     fpago,pagado,entrega,entregado:'No',
     frozen:true,especial:espe||false,
     esArrayan:esArrayan2,
