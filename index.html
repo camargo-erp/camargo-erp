@@ -2509,7 +2509,7 @@ function notify(msg,color) {
 }
 
 function abrirModal(id){const el=document.getElementById(id);el.classList.add('show');el.style.display='flex';}
-function cerrarModal(id){const el=document.getElementById(id);el.classList.remove('show');el.style.display='none';}
+function cerrarModal(id){const el=document.getElementById(id);el.classList.remove('show');el.style.display='';}
 
 // =========== DASHBOARD ===========
 function setDashPeriodo(p) {
@@ -5807,7 +5807,9 @@ function abrirPagoArrayan(ventaIdx) {
   document.getElementById('pa-monto').value = pendiente > 0 ? Math.round(pendiente) : '';
   document.getElementById('pa-obs').value = '';
   actualizarResumenPago();
-  document.getElementById('modal-pago-arrayan').classList.add('show');
+  const modal = document.getElementById('modal-pago-arrayan');
+  modal.style.display = '';
+  modal.classList.add('show');
 }
 
 function actualizarResumenPago() {
