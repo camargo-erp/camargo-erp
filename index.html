@@ -4716,7 +4716,7 @@ function abrirEditar(idx) {
   set('ev-nroFactura', v.nroFactura||'');
   set('ev-arrayan', v.arrayan ? 'true' : 'false');
   actualizarPreviewEditar();
-  modal.classList.add('show');
+  abrirModal('modal-editar-venta');
 }
 
 function actualizarPreviewEditar() {
@@ -4981,7 +4981,7 @@ function abrirEditarCliente(idx) {
   document.getElementById('ec-pago').value      = c.pago   || 'transferencia';
   document.getElementById('ec-entrega').value   = c.entrega|| 'envio a cliente';
   document.getElementById('ec-obs').value       = c.obs    || '';
-  document.getElementById('modal-editar-cliente').classList.add('show');
+  abrirModal('modal-editar-cliente');
 }
 
 async function guardarEdicionCliente() {
@@ -5034,7 +5034,7 @@ function abrirModalCompra() {
   document.getElementById('nc-fpago').value    = 'Transferencia';
   document.getElementById('nc-nroDoc').value   = '';
   document.getElementById('nc-obs').value      = '';
-  document.getElementById('modal-compra').classList.add('show');
+  abrirModal('modal-compra');
 }
 
 function checkSaldoArrayan() {
@@ -5223,7 +5223,7 @@ function abrirModalReporteExcel() {
   var selAnio = document.getElementById('rep-anio');
   if(selMes) selMes.value = hoy.getMonth() + 1;
   if(selAnio) selAnio.value = hoy.getFullYear();
-  document.getElementById('modal-reporte-excel').classList.add('show');
+  abrirModal('modal-reporte-excel');
 }
 
 function exportReporteCompletoExcel() {
@@ -5722,7 +5722,7 @@ function calcularAlertas() {
 function abrirDetalle(titulo, contenidoHTML) {
   document.getElementById('modal-detalle-titulo').textContent = titulo;
   document.getElementById('modal-detalle-contenido').innerHTML = contenidoHTML;
-  document.getElementById('modal-detalle').classList.add('show');
+  abrirModal('modal-detalle');
 }
 
 function verPendientesCriticos() {
@@ -6021,7 +6021,7 @@ function abrirPagoArrayan(ventaIdx) {
   document.getElementById('pa-monto').value = pendiente > 0 ? Math.round(pendiente) : '';
   document.getElementById('pa-obs').value = '';
   actualizarResumenPago();
-  document.getElementById('modal-pago-arrayan').classList.add('show');
+  abrirModal('modal-pago-arrayan');
 }
 
 function actualizarResumenPago() {
