@@ -303,6 +303,7 @@
     <div style="display:flex;gap:8px">
       <button class="btn btn-primary" onclick="abrirModalCompra()">➕ Nueva Compra</button>
       <button class="btn btn-warn btn-sm" onclick="exportComprasExcel()">📊 Excel</button>
+      <button class="btn btn-warn btn-sm" onclick="abrirModalReporteExcel()" style="background:#2ecc71;color:#fff">📥 Reporte Completo</button>
     </div>
   </div>
   <!-- Filtros -->
@@ -378,6 +379,35 @@
     <div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end">
       <button class="btn btn-ghost" onclick="cerrarModal('modal-compra')">Cancelar</button>
       <button class="btn btn-primary" onclick="guardarCompra()">💾 Guardar Compra</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Reporte Completo Excel -->
+<div class="modal-overlay" id="modal-reporte-excel">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-title">📥 Reporte Completo — Excel</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Excel con 4 solapas: Compras, Cuenta Corriente Arrayan (acumulada), Escala de Volumen y Ventas Arrayan.</p>
+    <div style="display:flex;gap:12px;margin-bottom:16px">
+      <div style="flex:1">
+        <label style="font-size:12px;color:var(--muted);margin-bottom:4px;display:block">Año</label>
+        <select id="rep-anio" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px">
+          <option value="2024">2024</option><option value="2025">2025</option><option value="2026" selected>2026</option>
+        </select>
+      </div>
+      <div style="flex:1">
+        <label style="font-size:12px;color:var(--muted);margin-bottom:4px;display:block">Mes</label>
+        <select id="rep-mes" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px">
+          <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option>
+          <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
+          <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
+          <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="cerrarModal('modal-reporte-excel')">Cancelar</button>
+      <button class="btn btn-primary" onclick="exportReporteCompletoExcel()" style="background:#2ecc71">📥 Descargar Excel</button>
     </div>
   </div>
 </div>
@@ -4341,7 +4371,7 @@ function guardarTransporte(){
 }
 
 // =========== GOOGLE SHEETS SYNC ===========
-const GS_URL = const GS_URL = 'https://script.google.com/macros/s/AKfycbzEzdlVaTmDMIKITcW3UFOQKJzqwweCUHEyNRozNey44bnhFYcKjK8fBmiycTcj3xMw/exec';
+const GS_URL = 'https://script.google.com/macros/s/AKfycbzEzdlVaTmDMIKITcW3UFOQKJzqwweCUHEyNRozNey44bnhFYcKjK8fBmiycTcj3xMw/exec';
 
 // ── SEGURIDAD: Token + Sesión ──
 const API_TOKEN = 'cmg_erp_2026_s3cur3_Kx9mP';
@@ -4660,7 +4690,7 @@ function abrirEditar(idx) {
   if(!modal) { console.error('Modal no encontrado'); return; }
   // Convertir fecha dd/mm/yyyy a yyyy-mm-dd para el input date
   const partes = (v.fecha||'').split('/');
-  const fechaInput = partes.length===3 ? `${partes[2]}-${partes[1]}-${partes[0]}` : v.fecha;
+  const fechaInput = partes.length===3 ? `${partes[2]}-${partes[1].padStart(2,'0')}-${partes[0].padStart(2,'0')}` : v.fecha;
   const set = (id, val) => { const el=document.getElementById(id); if(el) el.value=val||''; };
   set('ev-fecha', fechaInput);
   set('ev-canal', v.canal);
@@ -4676,7 +4706,7 @@ function abrirEditar(idx) {
   set('ev-nroFactura', v.nroFactura||'');
   set('ev-arrayan', v.arrayan ? 'true' : 'false');
   actualizarPreviewEditar();
-  modal.classList.add('show');
+  abrirModal('modal-editar-venta');
 }
 
 function actualizarPreviewEditar() {
@@ -4941,7 +4971,7 @@ function abrirEditarCliente(idx) {
   document.getElementById('ec-pago').value      = c.pago   || 'transferencia';
   document.getElementById('ec-entrega').value   = c.entrega|| 'envio a cliente';
   document.getElementById('ec-obs').value       = c.obs    || '';
-  document.getElementById('modal-editar-cliente').classList.add('show');
+  abrirModal('modal-editar-cliente');
 }
 
 async function guardarEdicionCliente() {
@@ -4994,7 +5024,7 @@ function abrirModalCompra() {
   document.getElementById('nc-fpago').value    = 'Transferencia';
   document.getElementById('nc-nroDoc').value   = '';
   document.getElementById('nc-obs').value      = '';
-  document.getElementById('modal-compra').classList.add('show');
+  abrirModal('modal-compra');
 }
 
 function checkSaldoArrayan() {
@@ -5173,6 +5203,147 @@ function exportComprasExcel() {
   XLSX.utils.book_append_sheet(wb,ws,'Compras');
   XLSX.writeFile(wb,'compras_camargo.xlsx');
   notify('✓ Excel compras exportado');
+}
+
+// =========== REPORTE COMPLETO EXCEL (4 solapas) ===========
+
+function abrirModalReporteExcel() {
+  var hoy = new Date();
+  var selMes = document.getElementById('rep-mes');
+  var selAnio = document.getElementById('rep-anio');
+  if(selMes) selMes.value = hoy.getMonth() + 1;
+  if(selAnio) selAnio.value = hoy.getFullYear();
+  abrirModal('modal-reporte-excel');
+}
+
+function exportReporteCompletoExcel() {
+  var mesesNombres = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  var anio = parseInt(document.getElementById('rep-anio').value);
+  var mes  = parseInt(document.getElementById('rep-mes').value);
+
+  // Filtro por mes/año usando parseFechaVenta (la más robusta del ERP)
+  function enPeriodo(fecha) {
+    var pf = parseFechaVenta(fecha);
+    return pf.mes === mes && pf.anio === anio;
+  }
+
+  // Helper para ordenar por fecha dd/mm/yyyy
+  function sortFecha(a, b) {
+    var pa = (a.fecha||'').split('/'), pb = (b.fecha||'').split('/');
+    return new Date(+pa[2]||0, +pa[1]-1||0, +pa[0]||1) - new Date(+pb[2]||0, +pb[1]-1||0, +pb[0]||1);
+  }
+
+  // === SOLAPA 1: COMPRAS (filtrada por mes) ===
+  var comprasFiltradas = COMPRAS.filter(function(c){ return enPeriodo(c.fecha); });
+  var rowsCompras = comprasFiltradas.map(function(c){
+    return {
+      'Fecha': c.fecha, 'Proveedor': c.proveedor, 'Producto': c.producto,
+      'Cantidad': c.cant, 'Unidad': c.unidad || '', 'Precio Unit.': c.precioU,
+      'Costo Total': c.costoTotal, 'Forma de Pago': c.fpago,
+      'N° Doc': c.nroDoc || '', 'Obs': c.obs || ''
+    };
+  });
+  var totalCompras = comprasFiltradas.reduce(function(s,c){ return s + c.costoTotal; }, 0);
+  rowsCompras.push({ 'Fecha':'', 'Proveedor':'', 'Producto':'TOTAL', 'Cantidad':'', 'Unidad':'', 'Precio Unit.':'', 'Costo Total':totalCompras, 'Forma de Pago':'', 'N° Doc':'', 'Obs':'' });
+
+  // === SOLAPA 2: CUENTA CORRIENTE ARRAYAN (SIEMPRE ACUMULADA — replica renderArrayan) ===
+  // Créditos: pagos parciales (todos, sin filtro de mes)
+  var ccCreditosPagos = PAGOS_ARRAYAN.map(function(p){
+    return { fecha: p.fecha, tipo: 'Crédito', desc: p.concepto + (p.obs ? ' (' + p.obs + ')' : ''), credito: p.monto, debito: 0 };
+  });
+  // Créditos: ventas Arrayan pago único (sin pagos parciales asociados, sin tipo parcial)
+  var ccVentasConPagos = new Set(PAGOS_ARRAYAN.map(function(p){ return p.ventaId; }));
+  var ccCreditosVentas = VENTAS.filter(function(v){
+    return v.arrayan && v.arrayanTipo !== 'parcial' && !ccVentasConPagos.has(ventaId(v));
+  }).map(function(v){
+    return { fecha: v.fecha, tipo: 'Crédito', desc: v.producto.substring(0,50) + ' (' + v.cant + ' Lts) — Pago único', credito: v.total, debito: 0 };
+  });
+  // Créditos: ingresos propios a cta cte
+  var ccCreditosIngreso = COMPRAS.filter(function(c){
+    return (c.proveedor||'').toLowerCase().includes('arrayan') && (c.fpago||'').toLowerCase().includes('ingreso a cta cte');
+  }).map(function(c){
+    return { fecha: c.fecha, tipo: 'Crédito', desc: 'Ingreso propio: ' + c.producto, credito: c.costoTotal, debito: 0 };
+  });
+  // Débitos: compras cta cte Arrayan
+  var ccDebitos = COMPRAS.filter(function(c){
+    return (c.proveedor||'').toLowerCase().includes('arrayan') && esCuentaCorrienteArrayan(c.fpago);
+  }).map(function(c){
+    return { fecha: c.fecha, tipo: 'Débito', desc: 'Compra: ' + c.producto + ' (' + c.cant + ' ' + (c.unidad||'Lts') + ')', credito: 0, debito: c.costoTotal };
+  });
+  // Unir, ordenar, calcular saldo corrido
+  var ccMovs = [].concat(ccCreditosPagos, ccCreditosVentas, ccCreditosIngreso, ccDebitos).sort(sortFecha);
+  var ccSaldo = 0;
+  var ccTotalCred = ccMovs.reduce(function(s,m){ return s + m.credito; }, 0);
+  var ccTotalDeb  = ccMovs.reduce(function(s,m){ return s + m.debito; }, 0);
+  var rowsCC = [
+    { 'Fecha':'RESUMEN', 'Tipo':'', 'Descripción':'', 'Crédito ($)':'', 'Débito ($)':'', 'Saldo ($)':'' },
+    { 'Fecha':'Saldo Cuenta Corriente', 'Tipo':'', 'Descripción':'', 'Crédito ($)':'', 'Débito ($)':'', 'Saldo ($)':Math.round(ccTotalCred - ccTotalDeb) },
+    { 'Fecha':'Total Créditos', 'Tipo':'', 'Descripción':'', 'Crédito ($)':Math.round(ccTotalCred), 'Débito ($)':'', 'Saldo ($)':'' },
+    { 'Fecha':'Total Débitos', 'Tipo':'', 'Descripción':'', 'Crédito ($)':'', 'Débito ($)':Math.round(ccTotalDeb), 'Saldo ($)':'' },
+    { 'Fecha':'', 'Tipo':'', 'Descripción':'', 'Crédito ($)':'', 'Débito ($)':'', 'Saldo ($)':'' },
+    { 'Fecha':'DETALLE MOVIMIENTOS', 'Tipo':'', 'Descripción':'', 'Crédito ($)':'', 'Débito ($)':'', 'Saldo ($)':'' }
+  ];
+  ccMovs.forEach(function(m){
+    ccSaldo += m.credito - m.debito;
+    rowsCC.push({ 'Fecha':m.fecha, 'Tipo':m.tipo, 'Descripción':m.desc, 'Crédito ($)':m.credito||'', 'Débito ($)':m.debito||'', 'Saldo ($)':Math.round(ccSaldo) });
+  });
+
+  // === SOLAPA 3: ESCALA POR VOLUMEN (filtrada por mes) ===
+  var comprasEscala = COMPRAS.filter(function(c){
+    if(!(c.proveedor||'').toLowerCase().includes('arrayan')) return false;
+    if((c.fpago||'').toLowerCase().includes('ingreso a cta cte')) return false;
+    return enPeriodo(c.fecha);
+  });
+  var totalLts = comprasEscala.reduce(function(s,c){ return s + c.cant; }, 0);
+  var pctActual = getPctArrayan(totalLts);
+  var precioListaCereal  = PRECIO_LISTA_ARRAYAN.cereal;
+  var precioListaEtilico = PRECIO_LISTA_ARRAYAN.etilico;
+  var colCorr = 'Precio Correcto $/Lt (' + (pctActual*100).toFixed(1) + '%)';
+  var rowsEscala = comprasEscala.map(function(c){
+    var esCereal = (c.producto||'').toLowerCase().includes('cereal') || (c.producto||'').toLowerCase().includes('tri');
+    var lista = esCereal ? precioListaCereal : precioListaEtilico;
+    var row = { 'Fecha':c.fecha, 'Cantidad (Lts)':c.cant, 'Producto':c.producto, 'Forma de Pago':c.fpago||'', 'Precio Pagado ($/Lt)':c.precioU, 'Total Pagado ($)':c.costoTotal };
+    row[colCorr] = Math.round(lista * (1 + pctActual));
+    return row;
+  });
+  var totalPagEsc = comprasEscala.reduce(function(s,c){ return s + c.costoTotal; }, 0);
+  var totalCorrEsc = comprasEscala.reduce(function(s,c){
+    var esCereal = (c.producto||'').toLowerCase().includes('cereal') || (c.producto||'').toLowerCase().includes('tri');
+    return s + c.cant * (esCereal ? precioListaCereal : precioListaEtilico) * (1 + pctActual);
+  }, 0);
+  var filaTot = { 'Fecha':'TOTAL', 'Cantidad (Lts)':totalLts, 'Producto':'', 'Forma de Pago':'', 'Precio Pagado ($/Lt)':'', 'Total Pagado ($)':Math.round(totalPagEsc) };
+  filaTot[colCorr] = Math.round(totalCorrEsc);
+  rowsEscala.push(filaTot);
+  var filaDif = { 'Fecha':'Rango: '+(pctActual*100).toFixed(1)+'%', 'Cantidad (Lts)':'', 'Producto':'Diferencia: $'+Math.round(Math.abs(totalPagEsc-totalCorrEsc)).toLocaleString('es-AR')+(totalPagEsc>=totalCorrEsc?' (a favor)':' (debes)'), 'Forma de Pago':'', 'Precio Pagado ($/Lt)':'', 'Total Pagado ($)':'' };
+  filaDif[colCorr] = '';
+  rowsEscala.push(filaDif);
+
+  // === SOLAPA 4: VENTAS ARRAYAN CON COMISIÓN 5% (filtrada por mes) ===
+  var ventasArr = VENTAS.filter(function(v){ return v.esArrayan === true && enPeriodo(v.fecha); });
+  var rowsVArr = ventasArr.map(function(v){
+    return { 'Fecha':v.fecha, 'Cliente':v.cliente, 'Producto':v.producto, 'Cantidad':v.cant, 'Total Venta ($)':v.total, 'Comisión 5% ($)':Math.round(v.total*0.05) };
+  });
+  var totVArr = ventasArr.reduce(function(s,v){ return s+v.total; }, 0);
+  var totCom = ventasArr.reduce(function(s,v){ return s+Math.round(v.total*0.05); }, 0);
+  rowsVArr.push({ 'Fecha':'', 'Cliente':'', 'Producto':'TOTAL', 'Cantidad':'', 'Total Venta ($)':totVArr, 'Comisión 5% ($)':totCom });
+
+  // === GENERAR WORKBOOK ===
+  var wb = XLSX.utils.book_new();
+  var ws1 = XLSX.utils.json_to_sheet(rowsCompras);
+  ws1['!cols'] = [{wch:12},{wch:20},{wch:25},{wch:10},{wch:8},{wch:12},{wch:14},{wch:16},{wch:12},{wch:20}];
+  XLSX.utils.book_append_sheet(wb, ws1, 'Compras');
+  var ws2 = XLSX.utils.json_to_sheet(rowsCC);
+  ws2['!cols'] = [{wch:24},{wch:10},{wch:45},{wch:14},{wch:14},{wch:14}];
+  XLSX.utils.book_append_sheet(wb, ws2, 'Cuenta Corriente');
+  var ws3 = XLSX.utils.json_to_sheet(rowsEscala);
+  ws3['!cols'] = [{wch:12},{wch:14},{wch:30},{wch:16},{wch:18},{wch:16},{wch:22}];
+  XLSX.utils.book_append_sheet(wb, ws3, 'Escala Volumen');
+  var ws4 = XLSX.utils.json_to_sheet(rowsVArr);
+  ws4['!cols'] = [{wch:12},{wch:22},{wch:30},{wch:10},{wch:16},{wch:16}];
+  XLSX.utils.book_append_sheet(wb, ws4, 'Ventas Arrayan');
+  XLSX.writeFile(wb, 'reporte_camargo_' + mesesNombres[mes].toLowerCase() + '_' + anio + '.xlsx');
+  cerrarModal('modal-reporte-excel');
+  notify('✓ Reporte descargado — ' + mesesNombres[mes] + ' ' + anio);
 }
 
 async function gsGuardarCompra(compra) {
@@ -5493,7 +5664,7 @@ function calcularAlertas() {
 function abrirDetalle(titulo, contenidoHTML) {
   document.getElementById('modal-detalle-titulo').textContent = titulo;
   document.getElementById('modal-detalle-contenido').innerHTML = contenidoHTML;
-  document.getElementById('modal-detalle').classList.add('show');
+  abrirModal('modal-detalle');
 }
 
 function verPendientesCriticos() {
@@ -5792,7 +5963,7 @@ function abrirPagoArrayan(ventaIdx) {
   document.getElementById('pa-monto').value = pendiente > 0 ? Math.round(pendiente) : '';
   document.getElementById('pa-obs').value = '';
   actualizarResumenPago();
-  document.getElementById('modal-pago-arrayan').classList.add('show');
+  abrirModal('modal-pago-arrayan');
 }
 
 function actualizarResumenPago() {
