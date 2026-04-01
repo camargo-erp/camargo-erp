@@ -6162,7 +6162,8 @@ function renderArrayan() {
   }));
 
   const movs = [...creditos, ...debitosCC].sort((a,b) => {
-    const pa = a.fecha.split('/'), pb = b.fecha.split('/');
+    const fa = String(a.fecha||''), fb = String(b.fecha||'');
+    const pa = fa.split('/'), pb = fb.split('/');
     return new Date(+pa[2]||0, +pa[1]-1||0, +pa[0]||1) - new Date(+pb[2]||0, +pb[1]-1||0, +pb[0]||1);
   });
 
