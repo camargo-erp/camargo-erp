@@ -2555,7 +2555,7 @@ function setDashPeriodo(p) {
 
 function parseFechaVenta(fecha){
   if(!fecha) return {anio:0,mes:0};
-  const s = String(fecha instanceof Date ? safeFecha(fecha) : fecha).trim();
+  const s = String(fecha).trim();
   // dd/mm/yyyy o d/m/yyyy
   const m1 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
   if(m1) return {anio:parseInt(m1[3]),mes:parseInt(m1[2])};
@@ -5977,7 +5977,7 @@ function esCuentaCorrienteArrayan(fpago) {
 }
 
 function ventaId(v) {
-  var f = (String(v.fecha) || '').split('/');
+  var f = (v.fecha || '').split('/');
   var fn = (parseInt(f[0])||0) + '/' + (parseInt(f[1])||0) + '/' + (f[2]||'');
   return fn + '|' + v.cliente + '|' + Math.round(v.total) + '|' + Math.round(v.cant);
 }
