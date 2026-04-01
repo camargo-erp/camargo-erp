@@ -303,7 +303,6 @@
     <div style="display:flex;gap:8px">
       <button class="btn btn-primary" onclick="abrirModalCompra()">➕ Nueva Compra</button>
       <button class="btn btn-warn btn-sm" onclick="exportComprasExcel()">📊 Excel</button>
-      <button class="btn btn-warn btn-sm" onclick="abrirModalReporteExcel()" style="background:#2ecc71;color:#fff">📥 Reporte Completo</button>
     </div>
   </div>
   <!-- Filtros -->
@@ -379,35 +378,6 @@
     <div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end">
       <button class="btn btn-ghost" onclick="cerrarModal('modal-compra')">Cancelar</button>
       <button class="btn btn-primary" onclick="guardarCompra()">💾 Guardar Compra</button>
-    </div>
-  </div>
-</div>
-
-<!-- Modal Reporte Completo Excel -->
-<div class="modal-overlay" id="modal-reporte-excel">
-  <div class="modal" style="max-width:420px">
-    <div class="modal-title">📥 Reporte Completo — Excel</div>
-    <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Descargá un Excel con 4 solapas: Compras, Cuenta Corriente Arrayan, Escala de Volumen y Ventas Arrayan con comisión.</p>
-    <div style="display:flex;gap:12px;margin-bottom:16px">
-      <div style="flex:1">
-        <label style="font-size:12px;color:var(--muted);margin-bottom:4px;display:block">Año</label>
-        <select id="rep-anio" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px">
-          <option value="2024">2024</option><option value="2025">2025</option><option value="2026" selected>2026</option>
-        </select>
-      </div>
-      <div style="flex:1">
-        <label style="font-size:12px;color:var(--muted);margin-bottom:4px;display:block">Mes</label>
-        <select id="rep-mes" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px">
-          <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option>
-          <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
-          <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
-          <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
-        </select>
-      </div>
-    </div>
-    <div style="display:flex;gap:10px;justify-content:flex-end">
-      <button class="btn btn-ghost" onclick="cerrarModal('modal-reporte-excel')">Cancelar</button>
-      <button class="btn btn-primary" onclick="exportReporteCompletoExcel()" style="background:#2ecc71">📥 Descargar Excel</button>
     </div>
   </div>
 </div>
@@ -2569,12 +2539,6 @@ function parseFechaVenta(fecha){
   } catch(e){}
   return {anio:0,mes:0};
 }
-// Normalizar fecha: Date object → "dd/mm/yyyy", string → string
-function safeFecha(f) {
-  if(!f) return '';
-  if(f instanceof Date) return f.getDate().toString().padStart(2,'0')+'/'+(f.getMonth()+1).toString().padStart(2,'0')+'/'+f.getFullYear();
-  return String(f);
-}
 function getMesVenta(fecha){ return parseFechaVenta(fecha).mes; }
 function getAnioVenta(fecha){ return parseFechaVenta(fecha).anio; }
 
@@ -2753,7 +2717,7 @@ function renderKPIsAvanzados() {
   // ── Clientes inactivos (sin comprar en 60 días) ──────────────────
   const ultimaCompra = {};
   VENTAS.forEach(v => {
-    const p = safeFecha(v.fecha).split('/');
+    const p = v.fecha.split('/');
     if(p.length===3) {
       const d = new Date(parseInt(p[2]), parseInt(p[1])-1, parseInt(p[0]));
       if(!ultimaCompra[v.cliente] || d > ultimaCompra[v.cliente]) ultimaCompra[v.cliente] = d;
@@ -2774,7 +2738,7 @@ function renderKPIsAvanzados() {
   // ── Rotación de stock (compras vs ventas) ────────────────────────
   const ltsVendidos  = vf.reduce((s,v)=>s+v.cant,0);
   const comprasPer   = COMPRAS.filter(c => {
-    const p = safeFecha(c.fecha).split('/');
+    const p = c.fecha.split('/');
     if(p.length!==3) return false;
     const ca = parseInt(p[2]), cm = parseInt(p[1]);
     if(dashPeriodo==='all') return true;
@@ -2788,7 +2752,7 @@ function renderKPIsAvanzados() {
   // ── Pendientes críticos (sin entregar > 7 días) ──────────────────
   const criticos = VENTAS.filter(v => {
     if(v.entregado==='Sí') return false;
-    const p = safeFecha(v.fecha).split('/');
+    const p = v.fecha.split('/');
     if(p.length!==3) return false;
     const d = new Date(parseInt(p[2]), parseInt(p[1])-1, parseInt(p[0]));
     return (hoy-d) > 7*24*60*60*1000;
@@ -2898,7 +2862,7 @@ function renderKPIsAvanzados() {
         ${criticos.length ? `
           <div style="border-top:1px solid var(--border);padding-top:8px">
             ${criticos.slice(0,4).map(v=>{
-              const p=safeFecha(v.fecha).split('/');
+              const p=v.fecha.split('/');
               const d=new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0]));
               const dias=Math.floor((hoy-d)/86400000);
               return `<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--border)">
@@ -2928,7 +2892,7 @@ function renderMargenesPorProducto(vf) {
     byProd[prod].gan+=v.gan;
     byProd[prod].cant+=v.cant;
     byProd[prod].ops++;
-    const mesKey=(safeFecha(v.fecha).split('/')||[])[1]+'/'+((safeFecha(v.fecha).split('/')||[])[2]||'');
+    const mesKey=(v.fecha.split('/')||[])[1]+'/'+((v.fecha.split('/')||[])[2]||'');
     if(!byProd[prod].meses[mesKey]) byProd[prod].meses[mesKey]={ventas:0,gan:0,ops:0};
     byProd[prod].meses[mesKey].ventas+=v.total;
     byProd[prod].meses[mesKey].gan+=v.gan;
@@ -2982,7 +2946,7 @@ function getGastosFiltrados() {
   if(dashPeriodo === 'all') return GASTOS;
   const anio = parseInt(document.getElementById('dash-anio-sel').value);
   return GASTOS.filter(g => {
-    const p = safeFecha(g.fecha).split('/');
+    const p = String(g.fecha || '').split('/');
     if(p.length !== 3) return false;
     const ga = parseInt(p[2]), gm = parseInt(p[1]);
     if(ga !== anio) return false;
@@ -3424,7 +3388,7 @@ function renderVentas() {
   }
   // Ordenar de más reciente a más antigua
   const filtradas_ord = [...filtradas].sort((a,b)=>{
-    const pa=safeFecha(a.fecha).split('/'), pb=safeFecha(b.fecha).split('/');
+    const pa=a.fecha.split('/'), pb=b.fecha.split('/');
     const da=new Date(parseInt(pa[2]),parseInt(pa[1])-1,parseInt(pa[0]));
     const db=new Date(parseInt(pb[2]),parseInt(pb[1])-1,parseInt(pb[0]));
     return db-da;
@@ -4377,7 +4341,7 @@ function guardarTransporte(){
 }
 
 // =========== GOOGLE SHEETS SYNC ===========
-const GS_URL = 'https://script.google.com/macros/s/AKfycbzEzdlVaTmDMIKITcW3UFOQKJzqwweCUHEyNRozNey44bnhFYcKjK8fBmiycTcj3xMw/exec';
+const GS_URL = const GS_URL = 'https://script.google.com/macros/s/AKfycbzEzdlVaTmDMIKITcW3UFOQKJzqwweCUHEyNRozNey44bnhFYcKjK8fBmiycTcj3xMw/exec';
 
 // ── SEGURIDAD: Token + Sesión ──
 const API_TOKEN = 'cmg_erp_2026_s3cur3_Kx9mP';
@@ -4695,12 +4659,8 @@ function abrirEditar(idx) {
   const modal = document.getElementById('modal-editar-venta');
   if(!modal) { console.error('Modal no encontrado'); return; }
   // Convertir fecha dd/mm/yyyy a yyyy-mm-dd para el input date
-  var fechaStr = v.fecha;
-  if(fechaStr instanceof Date) {
-    fechaStr = fechaStr.getDate().toString().padStart(2,'0') + '/' + (fechaStr.getMonth()+1).toString().padStart(2,'0') + '/' + fechaStr.getFullYear();
-  }
-  const partes = (String(fechaStr)||'').split('/');
-  const fechaInput = partes.length===3 ? `${partes[2]}-${partes[1].padStart(2,'0')}-${partes[0].padStart(2,'0')}` : fechaStr;
+  const partes = (v.fecha||'').split('/');
+  const fechaInput = partes.length===3 ? `${partes[2]}-${partes[1]}-${partes[0]}` : v.fecha;
   const set = (id, val) => { const el=document.getElementById(id); if(el) el.value=val||''; };
   set('ev-fecha', fechaInput);
   set('ev-canal', v.canal);
@@ -4716,7 +4676,7 @@ function abrirEditar(idx) {
   set('ev-nroFactura', v.nroFactura||'');
   set('ev-arrayan', v.arrayan ? 'true' : 'false');
   actualizarPreviewEditar();
-  abrirModal('modal-editar-venta');
+  modal.classList.add('show');
 }
 
 function actualizarPreviewEditar() {
@@ -4981,7 +4941,7 @@ function abrirEditarCliente(idx) {
   document.getElementById('ec-pago').value      = c.pago   || 'transferencia';
   document.getElementById('ec-entrega').value   = c.entrega|| 'envio a cliente';
   document.getElementById('ec-obs').value       = c.obs    || '';
-  abrirModal('modal-editar-cliente');
+  document.getElementById('modal-editar-cliente').classList.add('show');
 }
 
 async function guardarEdicionCliente() {
@@ -5034,7 +4994,7 @@ function abrirModalCompra() {
   document.getElementById('nc-fpago').value    = 'Transferencia';
   document.getElementById('nc-nroDoc').value   = '';
   document.getElementById('nc-obs').value      = '';
-  abrirModal('modal-compra');
+  document.getElementById('modal-compra').classList.add('show');
 }
 
 function checkSaldoArrayan() {
@@ -5163,7 +5123,7 @@ function renderCompras() {
   const mes  = parseInt(document.getElementById('comp-mes')?.value  || 0);
 
   const filtradas = COMPRAS.filter(c => {
-    const p = safeFecha(c.fecha).split('/');
+    const p = c.fecha.split('/');
     const ca = parseInt(p[2]||0), cm = parseInt(p[1]||0);
     if(anio && ca !== anio) return false;
     if(mes  && cm !== mes)  return false;
@@ -5215,184 +5175,6 @@ function exportComprasExcel() {
   notify('✓ Excel compras exportado');
 }
 
-// =========== REPORTE COMPLETO EXCEL (4 solapas) ===========
-
-function abrirModalReporteExcel() {
-  var hoy = new Date();
-  var selMes = document.getElementById('rep-mes');
-  var selAnio = document.getElementById('rep-anio');
-  if(selMes) selMes.value = hoy.getMonth() + 1;
-  if(selAnio) selAnio.value = hoy.getFullYear();
-  abrirModal('modal-reporte-excel');
-}
-
-function exportReporteCompletoExcel() {
-  var meses = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-  var anio = parseInt(document.getElementById('rep-anio').value);
-  var mes  = parseInt(document.getElementById('rep-mes').value);
-
-  function fechaEnPeriodo(fechaStr) {
-    var pf = parseFechaVenta(fechaStr);
-    return pf.mes === mes && pf.anio === anio;
-  }
-
-  // === SOLAPA 1: COMPRAS ===
-  var comprasFiltradas = COMPRAS.filter(function(c){ return fechaEnPeriodo(c.fecha); });
-  var rowsCompras = comprasFiltradas.map(function(c){
-    return {
-      'Fecha': safeFecha(c.fecha), 'Proveedor': c.proveedor, 'Producto': c.producto,
-      'Cantidad': c.cant, 'Unidad': c.unidad || '', 'Precio Unit.': c.precioU,
-      'Costo Total': c.costoTotal, 'Forma de Pago': c.fpago,
-      'N° Doc': c.nroDoc || '', 'Obs': c.obs || ''
-    };
-  });
-  var totalCompras = comprasFiltradas.reduce(function(s,c){ return s + c.costoTotal; }, 0);
-  rowsCompras.push({
-    'Fecha': '', 'Proveedor': '', 'Producto': 'TOTAL', 'Cantidad': '',
-    'Unidad': '', 'Precio Unit.': '', 'Costo Total': totalCompras,
-    'Forma de Pago': '', 'N° Doc': '', 'Obs': ''
-  });
-
-  // === SOLAPA 2: CUENTA CORRIENTE ARRAYAN (acumulada, replica lógica de renderArrayan) ===
-  var creditosPagosCC = PAGOS_ARRAYAN.map(function(p){
-    return { fecha: safeFecha(p.fecha), tipo: 'Crédito', desc: p.concepto + (p.obs ? ' (' + p.obs + ')' : ''), credito: p.monto, debito: 0 };
-  });
-
-  var ventasConPagosSet = new Set(PAGOS_ARRAYAN.map(function(p){ return p.ventaId; }));
-  var creditosVentasCC = VENTAS.filter(function(v){
-    return v.arrayan && v.arrayanTipo !== 'parcial' && !ventasConPagosSet.has(ventaId(v));
-  }).map(function(v){
-    return { fecha: safeFecha(v.fecha), tipo: 'Crédito', desc: v.producto.substring(0,50) + ' (' + v.cant + ' Lts) — Pago único', credito: v.total, debito: 0 };
-  });
-
-  var creditosIngresoCC = COMPRAS.filter(function(c){
-    return (c.proveedor||'').toLowerCase().includes('arrayan') &&
-      (c.fpago||'').toLowerCase().includes('ingreso a cta cte');
-  }).map(function(c){
-    return { fecha: safeFecha(c.fecha), tipo: 'Crédito', desc: 'Ingreso propio: ' + c.producto, credito: c.costoTotal, debito: 0 };
-  });
-
-  var debitosCC = COMPRAS.filter(function(c){
-    return (c.proveedor||'').toLowerCase().includes('arrayan') &&
-      esCuentaCorrienteArrayan(c.fpago);
-  }).map(function(c){
-    return { fecha: safeFecha(c.fecha), tipo: 'Débito', desc: 'Compra: ' + c.producto + ' (' + c.cant + ' ' + (c.unidad||'Lts') + ')', credito: 0, debito: c.costoTotal };
-  });
-
-  var movimientos = [].concat(creditosPagosCC, creditosVentasCC, creditosIngresoCC, debitosCC).sort(function(a,b){
-    var pa = safeFecha(a.fecha).split('/'), pb = safeFecha(b.fecha).split('/');
-    return new Date(+pa[2]||0, +pa[1]-1||0, +pa[0]||1) - new Date(+pb[2]||0, +pb[1]-1||0, +pb[0]||1);
-  });
-
-  var saldoCC = 0;
-  var totalCreditos = movimientos.reduce(function(s,m){ return s + m.credito; }, 0);
-  var totalDebitos  = movimientos.reduce(function(s,m){ return s + m.debito; }, 0);
-  var saldoFinal = totalCreditos - totalDebitos;
-
-  var rowsCC = movimientos.map(function(m){
-    saldoCC += m.credito - m.debito;
-    return {
-      'Fecha': m.fecha, 'Tipo': m.tipo, 'Descripción': m.desc,
-      'Crédito ($)': m.credito || '', 'Débito ($)': m.debito || '', 'Saldo ($)': Math.round(saldoCC)
-    };
-  });
-
-  var resumenCC = [
-    { 'Fecha': 'RESUMEN', 'Tipo': '', 'Descripción': '', 'Crédito ($)': '', 'Débito ($)': '', 'Saldo ($)': '' },
-    { 'Fecha': 'Saldo Cuenta Corriente', 'Tipo': '', 'Descripción': '', 'Crédito ($)': '', 'Débito ($)': '', 'Saldo ($)': Math.round(saldoFinal) },
-    { 'Fecha': 'Total Créditos', 'Tipo': '', 'Descripción': '', 'Crédito ($)': Math.round(totalCreditos), 'Débito ($)': '', 'Saldo ($)': '' },
-    { 'Fecha': 'Total Débitos', 'Tipo': '', 'Descripción': '', 'Crédito ($)': '', 'Débito ($)': Math.round(totalDebitos), 'Saldo ($)': '' },
-    { 'Fecha': '', 'Tipo': '', 'Descripción': '', 'Crédito ($)': '', 'Débito ($)': '', 'Saldo ($)': '' },
-    { 'Fecha': 'DETALLE MOVIMIENTOS', 'Tipo': '', 'Descripción': '', 'Crédito ($)': '', 'Débito ($)': '', 'Saldo ($)': '' }
-  ];
-  var rowsCCFinal = resumenCC.concat(rowsCC);
-
-  // === SOLAPA 3: ESCALA POR VOLUMEN ===
-  var comprasEscala = COMPRAS.filter(function(c){
-    if(!(c.proveedor||'').toLowerCase().includes('arrayan')) return false;
-    if((c.fpago||'').toLowerCase().includes('ingreso a cta cte')) return false;
-    return fechaEnPeriodo(c.fecha);
-  });
-
-  var totalLts = comprasEscala.reduce(function(s,c){ return s + c.cant; }, 0);
-  var pctActual = getPctArrayan(totalLts);
-  var precioListaCereal  = PRECIO_LISTA_ARRAYAN.cereal;
-  var precioListaEtilico = PRECIO_LISTA_ARRAYAN.etilico;
-  var colPrecioCorr = 'Precio Correcto $/Lt (' + (pctActual*100).toFixed(1) + '%)';
-
-  var rowsEscala = comprasEscala.map(function(c){
-    var esCereal = (c.producto||'').toLowerCase().includes('cereal') || (c.producto||'').toLowerCase().includes('tri');
-    var lista = esCereal ? precioListaCereal : precioListaEtilico;
-    var precioCorrectoPorLitro = Math.round(lista * (1 + pctActual));
-    var row = {
-      'Fecha': safeFecha(c.fecha), 'Cantidad (Lts)': c.cant, 'Producto': c.producto,
-      'Forma de Pago': c.fpago || '', 'Precio Pagado ($/Lt)': c.precioU, 'Total Pagado ($)': c.costoTotal
-    };
-    row[colPrecioCorr] = precioCorrectoPorLitro;
-    return row;
-  });
-
-  var totalPagadoEscala = comprasEscala.reduce(function(s,c){ return s + c.costoTotal; }, 0);
-  var totalCorrectoEscala = comprasEscala.reduce(function(s,c){
-    var esCereal = (c.producto||'').toLowerCase().includes('cereal') || (c.producto||'').toLowerCase().includes('tri');
-    var lista = esCereal ? precioListaCereal : precioListaEtilico;
-    return s + c.cant * lista * (1 + pctActual);
-  }, 0);
-
-  var filaTot = {
-    'Fecha': 'TOTAL', 'Cantidad (Lts)': totalLts, 'Producto': '', 'Forma de Pago': '',
-    'Precio Pagado ($/Lt)': '', 'Total Pagado ($)': Math.round(totalPagadoEscala)
-  };
-  filaTot[colPrecioCorr] = '';
-  rowsEscala.push(filaTot);
-
-  var filaDif = {
-    'Fecha': 'Rango escala: ' + (pctActual*100).toFixed(1) + '%', 'Cantidad (Lts)': '',
-    'Producto': 'Diferencia: $' + Math.round(Math.abs(totalPagadoEscala - totalCorrectoEscala)).toLocaleString('es-AR') + (totalPagadoEscala >= totalCorrectoEscala ? ' (a tu favor)' : ' (debes)'),
-    'Forma de Pago': '', 'Precio Pagado ($/Lt)': '', 'Total Pagado ($)': ''
-  };
-  filaDif[colPrecioCorr] = Math.round(totalCorrectoEscala);
-  rowsEscala.push(filaDif);
-
-  // === SOLAPA 4: VENTAS ARRAYAN CON COMISIÓN 5% ===
-  var ventasArr = VENTAS.filter(function(v){ return v.esArrayan === true && fechaEnPeriodo(v.fecha); });
-  var rowsVentasArr = ventasArr.map(function(v){
-    return {
-      'Fecha': safeFecha(v.fecha), 'Cliente': v.cliente, 'Producto': v.producto,
-      'Cantidad': v.cant, 'Total Venta ($)': v.total, 'Comisión 5% ($)': Math.round(v.total * 0.05)
-    };
-  });
-  var totalVentaArr = ventasArr.reduce(function(s,v){ return s + v.total; }, 0);
-  var totalComisionArr = ventasArr.reduce(function(s,v){ return s + Math.round(v.total * 0.05); }, 0);
-  rowsVentasArr.push({
-    'Fecha': '', 'Cliente': '', 'Producto': 'TOTAL', 'Cantidad': '',
-    'Total Venta ($)': totalVentaArr, 'Comisión 5% ($)': totalComisionArr
-  });
-
-  // === GENERAR WORKBOOK ===
-  var wb = XLSX.utils.book_new();
-  var ws1 = XLSX.utils.json_to_sheet(rowsCompras);
-  ws1['!cols'] = [{wch:12},{wch:20},{wch:25},{wch:10},{wch:8},{wch:12},{wch:14},{wch:16},{wch:12},{wch:20}];
-  XLSX.utils.book_append_sheet(wb, ws1, 'Compras');
-
-  var ws2 = XLSX.utils.json_to_sheet(rowsCCFinal);
-  ws2['!cols'] = [{wch:24},{wch:10},{wch:45},{wch:14},{wch:14},{wch:14}];
-  XLSX.utils.book_append_sheet(wb, ws2, 'Cuenta Corriente');
-
-  var ws3 = XLSX.utils.json_to_sheet(rowsEscala);
-  ws3['!cols'] = [{wch:12},{wch:14},{wch:30},{wch:16},{wch:18},{wch:16},{wch:22}];
-  XLSX.utils.book_append_sheet(wb, ws3, 'Escala Volumen');
-
-  var ws4 = XLSX.utils.json_to_sheet(rowsVentasArr);
-  ws4['!cols'] = [{wch:12},{wch:22},{wch:30},{wch:10},{wch:16},{wch:16}];
-  XLSX.utils.book_append_sheet(wb, ws4, 'Ventas Arrayan');
-
-  var nombreMes = meses[mes].toLowerCase();
-  XLSX.writeFile(wb, 'reporte_camargo_' + nombreMes + '_' + anio + '.xlsx');
-  cerrarModal('modal-reporte-excel');
-  notify('✓ Reporte completo descargado — ' + meses[mes] + ' ' + anio);
-}
-
 async function gsGuardarCompra(compra) {
   await gsCall('saveCompra', {compra});
 }
@@ -5428,7 +5210,7 @@ function renderGastos() {
 
   const filtrados = GASTOS.filter(g => {
     if(mes > 0) {
-      const p = safeFecha(g.fecha).split('/');
+      const p = String(g.fecha || '').split('/');
       const m = parseInt(p[1]);
       if(m !== mes) return false;
     }
@@ -5633,7 +5415,7 @@ function calcularAlertas() {
   // 1. Clientes sin comprar hace 30+ días (top compradores)
   const byCliente = {};
   VENTAS.forEach(v=>{
-    const p=safeFecha(v.fecha).split('/');
+    const p=v.fecha.split('/');
     if(p.length===3){
       const d=new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0]));
       if(!byCliente[v.cliente]||d>byCliente[v.cliente].ultima) {
@@ -5657,7 +5439,7 @@ function calcularAlertas() {
   // 2. Pendientes sin entregar +7 días
   const criticos = VENTAS.filter(v=>{
     if(v.entregado==='Sí') return false;
-    const p=safeFecha(v.fecha).split('/');
+    const p=v.fecha.split('/');
     if(p.length!==3) return false;
     const d=new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0]));
     return (hoy-d)>7*24*60*60*1000;
@@ -5674,7 +5456,7 @@ function calcularAlertas() {
 
   // 4. Sin compras registradas este mes
   const mesAct=hoy.getMonth()+1, anioAct=hoy.getFullYear();
-  const comprasMes=COMPRAS.filter(c=>{const p=safeFecha(c.fecha).split('/');return parseInt(p[2])===anioAct&&parseInt(p[1])===mesAct;});
+  const comprasMes=COMPRAS.filter(c=>{const p=c.fecha.split('/');return parseInt(p[2])===anioAct&&parseInt(p[1])===mesAct;});
   if(!comprasMes.length) {
     alertas.push({tipo:'info', icono:'🛒', msg:`Sin compras registradas en ${['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][mesAct]}`, sub:'Registrá tus compras para ver la rotación de stock'});
   }
@@ -5711,19 +5493,19 @@ function calcularAlertas() {
 function abrirDetalle(titulo, contenidoHTML) {
   document.getElementById('modal-detalle-titulo').textContent = titulo;
   document.getElementById('modal-detalle-contenido').innerHTML = contenidoHTML;
-  abrirModal('modal-detalle');
+  document.getElementById('modal-detalle').classList.add('show');
 }
 
 function verPendientesCriticos() {
   const hoy = new Date();
   const criticos = VENTAS.map((v,i)=>({v,i})).filter(({v})=>{
     if(v.entregado==='Sí') return false;
-    const p=safeFecha(v.fecha).split('/');
+    const p=v.fecha.split('/');
     if(p.length!==3) return false;
     const d=new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0]));
     return (hoy-d)>7*24*60*60*1000;
   }).sort((a,b)=>{
-    const pa=a.safeFecha(v.fecha).split('/'),pb=b.safeFecha(v.fecha).split('/');
+    const pa=a.v.fecha.split('/'),pb=b.v.fecha.split('/');
     return new Date(parseInt(pa[2]),parseInt(pa[1])-1,parseInt(pa[0]))-new Date(parseInt(pb[2]),parseInt(pb[1])-1,parseInt(pb[0]));
   });
 
@@ -5733,7 +5515,7 @@ function verPendientesCriticos() {
   }
 
   const filas = criticos.map(({v,i})=>{
-    const p=safeFecha(v.fecha).split('/');
+    const p=v.fecha.split('/');
     const d=new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0]));
     const dias=Math.floor((hoy-d)/86400000);
     return `<tr>
@@ -5770,7 +5552,7 @@ function verClientesInactivos() {
   const hace60 = new Date(); hace60.setDate(hace60.getDate()-60);
   const byCliente = {};
   VENTAS.forEach(v=>{
-    const p=safeFecha(v.fecha).split('/');
+    const p=v.fecha.split('/');
     if(p.length===3){
       const d=new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0]));
       if(!byCliente[v.cliente]) byCliente[v.cliente]={ultima:d,ops:0,total:0};
@@ -5881,13 +5663,13 @@ function renderEscalaArrayan() {
   const comprasMes = COMPRAS.filter(c => {
     if(!(c.proveedor||'').toLowerCase().includes('arrayan')) return false;
     if((c.fpago||'').toLowerCase().includes('ingreso a cta cte')) return false;
-    const p = (safeFecha(c.fecha)).split('/');
+    const p = (c.fecha||'').split('/');
     if(p.length < 3) return false;
     return parseInt(p[2])===parseInt(anioSel) && parseInt(p[1])===mesSel;
   });
 
   // Construir HTML de filtros
-  const anios = [...new Set(COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')).map(c=>(safeFecha(c.fecha)).split('/')[2]).filter(Boolean))].sort();
+  const anios = [...new Set(COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')).map(c=>(c.fecha||'').split('/')[2]).filter(Boolean))].sort();
   if(!anios.includes(String(hoy.getFullYear()))) anios.push(String(hoy.getFullYear()));
 
   const filtrosHTML = `<div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
@@ -6010,7 +5792,7 @@ function abrirPagoArrayan(ventaIdx) {
   document.getElementById('pa-monto').value = pendiente > 0 ? Math.round(pendiente) : '';
   document.getElementById('pa-obs').value = '';
   actualizarResumenPago();
-  abrirModal('modal-pago-arrayan');
+  document.getElementById('modal-pago-arrayan').classList.add('show');
 }
 
 function actualizarResumenPago() {
@@ -6171,8 +5953,7 @@ function renderArrayan() {
   }));
 
   const movs = [...creditos, ...debitosCC].sort((a,b) => {
-    const fa = safeFecha(a.fecha), fb = safeFecha(b.fecha);
-    const pa = fa.split('/'), pb = fb.split('/');
+    const pa = a.fecha.split('/'), pb = b.fecha.split('/');
     return new Date(+pa[2]||0, +pa[1]-1||0, +pa[0]||1) - new Date(+pb[2]||0, +pb[1]-1||0, +pb[0]||1);
   });
 
@@ -6280,7 +6061,7 @@ function renderVentasArrayan() {
   // Poblar filtro de años
   const anios = [...new Set(VENTAS
     .filter(v => v.esArrayan === true)
-    .map(v => { const p = (safeFecha(v.fecha)).split('/'); return p[2] || ''; })
+    .map(v => { const p = (v.fecha||'').split('/'); return p[2] || ''; })
     .filter(Boolean)
   )].sort().reverse();
 
@@ -6296,7 +6077,7 @@ function renderVentasArrayan() {
   const ventas = VENTAS.filter(v => {
     const esArr = v.esArrayan === true;
     if (!esArr) return false;
-    const p = (safeFecha(v.fecha)).split('/');
+    const p = (v.fecha||'').split('/');
     if (anio !== 'all' && p[2] !== anio) return false;
     if (mes > 0 && parseInt(p[1]) !== mes) return false;
     return true;
@@ -6323,7 +6104,7 @@ function renderVentasArrayan() {
 
   // Tabla
   const rows = ventas.sort((a,b) => {
-    const pa=safeFecha(a.fecha).split('/'), pb=safeFecha(b.fecha).split('/');
+    const pa=a.fecha.split('/'), pb=b.fecha.split('/');
     return new Date(pb[2],pb[1]-1,pb[0]) - new Date(pa[2],pa[1]-1,pa[0]);
   }).map(v => {
     const comision = Math.round(v.total * 0.05);
