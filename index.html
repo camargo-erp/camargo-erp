@@ -5221,8 +5221,18 @@ function exportReporteCompletoExcel() {
   var anio = parseInt(document.getElementById('rep-anio').value);
   var mes  = parseInt(document.getElementById('rep-mes').value);
 
+  // Normalizar fecha: Date object o string → "dd/mm/yyyy"
+  function normFecha(f) {
+    if(!f) return '';
+    if(f instanceof Date) {
+      return f.getDate().toString().padStart(2,'0') + '/' + (f.getMonth()+1).toString().padStart(2,'0') + '/' + f.getFullYear();
+    }
+    return String(f);
+  }
+
   function fechaEnPeriodo(fechaStr) {
-    var p = (fechaStr||'').split('/');
+    var f = normFecha(fechaStr);
+    var p = f.split('/');
     if(p.length < 3) return false;
     return parseInt(p[1]) === mes && parseInt(p[2]) === anio;
   }
@@ -5231,7 +5241,7 @@ function exportReporteCompletoExcel() {
   var comprasFiltradas = COMPRAS.filter(function(c){ return fechaEnPeriodo(c.fecha); });
   var rowsCompras = comprasFiltradas.map(function(c){
     return {
-      'Fecha': c.fecha, 'Proveedor': c.proveedor, 'Producto': c.producto,
+      'Fecha': normFecha(c.fecha), 'Proveedor': c.proveedor, 'Producto': c.producto,
       'Cantidad': c.cant, 'Unidad': c.unidad || '', 'Precio Unit.': c.precioU,
       'Costo Total': c.costoTotal, 'Forma de Pago': c.fpago,
       'N° Doc': c.nroDoc || '', 'Obs': c.obs || ''
@@ -5246,32 +5256,32 @@ function exportReporteCompletoExcel() {
 
   // === SOLAPA 2: CUENTA CORRIENTE ARRAYAN ===
   var creditosPagos = PAGOS_ARRAYAN.filter(function(p){ return fechaEnPeriodo(p.fecha); }).map(function(p){
-    return { fecha: p.fecha, tipo: 'Crédito', desc: p.concepto + (p.obs ? ' (' + p.obs + ')' : ''), credito: p.monto, debito: 0 };
+    return { fecha: normFecha(p.fecha), tipo: 'Crédito', desc: p.concepto + (p.obs ? ' (' + p.obs + ')' : ''), credito: p.monto, debito: 0 };
   });
 
   var ventasConPagosSet = new Set(PAGOS_ARRAYAN.map(function(p){ return p.ventaId; }));
   var creditosVentas = VENTAS.filter(function(v){
     return v.arrayan && !ventasConPagosSet.has(ventaId(v)) && fechaEnPeriodo(v.fecha);
   }).map(function(v){
-    return { fecha: v.fecha, tipo: 'Crédito', desc: v.producto.substring(0,50) + ' (' + v.cant + ' Lts) — Pago único', credito: v.total, debito: 0 };
+    return { fecha: normFecha(v.fecha), tipo: 'Crédito', desc: v.producto.substring(0,50) + ' (' + v.cant + ' Lts) — Pago único', credito: v.total, debito: 0 };
   });
 
   var creditosIngreso = COMPRAS.filter(function(c){
     return (c.proveedor||'').toLowerCase().includes('arrayan') &&
       (c.fpago||'').toLowerCase().includes('ingreso a cta cte') && fechaEnPeriodo(c.fecha);
   }).map(function(c){
-    return { fecha: c.fecha, tipo: 'Crédito', desc: 'Ingreso propio: ' + c.producto, credito: c.costoTotal, debito: 0 };
+    return { fecha: normFecha(c.fecha), tipo: 'Crédito', desc: 'Ingreso propio: ' + c.producto, credito: c.costoTotal, debito: 0 };
   });
 
   var debitosCC = COMPRAS.filter(function(c){
     return (c.proveedor||'').toLowerCase().includes('arrayan') &&
       esCuentaCorrienteArrayan(c.fpago) && fechaEnPeriodo(c.fecha);
   }).map(function(c){
-    return { fecha: c.fecha, tipo: 'Débito', desc: 'Compra: ' + c.producto + ' (' + c.cant + ' ' + (c.unidad||'Lts') + ')', credito: 0, debito: c.costoTotal };
+    return { fecha: normFecha(c.fecha), tipo: 'Débito', desc: 'Compra: ' + c.producto + ' (' + c.cant + ' ' + (c.unidad||'Lts') + ')', credito: 0, debito: c.costoTotal };
   });
 
   var movimientos = [].concat(creditosPagos, creditosVentas, creditosIngreso, debitosCC).sort(function(a,b){
-    var pa = a.fecha.split('/'), pb = b.fecha.split('/');
+    var pa = String(a.fecha||'').split('/'), pb = String(b.fecha||'').split('/');
     return new Date(+pa[2]||0, +pa[1]-1||0, +pa[0]||1) - new Date(+pb[2]||0, +pb[1]-1||0, +pb[0]||1);
   });
 
@@ -5316,7 +5326,7 @@ function exportReporteCompletoExcel() {
     var lista = esCereal ? precioListaCereal : precioListaEtilico;
     var precioCorrectoPorLitro = Math.round(lista * (1 + pctActual));
     var row = {
-      'Fecha': c.fecha, 'Cantidad (Lts)': c.cant, 'Producto': c.producto,
+      'Fecha': normFecha(c.fecha), 'Cantidad (Lts)': c.cant, 'Producto': c.producto,
       'Forma de Pago': c.fpago || '', 'Precio Pagado ($/Lt)': c.precioU, 'Total Pagado ($)': c.costoTotal
     };
     row[colPrecioCorr] = precioCorrectoPorLitro;
@@ -5349,7 +5359,7 @@ function exportReporteCompletoExcel() {
   var ventasArr = VENTAS.filter(function(v){ return v.esArrayan === true && fechaEnPeriodo(v.fecha); });
   var rowsVentasArr = ventasArr.map(function(v){
     return {
-      'Fecha': v.fecha, 'Cliente': v.cliente, 'Producto': v.producto,
+      'Fecha': normFecha(v.fecha), 'Cliente': v.cliente, 'Producto': v.producto,
       'Cantidad': v.cant, 'Total Venta ($)': v.total, 'Comisión 5% ($)': Math.round(v.total * 0.05)
     };
   });
