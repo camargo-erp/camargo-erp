@@ -4371,7 +4371,7 @@ function guardarTransporte(){
 }
 
 // =========== GOOGLE SHEETS SYNC ===========
-const GS_URL = 'https://script.google.com/macros/s/AKfycbzEzdlVaTmDMIKITcW3UFOQKJzqwweCUHEyNRozNey44bnhFYcKjK8fBmiycTcj3xMw/exec';
+const GS_URL = 'https://script.google.com/macros/s/AKfycbwyYtqHH2hPy8-YKjEInSbotiaeRvlt484cKF6DkUwEqBFeQtzLAd2QXgg6lI2FmMdD/exec';
 
 // ── SEGURIDAD: Token + Sesión ──
 const API_TOKEN = 'cmg_erp_2026_s3cur3_Kx9mP';
@@ -6005,6 +6005,15 @@ async function guardarPagoArrayan() {
   };
 
   PAGOS_ARRAYAN.push(pago);
+
+  // Marcar la venta como parcial si no lo está
+  if(v.arrayanTipo !== 'parcial') {
+    VENTAS[_ventaIdxPagoActual].arrayanTipo = 'parcial';
+    gsCall('updateVenta', {idx: _ventaIdxPagoActual, campos: {
+      arrayanTipo: 'parcial',
+      _fecha: v.fecha, _cliente: v.cliente, _total: v.total, _cant: v.cant
+    }});
+  }
 
   // Verificar si la venta quedó saldada
   const totalPagado = getTotalPagadoVenta(v);
