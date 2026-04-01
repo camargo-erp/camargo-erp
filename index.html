@@ -2555,7 +2555,7 @@ function setDashPeriodo(p) {
 
 function parseFechaVenta(fecha){
   if(!fecha) return {anio:0,mes:0};
-  const s = String(fecha).trim();
+  const s = String(fecha instanceof Date ? safeFecha(fecha) : fecha).trim();
   // dd/mm/yyyy o d/m/yyyy
   const m1 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
   if(m1) return {anio:parseInt(m1[3]),mes:parseInt(m1[2])};
@@ -2568,6 +2568,12 @@ function parseFechaVenta(fecha){
     if(!isNaN(d.getTime())) return {anio:d.getFullYear(),mes:d.getMonth()+1};
   } catch(e){}
   return {anio:0,mes:0};
+}
+// Normalizar fecha: Date object → "dd/mm/yyyy", string → string
+function safeFecha(f) {
+  if(!f) return '';
+  if(f instanceof Date) return f.getDate().toString().padStart(2,'0')+'/'+(f.getMonth()+1).toString().padStart(2,'0')+'/'+f.getFullYear();
+  return String(f);
 }
 function getMesVenta(fecha){ return parseFechaVenta(fecha).mes; }
 function getAnioVenta(fecha){ return parseFechaVenta(fecha).anio; }
@@ -2747,7 +2753,7 @@ function renderKPIsAvanzados() {
   // ── Clientes inactivos (sin comprar en 60 días) ──────────────────
   const ultimaCompra = {};
   VENTAS.forEach(v => {
-    const p = v.fecha.split('/');
+    const p = safeFecha(v.fecha).split('/');
     if(p.length===3) {
       const d = new Date(parseInt(p[2]), parseInt(p[1])-1, parseInt(p[0]));
       if(!ultimaCompra[v.cliente] || d > ultimaCompra[v.cliente]) ultimaCompra[v.cliente] = d;
@@ -2768,7 +2774,7 @@ function renderKPIsAvanzados() {
   // ── Rotación de stock (compras vs ventas) ────────────────────────
   const ltsVendidos  = vf.reduce((s,v)=>s+v.cant,0);
   const comprasPer   = COMPRAS.filter(c => {
-    const p = c.fecha.split('/');
+    const p = safeFecha(c.fecha).split('/');
     if(p.length!==3) return false;
     const ca = parseInt(p[2]), cm = parseInt(p[1]);
     if(dashPeriodo==='all') return true;
@@ -2782,7 +2788,7 @@ function renderKPIsAvanzados() {
   // ── Pendientes críticos (sin entregar > 7 días) ──────────────────
   const criticos = VENTAS.filter(v => {
     if(v.entregado==='Sí') return false;
-    const p = v.fecha.split('/');
+    const p = safeFecha(v.fecha).split('/');
     if(p.length!==3) return false;
     const d = new Date(parseInt(p[2]), parseInt(p[1])-1, parseInt(p[0]));
     return (hoy-d) > 7*24*60*60*1000;
@@ -2892,7 +2898,7 @@ function renderKPIsAvanzados() {
         ${criticos.length ? `
           <div style="border-top:1px solid var(--border);padding-top:8px">
             ${criticos.slice(0,4).map(v=>{
-              const p=v.fecha.split('/');
+              const p=safeFecha(v.fecha).split('/');
               const d=new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0]));
               const dias=Math.floor((hoy-d)/86400000);
               return `<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--border)">
@@ -2922,7 +2928,7 @@ function renderMargenesPorProducto(vf) {
     byProd[prod].gan+=v.gan;
     byProd[prod].cant+=v.cant;
     byProd[prod].ops++;
-    const mesKey=(v.fecha.split('/')||[])[1]+'/'+((v.fecha.split('/')||[])[2]||'');
+    const mesKey=(safeFecha(v.fecha).split('/')||[])[1]+'/'+((safeFecha(v.fecha).split('/')||[])[2]||'');
     if(!byProd[prod].meses[mesKey]) byProd[prod].meses[mesKey]={ventas:0,gan:0,ops:0};
     byProd[prod].meses[mesKey].ventas+=v.total;
     byProd[prod].meses[mesKey].gan+=v.gan;
@@ -2976,7 +2982,7 @@ function getGastosFiltrados() {
   if(dashPeriodo === 'all') return GASTOS;
   const anio = parseInt(document.getElementById('dash-anio-sel').value);
   return GASTOS.filter(g => {
-    const p = String(g.fecha || '').split('/');
+    const p = safeFecha(g.fecha).split('/');
     if(p.length !== 3) return false;
     const ga = parseInt(p[2]), gm = parseInt(p[1]);
     if(ga !== anio) return false;
@@ -3418,7 +3424,7 @@ function renderVentas() {
   }
   // Ordenar de más reciente a más antigua
   const filtradas_ord = [...filtradas].sort((a,b)=>{
-    const pa=a.fecha.split('/'), pb=b.fecha.split('/');
+    const pa=safeFecha(a.fecha).split('/'), pb=safeFecha(b.fecha).split('/');
     const da=new Date(parseInt(pa[2]),parseInt(pa[1])-1,parseInt(pa[0]));
     const db=new Date(parseInt(pb[2]),parseInt(pb[1])-1,parseInt(pb[0]));
     return db-da;
@@ -4464,9 +4470,9 @@ async function cargarDesdeSheets() {
         });
         VENTAS = [...soloLocalesHistoricos, ...ventasSheets];
       }
-      if(res.compras?.length)    COMPRAS    = res.compras;
-      if(res.pagosArrayan?.length) PAGOS_ARRAYAN = res.pagosArrayan;
-      if(res.gastos?.length)     GASTOS     = res.gastos;
+      if(res.compras?.length)    COMPRAS    = res.compras.map(c => ({...c, fecha: safeFecha(c.fecha)}));
+      if(res.pagosArrayan?.length) PAGOS_ARRAYAN = res.pagosArrayan.map(p => ({...p, fecha: safeFecha(p.fecha)}));
+      if(res.gastos?.length)     GASTOS     = res.gastos.map(g => ({...g, fecha: safeFecha(g.fecha)}));
       if(res.clientes?.length)   CLIENTES   = res.clientes;
       if(res.transportes?.length) {
         // Combinar: usar Sheets si tiene más que el hardcoded, sino combinar
@@ -5157,7 +5163,7 @@ function renderCompras() {
   const mes  = parseInt(document.getElementById('comp-mes')?.value  || 0);
 
   const filtradas = COMPRAS.filter(c => {
-    const p = c.fecha.split('/');
+    const p = safeFecha(c.fecha).split('/');
     const ca = parseInt(p[2]||0), cm = parseInt(p[1]||0);
     if(anio && ca !== anio) return false;
     if(mes  && cm !== mes)  return false;
@@ -5285,7 +5291,7 @@ function exportReporteCompletoExcel() {
   });
 
   var movimientos = [].concat(creditosPagos, creditosVentas, creditosIngreso, debitosCC).sort(function(a,b){
-    var pa = String(a.fecha||'').split('/'), pb = String(b.fecha||'').split('/');
+    var pa = safeFecha(a.fecha).split('/'), pb = safeFecha(b.fecha).split('/');
     return new Date(+pa[2]||0, +pa[1]-1||0, +pa[0]||1) - new Date(+pb[2]||0, +pb[1]-1||0, +pb[0]||1);
   });
 
@@ -5433,7 +5439,7 @@ function renderGastos() {
 
   const filtrados = GASTOS.filter(g => {
     if(mes > 0) {
-      const p = String(g.fecha || '').split('/');
+      const p = safeFecha(g.fecha).split('/');
       const m = parseInt(p[1]);
       if(m !== mes) return false;
     }
@@ -5638,7 +5644,7 @@ function calcularAlertas() {
   // 1. Clientes sin comprar hace 30+ días (top compradores)
   const byCliente = {};
   VENTAS.forEach(v=>{
-    const p=v.fecha.split('/');
+    const p=safeFecha(v.fecha).split('/');
     if(p.length===3){
       const d=new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0]));
       if(!byCliente[v.cliente]||d>byCliente[v.cliente].ultima) {
@@ -5662,7 +5668,7 @@ function calcularAlertas() {
   // 2. Pendientes sin entregar +7 días
   const criticos = VENTAS.filter(v=>{
     if(v.entregado==='Sí') return false;
-    const p=v.fecha.split('/');
+    const p=safeFecha(v.fecha).split('/');
     if(p.length!==3) return false;
     const d=new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0]));
     return (hoy-d)>7*24*60*60*1000;
@@ -5679,7 +5685,7 @@ function calcularAlertas() {
 
   // 4. Sin compras registradas este mes
   const mesAct=hoy.getMonth()+1, anioAct=hoy.getFullYear();
-  const comprasMes=COMPRAS.filter(c=>{const p=c.fecha.split('/');return parseInt(p[2])===anioAct&&parseInt(p[1])===mesAct;});
+  const comprasMes=COMPRAS.filter(c=>{const p=safeFecha(c.fecha).split('/');return parseInt(p[2])===anioAct&&parseInt(p[1])===mesAct;});
   if(!comprasMes.length) {
     alertas.push({tipo:'info', icono:'🛒', msg:`Sin compras registradas en ${['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][mesAct]}`, sub:'Registrá tus compras para ver la rotación de stock'});
   }
@@ -5723,12 +5729,12 @@ function verPendientesCriticos() {
   const hoy = new Date();
   const criticos = VENTAS.map((v,i)=>({v,i})).filter(({v})=>{
     if(v.entregado==='Sí') return false;
-    const p=v.fecha.split('/');
+    const p=safeFecha(v.fecha).split('/');
     if(p.length!==3) return false;
     const d=new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0]));
     return (hoy-d)>7*24*60*60*1000;
   }).sort((a,b)=>{
-    const pa=a.v.fecha.split('/'),pb=b.v.fecha.split('/');
+    const pa=a.safeFecha(v.fecha).split('/'),pb=b.safeFecha(v.fecha).split('/');
     return new Date(parseInt(pa[2]),parseInt(pa[1])-1,parseInt(pa[0]))-new Date(parseInt(pb[2]),parseInt(pb[1])-1,parseInt(pb[0]));
   });
 
@@ -5738,7 +5744,7 @@ function verPendientesCriticos() {
   }
 
   const filas = criticos.map(({v,i})=>{
-    const p=v.fecha.split('/');
+    const p=safeFecha(v.fecha).split('/');
     const d=new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0]));
     const dias=Math.floor((hoy-d)/86400000);
     return `<tr>
@@ -5775,7 +5781,7 @@ function verClientesInactivos() {
   const hace60 = new Date(); hace60.setDate(hace60.getDate()-60);
   const byCliente = {};
   VENTAS.forEach(v=>{
-    const p=v.fecha.split('/');
+    const p=safeFecha(v.fecha).split('/');
     if(p.length===3){
       const d=new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0]));
       if(!byCliente[v.cliente]) byCliente[v.cliente]={ultima:d,ops:0,total:0};
@@ -5886,13 +5892,13 @@ function renderEscalaArrayan() {
   const comprasMes = COMPRAS.filter(c => {
     if(!(c.proveedor||'').toLowerCase().includes('arrayan')) return false;
     if((c.fpago||'').toLowerCase().includes('ingreso a cta cte')) return false;
-    const p = (c.fecha||'').split('/');
+    const p = (safeFecha(c.fecha)).split('/');
     if(p.length < 3) return false;
     return parseInt(p[2])===parseInt(anioSel) && parseInt(p[1])===mesSel;
   });
 
   // Construir HTML de filtros
-  const anios = [...new Set(COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')).map(c=>(c.fecha||'').split('/')[2]).filter(Boolean))].sort();
+  const anios = [...new Set(COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')).map(c=>(safeFecha(c.fecha)).split('/')[2]).filter(Boolean))].sort();
   if(!anios.includes(String(hoy.getFullYear()))) anios.push(String(hoy.getFullYear()));
 
   const filtrosHTML = `<div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
@@ -5982,7 +5988,7 @@ function esCuentaCorrienteArrayan(fpago) {
 }
 
 function ventaId(v) {
-  var f = (v.fecha || '').split('/');
+  var f = safeFecha(v.fecha).split('/');
   var fn = (parseInt(f[0])||0) + '/' + (parseInt(f[1])||0) + '/' + (f[2]||'');
   return fn + '|' + v.cliente + '|' + Math.round(v.total) + '|' + Math.round(v.cant);
 }
@@ -6176,7 +6182,7 @@ function renderArrayan() {
   }));
 
   const movs = [...creditos, ...debitosCC].sort((a,b) => {
-    const fa = String(a.fecha||''), fb = String(b.fecha||'');
+    const fa = safeFecha(a.fecha), fb = safeFecha(b.fecha);
     const pa = fa.split('/'), pb = fb.split('/');
     return new Date(+pa[2]||0, +pa[1]-1||0, +pa[0]||1) - new Date(+pb[2]||0, +pb[1]-1||0, +pb[0]||1);
   });
@@ -6285,7 +6291,7 @@ function renderVentasArrayan() {
   // Poblar filtro de años
   const anios = [...new Set(VENTAS
     .filter(v => v.esArrayan === true)
-    .map(v => { const p = (v.fecha||'').split('/'); return p[2] || ''; })
+    .map(v => { const p = (safeFecha(v.fecha)).split('/'); return p[2] || ''; })
     .filter(Boolean)
   )].sort().reverse();
 
@@ -6301,7 +6307,7 @@ function renderVentasArrayan() {
   const ventas = VENTAS.filter(v => {
     const esArr = v.esArrayan === true;
     if (!esArr) return false;
-    const p = (v.fecha||'').split('/');
+    const p = (safeFecha(v.fecha)).split('/');
     if (anio !== 'all' && p[2] !== anio) return false;
     if (mes > 0 && parseInt(p[1]) !== mes) return false;
     return true;
@@ -6328,7 +6334,7 @@ function renderVentasArrayan() {
 
   // Tabla
   const rows = ventas.sort((a,b) => {
-    const pa=a.fecha.split('/'), pb=b.fecha.split('/');
+    const pa=safeFecha(a.fecha).split('/'), pb=safeFecha(b.fecha).split('/');
     return new Date(pb[2],pb[1]-1,pb[0]) - new Date(pa[2],pa[1]-1,pa[0]);
   }).map(v => {
     const comision = Math.round(v.total * 0.05);
