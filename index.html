@@ -4470,9 +4470,9 @@ async function cargarDesdeSheets() {
         });
         VENTAS = [...soloLocalesHistoricos, ...ventasSheets];
       }
-      if(res.compras?.length)    COMPRAS    = res.compras.map(c => ({...c, fecha: safeFecha(c.fecha)}));
-      if(res.pagosArrayan?.length) PAGOS_ARRAYAN = res.pagosArrayan.map(p => ({...p, fecha: safeFecha(p.fecha)}));
-      if(res.gastos?.length)     GASTOS     = res.gastos.map(g => ({...g, fecha: safeFecha(g.fecha)}));
+      if(res.compras?.length)    COMPRAS    = res.compras;
+      if(res.pagosArrayan?.length) PAGOS_ARRAYAN = res.pagosArrayan;
+      if(res.gastos?.length)     GASTOS     = res.gastos;
       if(res.clientes?.length)   CLIENTES   = res.clientes;
       if(res.transportes?.length) {
         // Combinar: usar Sheets si tiene más que el hardcoded, sino combinar
@@ -5253,19 +5253,19 @@ function exportReporteCompletoExcel() {
     'Forma de Pago': '', 'N° Doc': '', 'Obs': ''
   });
 
-  // === SOLAPA 2: CUENTA CORRIENTE ARRAYAN (acumulada, sin filtro de mes) ===
-  var creditosPagos = PAGOS_ARRAYAN.map(function(p){
+  // === SOLAPA 2: CUENTA CORRIENTE ARRAYAN (acumulada, replica lógica de renderArrayan) ===
+  var creditosPagosCC = PAGOS_ARRAYAN.map(function(p){
     return { fecha: safeFecha(p.fecha), tipo: 'Crédito', desc: p.concepto + (p.obs ? ' (' + p.obs + ')' : ''), credito: p.monto, debito: 0 };
   });
 
   var ventasConPagosSet = new Set(PAGOS_ARRAYAN.map(function(p){ return p.ventaId; }));
-  var creditosVentas = VENTAS.filter(function(v){
-    return v.arrayan && !ventasConPagosSet.has(ventaId(v));
+  var creditosVentasCC = VENTAS.filter(function(v){
+    return v.arrayan && v.arrayanTipo !== 'parcial' && !ventasConPagosSet.has(ventaId(v));
   }).map(function(v){
     return { fecha: safeFecha(v.fecha), tipo: 'Crédito', desc: v.producto.substring(0,50) + ' (' + v.cant + ' Lts) — Pago único', credito: v.total, debito: 0 };
   });
 
-  var creditosIngreso = COMPRAS.filter(function(c){
+  var creditosIngresoCC = COMPRAS.filter(function(c){
     return (c.proveedor||'').toLowerCase().includes('arrayan') &&
       (c.fpago||'').toLowerCase().includes('ingreso a cta cte');
   }).map(function(c){
@@ -5279,7 +5279,7 @@ function exportReporteCompletoExcel() {
     return { fecha: safeFecha(c.fecha), tipo: 'Débito', desc: 'Compra: ' + c.producto + ' (' + c.cant + ' ' + (c.unidad||'Lts') + ')', credito: 0, debito: c.costoTotal };
   });
 
-  var movimientos = [].concat(creditosPagos, creditosVentas, creditosIngreso, debitosCC).sort(function(a,b){
+  var movimientos = [].concat(creditosPagosCC, creditosVentasCC, creditosIngresoCC, debitosCC).sort(function(a,b){
     var pa = safeFecha(a.fecha).split('/'), pb = safeFecha(b.fecha).split('/');
     return new Date(+pa[2]||0, +pa[1]-1||0, +pa[0]||1) - new Date(+pb[2]||0, +pb[1]-1||0, +pb[0]||1);
   });
@@ -5977,7 +5977,7 @@ function esCuentaCorrienteArrayan(fpago) {
 }
 
 function ventaId(v) {
-  var f = safeFecha(v.fecha).split('/');
+  var f = (String(v.fecha) || '').split('/');
   var fn = (parseInt(f[0])||0) + '/' + (parseInt(f[1])||0) + '/' + (f[2]||'');
   return fn + '|' + v.cliente + '|' + Math.round(v.total) + '|' + Math.round(v.cant);
 }
