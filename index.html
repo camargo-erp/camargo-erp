@@ -303,6 +303,7 @@
     <div style="display:flex;gap:8px">
       <button class="btn btn-primary" onclick="abrirModalCompra()">➕ Nueva Compra</button>
       <button class="btn btn-warn btn-sm" onclick="exportComprasExcel()">📊 Excel</button>
+      <button class="btn btn-warn btn-sm" onclick="abrirModalReporteExcel()" style="background:#2ecc71;color:#fff">📥 Reporte Completo</button>
     </div>
   </div>
   <!-- Filtros -->
@@ -378,6 +379,35 @@
     <div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end">
       <button class="btn btn-ghost" onclick="cerrarModal('modal-compra')">Cancelar</button>
       <button class="btn btn-primary" onclick="guardarCompra()">💾 Guardar Compra</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Reporte Completo Excel -->
+<div class="modal-overlay" id="modal-reporte-excel">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-title">📥 Reporte Completo — Excel</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Descargá un Excel con 4 solapas: Compras, Cuenta Corriente Arrayan, Escala de Volumen y Ventas Arrayan con comisión.</p>
+    <div style="display:flex;gap:12px;margin-bottom:16px">
+      <div style="flex:1">
+        <label style="font-size:12px;color:var(--muted);margin-bottom:4px;display:block">Año</label>
+        <select id="rep-anio" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px">
+          <option value="2024">2024</option><option value="2025">2025</option><option value="2026" selected>2026</option>
+        </select>
+      </div>
+      <div style="flex:1">
+        <label style="font-size:12px;color:var(--muted);margin-bottom:4px;display:block">Mes</label>
+        <select id="rep-mes" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px">
+          <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option>
+          <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
+          <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
+          <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="cerrarModal('modal-reporte-excel')">Cancelar</button>
+      <button class="btn btn-primary" onclick="exportReporteCompletoExcel()" style="background:#2ecc71">📥 Descargar Excel</button>
     </div>
   </div>
 </div>
@@ -1231,9 +1261,9 @@ let PRECIOS = [
   {modal:"CON Envase 5L CON caja",costo:1596.4,lista:2390,m80:2294,m120:2223,m200:2151,prod:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO fracc envase caja"},
   {modal:"SIN Envase 5L SIN caja",costo:1440,lista:2110,m80:2026,m120:1962,m200:1899,prod:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO fracc recambio"},
   {modal:"CEREAL TAMBOR 200L RECAMBIO",costo:1440,precioFijo:1600,costoTambor:null,precioTambor:null,esTambor:true,esRecambio:true,prod:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO tambor recambio"},
-  {modal:"CEREAL TAMBOR 200L VENTA",costo:1520,precioFijo:1726.25,costoTambor:17000,precioTambor:41250,esTambor:true,esRecambio:false,prod:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO tambor venta"},
+  {modal:"CEREAL TAMBOR 200L VENTA",costo:1520,precioFijo:1726.25,costoTambor:null,precioTambor:null,esTambor:true,esRecambio:false,prod:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO tambor venta"},
   {modal:"ETÍLICO TAMBOR 200L RECAMBIO",costo:1315,precioFijo:1505,costoTambor:null,precioTambor:null,esTambor:true,esRecambio:true,prod:"Alcohol Etílico al 96% Buen gusto tambor recambio"},
-  {modal:"ETÍLICO TAMBOR 200L VENTA",costo:1395,precioFijo:1631.25,costoTambor:17000,precioTambor:41250,esTambor:true,esRecambio:false,prod:"Alcohol Etílico al 96% Buen gusto tambor venta"},
+  {modal:"ETÍLICO TAMBOR 200L VENTA",costo:1395,precioFijo:1631.25,costoTambor:null,precioTambor:null,esTambor:true,esRecambio:false,prod:"Alcohol Etílico al 96% Buen gusto tambor venta"},
 ];
 
 let VALOR_DOLAR = 1200;
@@ -2509,7 +2539,7 @@ function notify(msg,color) {
 }
 
 function abrirModal(id){const el=document.getElementById(id);el.classList.add('show');el.style.display='flex';}
-function cerrarModal(id){const el=document.getElementById(id);el.classList.remove('show');el.style.display='';}
+function cerrarModal(id){const el=document.getElementById(id);el.classList.remove('show');el.style.display='none';}
 
 // =========== DASHBOARD ===========
 function setDashPeriodo(p) {
@@ -2883,40 +2913,10 @@ function renderMargenesPorProducto(vf) {
   if(!el) return;
   if(!vf.length){ el.innerHTML='<div style="color:var(--muted);padding:16px">Sin datos</div>'; return; }
 
-  // Normalizar nombre de producto — nombres limpios y cortos
-  function normProd(nombre) {
-    const n = (nombre||'').toLowerCase().trim();
-    // Cereal Tridestilado — 5 variantes
-    if(n.includes('fracc envase caja') || (n.includes('cereal') && n.includes('caja'))) return 'Cereal Tridest. c/env c/caja';
-    if(n.includes('fracc envase') && !n.includes('caja') && !n.includes('recambio')) return 'Cereal Tridest. c/env s/caja';
-    if(n.includes('fracc recambio') || (n.includes('cereal') && n.includes('recambio') && !n.includes('tambor'))) return 'Cereal Tridest. recambio';
-    if(n.includes('cereal') && n.includes('tambor') && n.includes('recambio')) return 'Cereal Tridest. tambor recambio';
-    if(n.includes('cereal') && n.includes('tambor') && n.includes('venta')) return 'Cereal Tridest. tambor venta';
-    // Cereal genérico (TRIDESTILADO, "Alcohol de Cereal Tridestilado", etc.)
-    if(n.includes('cereal') || n.includes('tridestilado') || n === 'tridestilado') return 'Cereal Tridest. c/env s/caja';
-    // Etílico 96% — 2 variantes
-    if((n.includes('etíl') || n.includes('etil')) && n.includes('tambor') && n.includes('recambio')) return 'Etílico 96% tambor recambio';
-    if((n.includes('etíl') || n.includes('etil')) && n.includes('tambor') && n.includes('venta')) return 'Etílico 96% tambor venta';
-    if(n.includes('etíl') || n.includes('etil') || n === 'etilico') return 'Etílico 96% tambor recambio';
-    // Productos USD y otros
-    if(n.includes('sulfónico') || n.includes('sulfonico') || n === 'sulfo') return 'Ácido Sulfónico';
-    if(n.includes('soda') || n.includes('cáustica') || n.includes('caustica')) return 'Soda Cáustica 99%';
-    if(n.includes('glicerina')) return 'Glicerina USP Vegetal';
-    if(n.includes('nonilfenol') || n === 'nonil') return 'Nonilfenol 10M';
-    if(n.includes('isoprop') || n === 'ipa') return 'Alcohol Isopropílico';
-    if(n.includes('butilglicol')) return 'Butilglicol';
-    if(n.includes('amoni') || n === 'agua amonic') return 'Agua Amoniacal';
-    if(n.includes('thinner') && n.includes('501')) return 'Thinner Profesional 501';
-    if(n.includes('thinner') && n.includes('sello')) return 'Thinner Sello de Oro';
-    if(n.includes('aguarrás') || n.includes('aguarras')) return 'Aguarrás';
-    // Fallback: nombre original limpio
-    return nombre.length > 45 ? nombre.substring(0,45)+'…' : nombre;
-  }
-
-  // Agrupar por producto normalizado
+  // Agrupar por producto
   const byProd = {};
   vf.forEach(v=>{
-    const prod = normProd(v.producto);
+    const prod = v.producto.length>40 ? v.producto.substring(0,40)+'…' : v.producto;
     if(!byProd[prod]) byProd[prod]={ventas:0,gan:0,cant:0,ops:0,meses:{}};
     byProd[prod].ventas+=v.total;
     byProd[prod].gan+=v.gan;
@@ -3541,19 +3541,10 @@ function getPrecio(prod,cant) {
   const tri=PRECIOS.find(p=>p.prod===prod);
   if(tri){
     let precio;
-    // Productos tambor usan precioFijo directo, no tramos de cantidad
-    if(tri.esTambor){
-      precio=parseFloat(tri.precioFijo)||0;
-      // Tambor venta: incluir costo y precio del tambor físico
-      const costoTambor = (!tri.esRecambio && tri.costoTambor) ? parseFloat(tri.costoTambor)||0 : 0;
-      const precioTambor = (!tri.esRecambio && tri.precioTambor) ? parseFloat(tri.precioTambor)||0 : 0;
-      return {precio, costo:tri.costo, esTambor:true, esRecambio:tri.esRecambio, costoTambor, precioTambor};
-    } else {
-      if(cant>=200) precio=tri.m200;
-      else if(cant>=120) precio=tri.m120;
-      else if(cant>=80) precio=tri.m80;
-      else precio=tri.lista;
-    }
+    if(cant>=200) precio=tri.m200;
+    else if(cant>=120) precio=tri.m120;
+    else if(cant>=80) precio=tri.m80;
+    else precio=tri.lista;
     return {precio,costo:tri.costo};
   }
   const otro=OTROS_PROD.find(p=>p.nombre===prod);
@@ -3589,18 +3580,15 @@ function calcularPrecio() {
   }
   const subtotal=cant*pc.precio;
   const costoTotal=cant*pc.costo;
-  // Tambor venta: sumar costo y precio del tambor físico
-  const costoTamborTotal = pc.costoTambor || 0;
-  const precioTamborTotal = pc.precioTambor || 0;
   const envioTotal=entrega==='Propio'?envio:0;
-  const total=subtotal+precioTamborTotal+envioTotal;
-  const gan=total-(costoTotal+costoTamborTotal);
+  const total=subtotal+envioTotal;
+  const gan=total-costoTotal;
   const margen=total>0?gan/total:0;
   document.getElementById('nv-precio').value=pc.precio.toLocaleString('es-AR');
-  document.getElementById('res-precio').textContent=fmt(pc.precio)+'/L'+(pc.especial?' ⭐':'')+(precioTamborTotal?' + tambor '+fmt(precioTamborTotal):'');
-  document.getElementById('res-costo').textContent=fmt(pc.costo)+'/L'+(pc.especial?' ⭐':'')+(costoTamborTotal?' + tambor '+fmt(costoTamborTotal):'');
+  document.getElementById('res-precio').textContent=fmt(pc.precio)+'/L'+(pc.especial?' ⭐':'');
+  document.getElementById('res-costo').textContent=fmt(pc.costo)+'/L'+(pc.especial?' ⭐':'');
   document.getElementById('res-cant').textContent=cant+' Lts';
-  document.getElementById('res-subtotal').textContent=fmt(subtotal)+(precioTamborTotal?' + '+fmt(precioTamborTotal):'');
+  document.getElementById('res-subtotal').textContent=fmt(subtotal);
   document.getElementById('res-envio').textContent=envioTotal>0?fmt(envioTotal):'$0';
   document.getElementById('res-total').textContent=fmt(total);
   document.getElementById('res-ganancia').textContent=fmt(gan);
@@ -4383,7 +4371,7 @@ function guardarTransporte(){
 }
 
 // =========== GOOGLE SHEETS SYNC ===========
-const GS_URL = 'https://script.google.com/macros/s/AKfycbzEzdlVaTmDMIKITcW3UFOQKJzqwweCUHEyNRozNey44bnhFYcKjK8fBmiycTcj3xMw/exec';
+const GS_URL = 'https://script.google.com/macros/s/AKfycbw5sSxpjM9ArNX4L84dIVJ4CSCQEoYoqGYu1gCVYkninZpZdUNsXy51uqlDP4JqMkfX/exec';
 
 // ── SEGURIDAD: Token + Sesión ──
 const API_TOKEN = 'cmg_erp_2026_s3cur3_Kx9mP';
@@ -4575,20 +4563,18 @@ async function guardarVenta() {
   if(!pc){alert('Ingresá precio y costo manual');return;}
   const subtotal=cant*pc.precio;
   const costoTotal=cant*pc.costo;
-  const costoTamborTotal2 = pc.costoTambor || 0;
-  const precioTamborTotal2 = pc.precioTambor || 0;
   const envioTotal=entrega==='Propio'?envio:0;
-  const total=subtotal+precioTamborTotal2+envioTotal;
-  const gan=total-(costoTotal+costoTamborTotal2);
+  const total=subtotal+envioTotal;
+  const gan=total-costoTotal;
   const esArrayan2 = prod.startsWith('ARRAYAN:') || (pc.esArrayan === true);
   const prodNombre2 = prod.startsWith('ARRAYAN:') ? prod.replace('ARRAYAN:','') : prod;
-  const costoOriginal2 = esArrayan2 ? Math.round(cant * pc.costo / 1.05) : (costoTotal+costoTamborTotal2);
+  const costoOriginal2 = esArrayan2 ? Math.round(cant * pc.costo / 1.05) : costoTotal;
   const ganReal2 = esArrayan2 ? Math.round(costoOriginal2 * 0.05) : gan;
   const venta = {
     fecha:new Date(fecha).toLocaleDateString('es-AR'),
     canal:canal||'Mayorista',cliente,producto:prodNombre2,
     cant,precioU:pc.precio,total,costoU:pc.costo,
-    costoT:costoTotal+costoTamborTotal2,gan:ganReal2,margen:total>0?ganReal2/total:0,
+    costoT:costoTotal,gan:ganReal2,margen:total>0?ganReal2/total:0,
     fpago,pagado,entrega,entregado:'No',
     frozen:true,especial:espe||false,
     esArrayan:esArrayan2,
@@ -5063,9 +5049,8 @@ function checkSaldoArrayan() {
 
   // Calcular saldo actual del proveedor seleccionado
   const matchP = (nombre) => provModal && (nombre||'').toLowerCase().includes(provModal);
-  const pagosVal2 = PAGOS_ARRAYAN.filter(p => p.ventaId && typeof p.fecha === 'string' && p.fecha.includes('/'));
-  const ventasConPagos2 = new Set(pagosVal2.map(p => p.ventaId));
-  const creditosPagos2 = esArrProv ? pagosVal2.reduce((s,p)=>s+p.monto, 0) : 0;
+  const ventasConPagos2 = new Set(PAGOS_ARRAYAN.map(p => p.ventaId));
+  const creditosPagos2 = esArrProv ? PAGOS_ARRAYAN.reduce((s,p)=>s+p.monto, 0) : 0;
   const creditosDirectos2 = esArrProv ? VENTAS.filter(v=>v.arrayan && v.arrayanTipo !== 'parcial' && !ventasConPagos2.has(ventaId(v))).reduce((s,v)=>s+v.total, 0) : 0;
   const creditosIngreso2 = COMPRAS.filter(c=>matchP(c.proveedor)&&(c.fpago||'').toLowerCase().includes('ingreso a cta cte')).reduce((s,c)=>s+c.costoTotal, 0);
   const creditos = creditosPagos2 + creditosDirectos2 + creditosIngreso2;
@@ -5218,6 +5203,185 @@ function exportComprasExcel() {
   XLSX.utils.book_append_sheet(wb,ws,'Compras');
   XLSX.writeFile(wb,'compras_camargo.xlsx');
   notify('✓ Excel compras exportado');
+}
+
+// =========== REPORTE COMPLETO EXCEL (4 solapas) ===========
+
+function abrirModalReporteExcel() {
+  var hoy = new Date();
+  var selMes = document.getElementById('rep-mes');
+  var selAnio = document.getElementById('rep-anio');
+  if(selMes) selMes.value = hoy.getMonth() + 1;
+  if(selAnio) selAnio.value = hoy.getFullYear();
+  document.getElementById('modal-reporte-excel').classList.add('show');
+}
+
+function exportReporteCompletoExcel() {
+  var meses = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  var anio = parseInt(document.getElementById('rep-anio').value);
+  var mes  = parseInt(document.getElementById('rep-mes').value);
+
+  function fechaEnPeriodo(fechaStr) {
+    var p = (fechaStr||'').split('/');
+    if(p.length < 3) return false;
+    return parseInt(p[1]) === mes && parseInt(p[2]) === anio;
+  }
+
+  // === SOLAPA 1: COMPRAS ===
+  var comprasFiltradas = COMPRAS.filter(function(c){ return fechaEnPeriodo(c.fecha); });
+  var rowsCompras = comprasFiltradas.map(function(c){
+    return {
+      'Fecha': c.fecha, 'Proveedor': c.proveedor, 'Producto': c.producto,
+      'Cantidad': c.cant, 'Unidad': c.unidad || '', 'Precio Unit.': c.precioU,
+      'Costo Total': c.costoTotal, 'Forma de Pago': c.fpago,
+      'N° Doc': c.nroDoc || '', 'Obs': c.obs || ''
+    };
+  });
+  var totalCompras = comprasFiltradas.reduce(function(s,c){ return s + c.costoTotal; }, 0);
+  rowsCompras.push({
+    'Fecha': '', 'Proveedor': '', 'Producto': 'TOTAL', 'Cantidad': '',
+    'Unidad': '', 'Precio Unit.': '', 'Costo Total': totalCompras,
+    'Forma de Pago': '', 'N° Doc': '', 'Obs': ''
+  });
+
+  // === SOLAPA 2: CUENTA CORRIENTE ARRAYAN ===
+  var creditosPagos = PAGOS_ARRAYAN.filter(function(p){ return fechaEnPeriodo(p.fecha); }).map(function(p){
+    return { fecha: p.fecha, tipo: 'Crédito', desc: p.concepto + (p.obs ? ' (' + p.obs + ')' : ''), credito: p.monto, debito: 0 };
+  });
+
+  var ventasConPagosSet = new Set(PAGOS_ARRAYAN.map(function(p){ return p.ventaId; }));
+  var creditosVentas = VENTAS.filter(function(v){
+    return v.arrayan && !ventasConPagosSet.has(ventaId(v)) && fechaEnPeriodo(v.fecha);
+  }).map(function(v){
+    return { fecha: v.fecha, tipo: 'Crédito', desc: v.producto.substring(0,50) + ' (' + v.cant + ' Lts) — Pago único', credito: v.total, debito: 0 };
+  });
+
+  var creditosIngreso = COMPRAS.filter(function(c){
+    return (c.proveedor||'').toLowerCase().includes('arrayan') &&
+      (c.fpago||'').toLowerCase().includes('ingreso a cta cte') && fechaEnPeriodo(c.fecha);
+  }).map(function(c){
+    return { fecha: c.fecha, tipo: 'Crédito', desc: 'Ingreso propio: ' + c.producto, credito: c.costoTotal, debito: 0 };
+  });
+
+  var debitosCC = COMPRAS.filter(function(c){
+    return (c.proveedor||'').toLowerCase().includes('arrayan') &&
+      esCuentaCorrienteArrayan(c.fpago) && fechaEnPeriodo(c.fecha);
+  }).map(function(c){
+    return { fecha: c.fecha, tipo: 'Débito', desc: 'Compra: ' + c.producto + ' (' + c.cant + ' ' + (c.unidad||'Lts') + ')', credito: 0, debito: c.costoTotal };
+  });
+
+  var movimientos = [].concat(creditosPagos, creditosVentas, creditosIngreso, debitosCC).sort(function(a,b){
+    var pa = a.fecha.split('/'), pb = b.fecha.split('/');
+    return new Date(+pa[2]||0, +pa[1]-1||0, +pa[0]||1) - new Date(+pb[2]||0, +pb[1]-1||0, +pb[0]||1);
+  });
+
+  var saldoCC = 0;
+  var totalCreditos = movimientos.reduce(function(s,m){ return s + m.credito; }, 0);
+  var totalDebitos  = movimientos.reduce(function(s,m){ return s + m.debito; }, 0);
+  var saldoFinal = totalCreditos - totalDebitos;
+
+  var rowsCC = movimientos.map(function(m){
+    saldoCC += m.credito - m.debito;
+    return {
+      'Fecha': m.fecha, 'Tipo': m.tipo, 'Descripción': m.desc,
+      'Crédito ($)': m.credito || '', 'Débito ($)': m.debito || '', 'Saldo ($)': Math.round(saldoCC)
+    };
+  });
+
+  var resumenCC = [
+    { 'Fecha': 'RESUMEN', 'Tipo': '', 'Descripción': '', 'Crédito ($)': '', 'Débito ($)': '', 'Saldo ($)': '' },
+    { 'Fecha': 'Saldo Cuenta Corriente', 'Tipo': '', 'Descripción': '', 'Crédito ($)': '', 'Débito ($)': '', 'Saldo ($)': Math.round(saldoFinal) },
+    { 'Fecha': 'Total Créditos', 'Tipo': '', 'Descripción': '', 'Crédito ($)': Math.round(totalCreditos), 'Débito ($)': '', 'Saldo ($)': '' },
+    { 'Fecha': 'Total Débitos', 'Tipo': '', 'Descripción': '', 'Crédito ($)': '', 'Débito ($)': Math.round(totalDebitos), 'Saldo ($)': '' },
+    { 'Fecha': '', 'Tipo': '', 'Descripción': '', 'Crédito ($)': '', 'Débito ($)': '', 'Saldo ($)': '' },
+    { 'Fecha': 'DETALLE MOVIMIENTOS', 'Tipo': '', 'Descripción': '', 'Crédito ($)': '', 'Débito ($)': '', 'Saldo ($)': '' }
+  ];
+  var rowsCCFinal = resumenCC.concat(rowsCC);
+
+  // === SOLAPA 3: ESCALA POR VOLUMEN ===
+  var comprasEscala = COMPRAS.filter(function(c){
+    if(!(c.proveedor||'').toLowerCase().includes('arrayan')) return false;
+    if((c.fpago||'').toLowerCase().includes('ingreso a cta cte')) return false;
+    return fechaEnPeriodo(c.fecha);
+  });
+
+  var totalLts = comprasEscala.reduce(function(s,c){ return s + c.cant; }, 0);
+  var pctActual = getPctArrayan(totalLts);
+  var precioListaCereal  = PRECIO_LISTA_ARRAYAN.cereal;
+  var precioListaEtilico = PRECIO_LISTA_ARRAYAN.etilico;
+  var colPrecioCorr = 'Precio Correcto $/Lt (' + (pctActual*100).toFixed(1) + '%)';
+
+  var rowsEscala = comprasEscala.map(function(c){
+    var esCereal = (c.producto||'').toLowerCase().includes('cereal') || (c.producto||'').toLowerCase().includes('tri');
+    var lista = esCereal ? precioListaCereal : precioListaEtilico;
+    var precioCorrectoPorLitro = Math.round(lista * (1 + pctActual));
+    var row = {
+      'Fecha': c.fecha, 'Cantidad (Lts)': c.cant, 'Producto': c.producto,
+      'Forma de Pago': c.fpago || '', 'Precio Pagado ($/Lt)': c.precioU, 'Total Pagado ($)': c.costoTotal
+    };
+    row[colPrecioCorr] = precioCorrectoPorLitro;
+    return row;
+  });
+
+  var totalPagadoEscala = comprasEscala.reduce(function(s,c){ return s + c.costoTotal; }, 0);
+  var totalCorrectoEscala = comprasEscala.reduce(function(s,c){
+    var esCereal = (c.producto||'').toLowerCase().includes('cereal') || (c.producto||'').toLowerCase().includes('tri');
+    var lista = esCereal ? precioListaCereal : precioListaEtilico;
+    return s + c.cant * lista * (1 + pctActual);
+  }, 0);
+
+  var filaTot = {
+    'Fecha': 'TOTAL', 'Cantidad (Lts)': totalLts, 'Producto': '', 'Forma de Pago': '',
+    'Precio Pagado ($/Lt)': '', 'Total Pagado ($)': Math.round(totalPagadoEscala)
+  };
+  filaTot[colPrecioCorr] = '';
+  rowsEscala.push(filaTot);
+
+  var filaDif = {
+    'Fecha': 'Rango escala: ' + (pctActual*100).toFixed(1) + '%', 'Cantidad (Lts)': '',
+    'Producto': 'Diferencia: $' + Math.round(Math.abs(totalPagadoEscala - totalCorrectoEscala)).toLocaleString('es-AR') + (totalPagadoEscala >= totalCorrectoEscala ? ' (a tu favor)' : ' (debes)'),
+    'Forma de Pago': '', 'Precio Pagado ($/Lt)': '', 'Total Pagado ($)': ''
+  };
+  filaDif[colPrecioCorr] = Math.round(totalCorrectoEscala);
+  rowsEscala.push(filaDif);
+
+  // === SOLAPA 4: VENTAS ARRAYAN CON COMISIÓN 5% ===
+  var ventasArr = VENTAS.filter(function(v){ return v.esArrayan === true && fechaEnPeriodo(v.fecha); });
+  var rowsVentasArr = ventasArr.map(function(v){
+    return {
+      'Fecha': v.fecha, 'Cliente': v.cliente, 'Producto': v.producto,
+      'Cantidad': v.cant, 'Total Venta ($)': v.total, 'Comisión 5% ($)': Math.round(v.total * 0.05)
+    };
+  });
+  var totalVentaArr = ventasArr.reduce(function(s,v){ return s + v.total; }, 0);
+  var totalComisionArr = ventasArr.reduce(function(s,v){ return s + Math.round(v.total * 0.05); }, 0);
+  rowsVentasArr.push({
+    'Fecha': '', 'Cliente': '', 'Producto': 'TOTAL', 'Cantidad': '',
+    'Total Venta ($)': totalVentaArr, 'Comisión 5% ($)': totalComisionArr
+  });
+
+  // === GENERAR WORKBOOK ===
+  var wb = XLSX.utils.book_new();
+  var ws1 = XLSX.utils.json_to_sheet(rowsCompras);
+  ws1['!cols'] = [{wch:12},{wch:20},{wch:25},{wch:10},{wch:8},{wch:12},{wch:14},{wch:16},{wch:12},{wch:20}];
+  XLSX.utils.book_append_sheet(wb, ws1, 'Compras');
+
+  var ws2 = XLSX.utils.json_to_sheet(rowsCCFinal);
+  ws2['!cols'] = [{wch:24},{wch:10},{wch:45},{wch:14},{wch:14},{wch:14}];
+  XLSX.utils.book_append_sheet(wb, ws2, 'Cuenta Corriente');
+
+  var ws3 = XLSX.utils.json_to_sheet(rowsEscala);
+  ws3['!cols'] = [{wch:12},{wch:14},{wch:30},{wch:16},{wch:18},{wch:16},{wch:22}];
+  XLSX.utils.book_append_sheet(wb, ws3, 'Escala Volumen');
+
+  var ws4 = XLSX.utils.json_to_sheet(rowsVentasArr);
+  ws4['!cols'] = [{wch:12},{wch:22},{wch:30},{wch:10},{wch:16},{wch:16}];
+  XLSX.utils.book_append_sheet(wb, ws4, 'Ventas Arrayan');
+
+  var nombreMes = meses[mes].toLowerCase();
+  XLSX.writeFile(wb, 'reporte_camargo_' + nombreMes + '_' + anio + '.xlsx');
+  cerrarModal('modal-reporte-excel');
+  notify('✓ Reporte completo descargado — ' + meses[mes] + ' ' + anio);
 }
 
 async function gsGuardarCompra(compra) {
@@ -5811,7 +5975,7 @@ function ventaId(v) {
 
 function getPagosDeVenta(v) {
   const id = ventaId(v);
-  return PAGOS_ARRAYAN.filter(p => p.ventaId === id && typeof p.fecha === 'string' && p.fecha.includes('/'));
+  return PAGOS_ARRAYAN.filter(p => p.ventaId === id);
 }
 
 function getTotalPagadoVenta(v) {
@@ -5837,9 +6001,7 @@ function abrirPagoArrayan(ventaIdx) {
   document.getElementById('pa-monto').value = pendiente > 0 ? Math.round(pendiente) : '';
   document.getElementById('pa-obs').value = '';
   actualizarResumenPago();
-  const modal = document.getElementById('modal-pago-arrayan');
-  modal.style.display = '';
-  modal.classList.add('show');
+  document.getElementById('modal-pago-arrayan').classList.add('show');
 }
 
 function actualizarResumenPago() {
@@ -5959,17 +6121,15 @@ function renderArrayan() {
   const esArrayan = provSel.includes('arrayan');
 
   // Créditos: pagos parciales registrados (solo para Arrayan)
-  // Filtrar pagos con datos válidos (descartar filas basura sin ventaId o fecha)
-  const pagosValidos = PAGOS_ARRAYAN.filter(p => p.ventaId && typeof p.fecha === 'string' && p.fecha.includes('/'));
-  const creditosPagos = esArrayan ? pagosValidos.map(p => ({
+  const creditosPagos = esArrayan ? PAGOS_ARRAYAN.map(p => ({
     fecha: p.fecha, tipo: 'credito',
-    desc: p.concepto + (p.obs && typeof p.obs === 'string' ? ' (' + p.obs + ')' : ''),
+    desc: p.concepto + (p.obs ? ' (' + p.obs + ')' : ''),
     monto: p.monto, fpago: 'Pago parcial',
     pagoIdx: PAGOS_ARRAYAN.indexOf(p)
   })) : [];
 
   // Créditos: ventas con pago único (solo Arrayan tiene toggle de ventas)
-  const ventasConPagos = new Set(pagosValidos.map(p => p.ventaId));
+  const ventasConPagos = new Set(PAGOS_ARRAYAN.map(p => p.ventaId));
   const creditosVentasDirectas = esArrayan ? VENTAS.filter(v =>
     v.arrayan &&
     v.arrayanTipo !== 'parcial' &&
@@ -6002,7 +6162,7 @@ function renderArrayan() {
   }));
 
   const movs = [...creditos, ...debitosCC].sort((a,b) => {
-    const pa = String(a.fecha||'').split('/'), pb = String(b.fecha||'').split('/');
+    const pa = a.fecha.split('/'), pb = b.fecha.split('/');
     return new Date(+pa[2]||0, +pa[1]-1||0, +pa[0]||1) - new Date(+pb[2]||0, +pb[1]-1||0, +pb[0]||1);
   });
 
