@@ -4689,8 +4689,12 @@ function abrirEditar(idx) {
   const modal = document.getElementById('modal-editar-venta');
   if(!modal) { console.error('Modal no encontrado'); return; }
   // Convertir fecha dd/mm/yyyy a yyyy-mm-dd para el input date
-  const partes = (v.fecha||'').split('/');
-  const fechaInput = partes.length===3 ? `${partes[2]}-${partes[1]}-${partes[0]}` : v.fecha;
+  var fechaStr = v.fecha;
+  if(fechaStr instanceof Date) {
+    fechaStr = fechaStr.getDate().toString().padStart(2,'0') + '/' + (fechaStr.getMonth()+1).toString().padStart(2,'0') + '/' + fechaStr.getFullYear();
+  }
+  const partes = (String(fechaStr)||'').split('/');
+  const fechaInput = partes.length===3 ? `${partes[2]}-${partes[1].padStart(2,'0')}-${partes[0].padStart(2,'0')}` : fechaStr;
   const set = (id, val) => { const el=document.getElementById(id); if(el) el.value=val||''; };
   set('ev-fecha', fechaInput);
   set('ev-canal', v.canal);
