@@ -3540,6 +3540,10 @@ function getPrecio(prod,cant) {
   }
   const tri=PRECIOS.find(p=>p.prod===prod);
   if(tri){
+    // Productos tambor usan precioFijo directo, no tramos
+    if(tri.esTambor && tri.precioFijo) {
+      return {precio:tri.precioFijo, costo:tri.costo};
+    }
     let precio;
     if(cant>=200) precio=tri.m200;
     else if(cant>=120) precio=tri.m120;
@@ -4738,6 +4742,11 @@ function eliminarVenta(idx) {
 
 async function guardarEdicionVenta() {
   if(editIdx < 0) return;
+  // Guardar claves originales ANTES de editar para encontrar la fila en Sheets
+  const _origFecha = VENTAS[editIdx].fecha;
+  const _origCliente = VENTAS[editIdx].cliente;
+  const _origTotal = VENTAS[editIdx].total;
+  const _origCant = VENTAS[editIdx].cant;
   const cant = parseFloat(document.getElementById('ev-cant').value)||0;
   const precioU = parseFloat(document.getElementById('ev-precioU').value)||0;
   const costoU = parseFloat(document.getElementById('ev-costoU').value)||0;
@@ -4772,6 +4781,10 @@ async function guardarEdicionVenta() {
   notify('✓ Venta actualizada');
   // Sincronizar con Sheets
   setSyncStatus('sync');
+  campos._fecha = _origFecha;
+  campos._cliente = _origCliente;
+  campos._total = _origTotal;
+  campos._cant = _origCant;
   const res = await gsCall('updateVenta', {idx: editIdx, campos});
   setSyncStatus(res.ok ? 'ok' : 'error');
   editIdx = -1;
