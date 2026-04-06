@@ -362,7 +362,7 @@
         <input type="number" id="nc-costoTotal" readonly style="background:var(--surface);color:var(--green);font-weight:600;font-family:var(--mono)">
       </div>
       <div class="form-group"><label>Forma de Pago</label>
-        <select id="nc-fpago" onchange="checkSaldoArrayan()">
+        <select id="nc-fpago" onchange="toggleIngresoCtaCte();checkSaldoArrayan()">
   <option>Transferencia</option><option>Efectivo</option><option>Cheque</option><option>Cuenta corriente</option><option value="Ingreso a Cta Cte">➕ Ingreso a Cta Cte</option>
 </select>
 <div id="aviso-cta-cte" style="display:none;background:#2d1a0a;border:1px solid #8b4513;border-radius:8px;padding:12px;margin-top:8px;font-size:12px;color:var(--yellow)"></div>
@@ -5037,6 +5037,8 @@ function abrirModalCompra() {
   document.getElementById('nc-fpago').value    = 'Transferencia';
   document.getElementById('nc-nroDoc').value   = '';
   document.getElementById('nc-obs').value      = '';
+  // Resetear estado Ingreso a Cta Cte
+  toggleIngresoCtaCte();
   abrirModal('modal-compra');
 }
 
@@ -5096,7 +5098,38 @@ function checkSaldoArrayan() {
     difDiv.style.display = 'block';
   }
 }
+// Cuando fpago es "Ingreso a Cta Cte", permitir editar costoTotal manualmente (sin cant/precio)
+function toggleIngresoCtaCte() {
+  const fpago = document.getElementById('nc-fpago').value;
+  const esIngreso = fpago === 'Ingreso a Cta Cte';
+  const camposCantPrecio = ['nc-cantidad','nc-precioU'];
+  const costoField = document.getElementById('nc-costoTotal');
+  if(esIngreso) {
+    // Hacer costoTotal editable, desactivar cant/precio
+    costoField.removeAttribute('readonly');
+    costoField.style.background = 'var(--surface2)';
+    costoField.value = '';
+    camposCantPrecio.forEach(id => {
+      const el = document.getElementById(id);
+      el.value = '';
+      el.disabled = true;
+      el.style.opacity = '0.4';
+    });
+  } else {
+    // Restaurar: costoTotal readonly, cant/precio habilitados
+    costoField.setAttribute('readonly', true);
+    costoField.style.background = 'var(--surface)';
+    camposCantPrecio.forEach(id => {
+      const el = document.getElementById(id);
+      el.disabled = false;
+      el.style.opacity = '1';
+    });
+  }
+}
+
 function calcularTotalCompra() {
+  // No pisar el monto manual si es Ingreso a Cta Cte
+  if(document.getElementById('nc-fpago').value === 'Ingreso a Cta Cte') return;
   const cant   = parseFloat(document.getElementById('nc-cantidad').value)  || 0;
   const precio = parseFloat(document.getElementById('nc-precioU').value)   || 0;
   const total  = cant * precio;
@@ -5112,14 +5145,23 @@ function guardarCompra() {
   const precioU   = parseFloat(document.getElementById('nc-precioU').value)  || 0;
   const unidad    = document.getElementById('nc-unidad').value;
   const fpago     = document.getElementById('nc-fpago').value;
+  const esIngreso = fpago === 'Ingreso a Cta Cte';
 
-  if(!proveedor || !fechaRaw || !producto || !cant || !precioU) {
-    alert('Completá Proveedor, Fecha, Producto, Cantidad y Precio'); return;
+  // Validación: para Ingreso a Cta Cte solo exigir proveedor, fecha, producto y monto
+  if(esIngreso) {
+    const montoManual = parseFloat(document.getElementById('nc-costoTotal').value) || 0;
+    if(!proveedor || !fechaRaw || !producto || !montoManual) {
+      alert('Completá Proveedor, Fecha, Producto y Monto'); return;
+    }
+  } else {
+    if(!proveedor || !fechaRaw || !producto || !cant || !precioU) {
+      alert('Completá Proveedor, Fecha, Producto, Cantidad y Precio'); return;
+    }
   }
 
   const partes = fechaRaw.split('-');
   const fecha = partes[2].padStart(2,'0') + '/' + partes[1].padStart(2,'0') + '/' + partes[0];
-  const costoTotal = cant * precioU;
+  const costoTotal = esIngreso ? (parseFloat(document.getElementById('nc-costoTotal').value) || 0) : cant * precioU;
   const esArrayan = proveedor.toLowerCase().includes('arrayan');
 
   // Calcular saldo Arrayan si paga con cuenta corriente
@@ -5130,7 +5172,7 @@ function guardarCompra() {
 
   if(fpago === 'Cuenta corriente' && esArrayan) {
     const creditos = VENTAS.filter(v=>v.arrayan).reduce((s,v)=>s+v.total, 0);
-    const debitos  = COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')&&((c.fpago||'').toLowerCase()==='cuenta corriente'||(c.fpago||'').toLowerCase().includes('cta cte'))).reduce((s,c)=>s+c.costoTotal, 0);
+    const debitos  = COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')&&!(c.fpago||'').toLowerCase().includes('ingreso')&&((c.fpago||'').toLowerCase()==='cuenta corriente'||(c.fpago||'').toLowerCase().includes('cta cte'))).reduce((s,c)=>s+c.costoTotal, 0);
     const saldo    = creditos - debitos;
 
     if(saldo < costoTotal) {
@@ -5927,6 +5969,8 @@ function renderEscalaArrayan() {
 }
 function esCuentaCorrienteArrayan(fpago) {
   const f = (fpago||'').toLowerCase().trim();
+  // Excluir "ingreso a cta cte" — eso es crédito, no débito
+  if(f.includes('ingreso')) return false;
   return f === 'cuenta corriente' || f.includes('cta cte') || f.startsWith('cta cte') || 
          f.includes('cuenta corriente') || f.includes('cc ') || f === 'cc';
 }
@@ -6324,7 +6368,7 @@ function exportVentasArrayanExcel() {
   notify('✓ Excel exportado');
 }
 
-function exportArrayanExcel(){const cred=VENTAS.filter(v=>v.arrayan).map(v=>({'Fecha':v.fecha,'Tipo':'Credito','Descripcion':v.cliente+' - '+v.producto,'Credito ($)':v.total,'Debito ($)':'','Cantidad':v.cant,'Saldo':''}));const deb=COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')).map(c=>({'Fecha':c.fecha,'Tipo':'Debito','Descripcion':'Compra: '+c.producto+' ('+c.cant+' '+(c.unidad||'')+')', 'Credito ($)':'','Debito ($)':c.costoTotal,'Cantidad':c.cant,'Saldo':''}));const movs=[...cred,...deb].sort((a,b)=>{const pa=a['Fecha'].split('/'),pb=b['Fecha'].split('/');return new Date(parseInt(pa[2]),parseInt(pa[1])-1,parseInt(pa[0]))-new Date(parseInt(pb[2]),parseInt(pb[1])-1,parseInt(pb[0]));});let s=0;movs.forEach(m=>{s+=(parseFloat(m['Credito ($)'])||0)-(parseFloat(m['Debito ($)'])||0);m['Saldo']='$'+Math.round(s).toLocaleString('es-AR');});if(!movs.length){notify('Sin movimientos para exportar');return;}const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(movs),'Cuenta Corriente Arrayan');XLSX.writeFile(wb,'cuenta_corriente_arrayan.xlsx');notify('✓ Excel Arrayan exportado');}
+function exportArrayanExcel(){const cred=VENTAS.filter(v=>v.arrayan).map(v=>({'Fecha':v.fecha,'Tipo':'Credito','Descripcion':v.cliente+' - '+v.producto,'Credito ($)':v.total,'Debito ($)':'','Cantidad':v.cant,'Saldo':''}));const ingresosCC=COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')&&(c.fpago||'').toLowerCase().includes('ingreso a cta cte')).map(c=>({'Fecha':c.fecha,'Tipo':'Credito','Descripcion':'Ingreso: '+c.producto,'Credito ($)':c.costoTotal,'Debito ($)':'','Cantidad':c.cant,'Saldo':''}));const deb=COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')&&!(c.fpago||'').toLowerCase().includes('ingreso a cta cte')).map(c=>({'Fecha':c.fecha,'Tipo':'Debito','Descripcion':'Compra: '+c.producto+' ('+c.cant+' '+(c.unidad||'')+')', 'Credito ($)':'','Debito ($)':c.costoTotal,'Cantidad':c.cant,'Saldo':''}));const movs=[...cred,...ingresosCC,...deb].sort((a,b)=>{const pa=a['Fecha'].split('/'),pb=b['Fecha'].split('/');return new Date(parseInt(pa[2]),parseInt(pa[1])-1,parseInt(pa[0]))-new Date(parseInt(pb[2]),parseInt(pb[1])-1,parseInt(pb[0]));});let s=0;movs.forEach(m=>{s+=(parseFloat(m['Credito ($)'])||0)-(parseFloat(m['Debito ($)'])||0);m['Saldo']='$'+Math.round(s).toLocaleString('es-AR');});if(!movs.length){notify('Sin movimientos para exportar');return;}const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(movs),'Cuenta Corriente Arrayan');XLSX.writeFile(wb,'cuenta_corriente_arrayan.xlsx');notify('✓ Excel Arrayan exportado');}
 
 // =========== LAUNCHER (pantalla de inicio) ===========
 let _enHome = true; // Arranca mostrando el launcher
