@@ -939,15 +939,19 @@
   </div>
 <div class="toggle-wrap" style="background:#0f1f1a;border-color:#1a4a3a;margin-bottom:14px;opacity:0.5;transition:opacity .2s" id="toggle-arrayan-wrap"><label class="toggle"><input type="checkbox" id="toggle-arrayan" onchange="toggleArrayanChange()"><span class="toggle-slider" style="background:#1a3a2a"></span></label><span class="toggle-label">🏭 <strong style="color:#00d4aa">Paga a Arrayan</strong> — El cliente transfiere directo a Arrayan.</span></div>
 <div id="arrayan-tipo-wrap" style="display:none;margin-bottom:14px;background:#0a1f18;border:1px solid #1a4a3a;border-radius:8px;padding:10px 14px">
-  <div style="font-size:12px;color:var(--muted);margin-bottom:8px">¿Cómo deposita el cliente?</div>
-  <div style="display:flex;gap:10px">
+  <div style="font-size:12px;color:var(--muted);margin-bottom:8px">¿Cómo es la operación?</div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap">
     <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:8px 12px" id="arr-tipo-unico-label">
       <input type="radio" name="arr-tipo" id="arr-tipo-unico" value="unico" checked onchange="toggleArrayanTipo()">
-      <span>💰 <strong>Pago único</strong> — deposita el total de una vez</span>
+      <span>💰 <strong>Pago único</strong> — cliente deposita a Arrayan, yo entrego</span>
     </label>
     <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:8px 12px" id="arr-tipo-parcial-label">
       <input type="radio" name="arr-tipo" id="arr-tipo-parcial" value="parcial" onchange="toggleArrayanTipo()">
-      <span>📅 <strong>Pagos parciales</strong> — deposita en cuotas</span>
+      <span>📅 <strong>Pagos parciales</strong> — cliente deposita en cuotas a Arrayan</span>
+    </label>
+    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;flex:1;background:#0a1a1f;border:1px solid #1a3a4a;border-radius:7px;padding:8px 12px" id="arr-tipo-cobra-label">
+      <input type="radio" name="arr-tipo" id="arr-tipo-cobra" value="arrayanCobra" onchange="toggleArrayanTipo()">
+      <span>🏭 <strong>Arrayan cobra y entrega</strong> — solo comisión 5%</span>
     </label>
   </div>
 </div>
@@ -2573,8 +2577,8 @@ function getMesVenta(fecha){ return parseFechaVenta(fecha).mes; }
 function getAnioVenta(fecha){ return parseFechaVenta(fecha).anio; }
 
 function esVentaPropia(v) {
-  // Todas las ventas son propias — las de productos Arrayan 
-  // generan comisión del 5% que es ganancia real del negocio
+  // Ventas "Arrayan cobra y entrega" van solo a Proveedores, no al dashboard
+  if(v.arrayanTipo === 'arrayanCobra') return false;
   return true;
 }
 
@@ -3495,10 +3499,15 @@ function toggleArrayanChange() {
 }
 
 function toggleArrayanTipo() {
+  const unico = document.getElementById('arr-tipo-unico').checked;
   const parcial = document.getElementById('arr-tipo-parcial').checked;
+  const cobra = document.getElementById('arr-tipo-cobra').checked;
   // Resaltar la opción seleccionada
-  document.getElementById('arr-tipo-unico-label').style.borderColor = !parcial ? '#00d4aa' : 'var(--border)';
+  document.getElementById('arr-tipo-unico-label').style.borderColor = unico ? '#00d4aa' : 'var(--border)';
   document.getElementById('arr-tipo-parcial-label').style.borderColor = parcial ? '#00d4aa' : 'var(--border)';
+  document.getElementById('arr-tipo-cobra-label').style.borderColor = cobra ? '#00d4aa' : 'var(--border)';
+  // Recalcular resumen (cobra = 5% comisión)
+  calcularPrecio();
 }
 
 function toggleFpagoArrayan() {}
@@ -3586,7 +3595,13 @@ function calcularPrecio() {
   const costoTotal=cant*pc.costo;
   const envioTotal=entrega==='Propio'?envio:0;
   const total=subtotal+envioTotal;
-  const gan=total-costoTotal;
+  const ganBruta=total-costoTotal;
+  // Si es "Arrayan cobra y entrega", ganancia = 5% comisión
+  const esArrayanCobra = document.getElementById('arr-tipo-cobra')?.checked || false;
+  const esArrProd = prod.startsWith('ARRAYAN:') || (pc.esArrayan === true);
+  const aplicar5pct = esArrayanCobra || esArrProd;
+  const costoOrig = aplicar5pct ? Math.round(cant * pc.costo / 1.05) : costoTotal;
+  const gan = aplicar5pct ? Math.round(costoOrig * 0.05) : ganBruta;
   const margen=total>0?gan/total:0;
   document.getElementById('nv-precio').value=pc.precio.toLocaleString('es-AR');
   document.getElementById('res-precio').textContent=fmt(pc.precio)+'/L'+(pc.especial?' ⭐':'');
@@ -3595,7 +3610,7 @@ function calcularPrecio() {
   document.getElementById('res-subtotal').textContent=fmt(subtotal);
   document.getElementById('res-envio').textContent=envioTotal>0?fmt(envioTotal):'$0';
   document.getElementById('res-total').textContent=fmt(total);
-  document.getElementById('res-ganancia').textContent=fmt(gan);
+  document.getElementById('res-ganancia').textContent=fmt(gan)+(aplicar5pct?' 🏭 5%':'');
   document.getElementById('res-margen').textContent=pct(margen);
 }
 
@@ -3618,18 +3633,28 @@ function guardarVenta() {
   const envioTotal=entrega==='Propio'?envio:0;
   const total=subtotal+envioTotal;
   const gan=total-costoTotal;
-  const esArrayan = prod.startsWith('ARRAYAN:') || (pc.esArrayan === true);
+  const esArrayanCobra = document.getElementById('arr-tipo-cobra')?.checked || false;
+  const esArrProducto1 = prod.startsWith('ARRAYAN:') || (pc.esArrayan === true);
+  const esArrayan = esArrProducto1 || esArrayanCobra;
   const prodNombre = prod.startsWith('ARRAYAN:') ? prod.replace('ARRAYAN:','') : prod;
-  // Para Arrayan: gan real = 5% del costo original (sin mi markup)
+  // Para Arrayan cobra y entrega: gan real = 5% del costo original
   const costoOriginal = esArrayan ? Math.round(cant * pc.costo / 1.05) : costoTotal;
   const ganReal = esArrayan ? Math.round(costoOriginal * 0.05) : gan;
+  const toggleArrOn1 = document.getElementById('toggle-arrayan').checked;
+  let arrayanTipo1 = '';
+  if(toggleArrOn1) {
+    if(esArrayanCobra) arrayanTipo1 = 'arrayanCobra';
+    else if(document.getElementById('arr-tipo-parcial').checked) arrayanTipo1 = 'parcial';
+    else arrayanTipo1 = 'unico';
+  }
   VENTAS.unshift({
     fecha: (()=>{ const [y,m,d]=fecha.split('-'); return d.padStart(2,'0')+'/'+m.padStart(2,'0')+'/'+y; })(),
     canal:canal||'Mayorista',cliente,producto:prodNombre,
     cant,precioU:pc.precio,total,costoU:pc.costo,
     costoT:costoTotal,gan:ganReal,margen:total>0?ganReal/total:0,
     fpago,pagado,entrega,entregado:'No',
-    frozen:true,especial:espe||false,esArrayan:esArrayan
+    frozen:true,especial:espe||false,esArrayan:esArrayan,
+    arrayan:toggleArrOn1,arrayanTipo:arrayanTipo1
   });
   actualizarBadge();
   notify('✓ Venta guardada'+(espe?' con precio especial':''));
@@ -4570,10 +4595,23 @@ async function guardarVenta() {
   const envioTotal=entrega==='Propio'?envio:0;
   const total=subtotal+envioTotal;
   const gan=total-costoTotal;
-  const esArrayan2 = prod.startsWith('ARRAYAN:') || (pc.esArrayan === true);
+  const esArrayanCobra2 = document.getElementById('arr-tipo-cobra')?.checked || false;
+  // esArrayan = true SOLO si Arrayan cobra y entrega, o si el producto es del catálogo Arrayan
+  // Flujo 2 (unico/parcial) = venta propia, esArrayan queda false
+  const esArrProducto = prod.startsWith('ARRAYAN:') || (pc.esArrayan === true);
+  const esArrayan2 = esArrProducto || esArrayanCobra2;
   const prodNombre2 = prod.startsWith('ARRAYAN:') ? prod.replace('ARRAYAN:','') : prod;
+  // Ganancia: 5% comisión solo si esArrayan, sino markup normal
   const costoOriginal2 = esArrayan2 ? Math.round(cant * pc.costo / 1.05) : costoTotal;
   const ganReal2 = esArrayan2 ? Math.round(costoOriginal2 * 0.05) : gan;
+  // Determinar arrayanTipo según radio seleccionado
+  const toggleArrOn = document.getElementById('toggle-arrayan').checked;
+  let arrayanTipo2 = '';
+  if(toggleArrOn) {
+    if(esArrayanCobra2) arrayanTipo2 = 'arrayanCobra';
+    else if(document.getElementById('arr-tipo-parcial').checked) arrayanTipo2 = 'parcial';
+    else arrayanTipo2 = 'unico';
+  }
   const venta = {
     fecha:new Date(fecha).toLocaleDateString('es-AR'),
     canal:canal||'Mayorista',cliente,producto:prodNombre2,
@@ -4582,10 +4620,8 @@ async function guardarVenta() {
     fpago,pagado,entrega,entregado:'No',
     frozen:true,especial:espe||false,
     esArrayan:esArrayan2,
-    arrayan:document.getElementById('toggle-arrayan').checked,
-    arrayanTipo: document.getElementById('toggle-arrayan').checked
-      ? (document.getElementById('arr-tipo-parcial').checked ? 'parcial' : 'unico')
-      : ''
+    arrayan:toggleArrOn,
+    arrayanTipo: arrayanTipo2
 };
 VENTAS.unshift(venta);
 actualizarBadge();
@@ -6150,6 +6186,7 @@ function renderArrayan() {
   const creditosVentasDirectas = esArrayan ? VENTAS.filter(v =>
     v.arrayan &&
     v.arrayanTipo !== 'parcial' &&
+    v.arrayanTipo !== 'arrayanCobra' &&
     !ventasConPagos.has(ventaId(v))
   ).map(v => ({
     fecha: v.fecha, tipo: 'credito',
