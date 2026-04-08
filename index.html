@@ -3599,10 +3599,17 @@ function calcularPrecio() {
   // Si es "Arrayan cobra y entrega", ganancia = 5% comisión
   const esArrayanCobra = document.getElementById('arr-tipo-cobra')?.checked || false;
   const esArrProd = prod.startsWith('ARRAYAN:') || (pc.esArrayan === true);
-  const aplicar5pct = esArrayanCobra || esArrProd;
-  const costoOrig = aplicar5pct ? Math.round(cant * pc.costo / 1.05) : costoTotal;
-  const gan = aplicar5pct ? Math.round(costoOrig * 0.05) : ganBruta;
-  const margen=total>0?gan/total:0;
+  let gan, margen;
+  if(esArrayanCobra) {
+    // Flujo 1: Arrayan cobra y entrega -- comision fija 5% sobre total
+    gan = Math.round(total * 0.05);
+  } else if(esArrProd) {
+    // Productos catalogo Arrayan -- 5% sobre costo base (pc.costo ya incluye 5%)
+    gan = Math.round(Math.round(cant * pc.costo / 1.05) * 0.05);
+  } else {
+    gan = ganBruta;
+  }
+  margen = total > 0 ? gan / total : 0;
   document.getElementById('nv-precio').value=pc.precio.toLocaleString('es-AR');
   document.getElementById('res-precio').textContent=fmt(pc.precio)+'/L'+(pc.especial?' ⭐':'');
   document.getElementById('res-costo').textContent=fmt(pc.costo)+'/L'+(pc.especial?' ⭐':'');
@@ -3610,7 +3617,7 @@ function calcularPrecio() {
   document.getElementById('res-subtotal').textContent=fmt(subtotal);
   document.getElementById('res-envio').textContent=envioTotal>0?fmt(envioTotal):'$0';
   document.getElementById('res-total').textContent=fmt(total);
-  document.getElementById('res-ganancia').textContent=fmt(gan)+(aplicar5pct?' 🏭 5%':'');
+  document.getElementById('res-ganancia').textContent=fmt(gan)+((esArrayanCobra||esArrProd)?' 🏭 5%':'');
   document.getElementById('res-margen').textContent=pct(margen);
 }
 
@@ -3637,9 +3644,20 @@ function guardarVenta() {
   const esArrProducto1 = prod.startsWith('ARRAYAN:') || (pc.esArrayan === true);
   const esArrayan = esArrProducto1 || esArrayanCobra;
   const prodNombre = prod.startsWith('ARRAYAN:') ? prod.replace('ARRAYAN:','') : prod;
-  // Para Arrayan cobra y entrega: gan real = 5% del costo original
-  const costoOriginal = esArrayan ? Math.round(cant * pc.costo / 1.05) : costoTotal;
-  const ganReal = esArrayan ? Math.round(costoOriginal * 0.05) : gan;
+  // Calcular ganancia segun tipo de operacion
+  let ganReal, costoTFinal;
+  if(esArrayanCobra) {
+    // Flujo 1: Arrayan cobra y entrega -- comision fija 5% sobre total
+    ganReal = Math.round(total * 0.05);
+    costoTFinal = total - ganReal;
+  } else if(esArrProducto1) {
+    // Productos catalogo Arrayan -- 5% sobre costo base
+    ganReal = Math.round(Math.round(cant * pc.costo / 1.05) * 0.05);
+    costoTFinal = costoTotal;
+  } else {
+    ganReal = gan;
+    costoTFinal = costoTotal;
+  }
   const toggleArrOn1 = document.getElementById('toggle-arrayan').checked;
   let arrayanTipo1 = '';
   if(toggleArrOn1) {
@@ -3650,8 +3668,9 @@ function guardarVenta() {
   VENTAS.unshift({
     fecha: (()=>{ const [y,m,d]=fecha.split('-'); return d.padStart(2,'0')+'/'+m.padStart(2,'0')+'/'+y; })(),
     canal:canal||'Mayorista',cliente,producto:prodNombre,
-    cant,precioU:pc.precio,total,costoU:pc.costo,
-    costoT:costoTotal,gan:ganReal,margen:total>0?ganReal/total:0,
+    cant,precioU:pc.precio,total,
+    costoU:esArrayanCobra ? Math.round(costoTFinal/cant) : pc.costo,
+    costoT:costoTFinal,gan:ganReal,margen:total>0?ganReal/total:0,
     fpago,pagado,entrega,entregado:'No',
     frozen:true,especial:espe||false,esArrayan:esArrayan,
     arrayan:toggleArrOn1,arrayanTipo:arrayanTipo1
@@ -4601,9 +4620,20 @@ async function guardarVenta() {
   const esArrProducto = prod.startsWith('ARRAYAN:') || (pc.esArrayan === true);
   const esArrayan2 = esArrProducto || esArrayanCobra2;
   const prodNombre2 = prod.startsWith('ARRAYAN:') ? prod.replace('ARRAYAN:','') : prod;
-  // Ganancia: 5% comisión solo si esArrayan, sino markup normal
-  const costoOriginal2 = esArrayan2 ? Math.round(cant * pc.costo / 1.05) : costoTotal;
-  const ganReal2 = esArrayan2 ? Math.round(costoOriginal2 * 0.05) : gan;
+  // Calcular ganancia segun tipo de operacion
+  let ganReal2, costoTFinal2;
+  if(esArrayanCobra2) {
+    // Flujo 1: Arrayan cobra y entrega -- comision fija 5% sobre total
+    ganReal2 = Math.round(total * 0.05);
+    costoTFinal2 = total - ganReal2;
+  } else if(esArrProducto) {
+    // Productos catalogo Arrayan -- 5% sobre costo base
+    ganReal2 = Math.round(Math.round(cant * pc.costo / 1.05) * 0.05);
+    costoTFinal2 = costoTotal;
+  } else {
+    ganReal2 = gan;
+    costoTFinal2 = costoTotal;
+  }
   // Determinar arrayanTipo según radio seleccionado
   const toggleArrOn = document.getElementById('toggle-arrayan').checked;
   let arrayanTipo2 = '';
@@ -4615,8 +4645,9 @@ async function guardarVenta() {
   const venta = {
     fecha:new Date(fecha).toLocaleDateString('es-AR'),
     canal:canal||'Mayorista',cliente,producto:prodNombre2,
-    cant,precioU:pc.precio,total,costoU:pc.costo,
-    costoT:costoTotal,gan:ganReal2,margen:total>0?ganReal2/total:0,
+    cant,precioU:pc.precio,total,
+    costoU:esArrayanCobra2 ? Math.round(costoTFinal2/cant) : pc.costo,
+    costoT:costoTFinal2,gan:ganReal2,margen:total>0?ganReal2/total:0,
     fpago,pagado,entrega,entregado:'No',
     frozen:true,especial:espe||false,
     esArrayan:esArrayan2,
@@ -5102,7 +5133,7 @@ function checkSaldoArrayan() {
   const matchP = (nombre) => provModal && (nombre||'').toLowerCase().includes(provModal);
   const ventasConPagos2 = new Set(PAGOS_ARRAYAN.map(p => p.ventaId));
   const creditosPagos2 = esArrProv ? PAGOS_ARRAYAN.reduce((s,p)=>s+p.monto, 0) : 0;
-  const creditosDirectos2 = esArrProv ? VENTAS.filter(v=>v.arrayan && v.arrayanTipo !== 'parcial' && !ventasConPagos2.has(ventaId(v))).reduce((s,v)=>s+v.total, 0) : 0;
+  const creditosDirectos2 = esArrProv ? VENTAS.filter(v=>v.arrayan && v.arrayanTipo !== 'parcial' && v.arrayanTipo !== 'arrayanCobra' && !ventasConPagos2.has(ventaId(v))).reduce((s,v)=>s+v.total, 0) : 0;
   const creditosIngreso2 = COMPRAS.filter(c=>matchP(c.proveedor)&&(c.fpago||'').toLowerCase().includes('ingreso a cta cte')).reduce((s,c)=>s+c.costoTotal, 0);
   const creditos = creditosPagos2 + creditosDirectos2 + creditosIngreso2;
   const debitos  = COMPRAS.filter(c=>matchP(c.proveedor)&&esCuentaCorrienteArrayan(c.fpago)).reduce((s,c)=>s+c.costoTotal, 0);
@@ -5338,7 +5369,7 @@ function exportReporteCompletoExcel() {
   // Créditos: ventas Arrayan pago único (sin pagos parciales, sin tipo parcial)
   var ccVentasConPagos = new Set(PAGOS_ARRAYAN.map(function(p){ return p.ventaId; }));
   var ccCreditosVentas = VENTAS.filter(function(v){
-    return v.arrayan && v.arrayanTipo !== 'parcial' && !ccVentasConPagos.has(ventaId(v));
+    return v.arrayan && v.arrayanTipo !== 'parcial' && v.arrayanTipo !== 'arrayanCobra' && !ccVentasConPagos.has(ventaId(v));
   }).map(function(v){
     return { fecha: v.fecha, tipo: 'Crédito', desc: v.producto.substring(0,50) + ' (' + v.cant + ' Lts) — Pago único', credito: v.total, debito: 0 };
   });
