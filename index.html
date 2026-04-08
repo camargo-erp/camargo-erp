@@ -2582,6 +2582,16 @@ function esVentaPropia(v) {
   return true;
 }
 
+// Comisiones arrayanCobra filtradas por periodo (para sumar al dashboard)
+function getComisionesArrayanCobra() {
+  const cobras = VENTAS.filter(v => v.arrayanTipo === 'arrayanCobra');
+  if(dashPeriodo==='all') return cobras;
+  const anio = parseInt(document.getElementById('dash-anio-sel').value);
+  if(dashPeriodo==='year') return cobras.filter(v => getAnioVenta(v.fecha)===anio);
+  const mes = parseInt(document.getElementById('dash-mes-sel').value);
+  return cobras.filter(v => getAnioVenta(v.fecha)===anio && getMesVenta(v.fecha)===mes);
+}
+
 function getVentasFiltradas() {
   const propias = VENTAS.filter(esVentaPropia);
   if(dashPeriodo==='all') return propias;
@@ -2593,9 +2603,11 @@ function getVentasFiltradas() {
 
 function renderDashboard() {
   const vf = getVentasFiltradas();
+  const ventasCobra = getComisionesArrayanCobra();
+  const comisionesCobra = ventasCobra.reduce((s,v)=>s+v.gan,0);
   const totalVentas = vf.reduce((s,v)=>s+v.total,0);
-  // Para ventas Arrayan la ganancia ya viene calculada como 5% en v.gan
-  const totalGan = vf.reduce((s,v)=>s+v.gan,0);
+  // Ganancia = ventas propias + comisiones arrayanCobra
+  const totalGan = vf.reduce((s,v)=>s+v.gan,0) + comisionesCobra;
   const totalCosto = vf.reduce((s,v)=>s+v.costoT,0);
   const totalCuentas = vf.filter(v=>v.pagado==='No').reduce((s,v)=>s+v.total,0);
   const ops = vf.length;
@@ -2725,10 +2737,12 @@ function renderKPIsAvanzados() {
 
   const vMesAct = VENTAS.filter(v => esVentaPropia(v) && getAnioVenta(v.fecha)===anioActual && getMesVenta(v.fecha)===mesActual);
   const vMesAnt = VENTAS.filter(v => esVentaPropia(v) && getAnioVenta(v.fecha)===anioAnt    && getMesVenta(v.fecha)===mesAnt);
+  const comisMesAct = VENTAS.filter(v=>v.arrayanTipo==='arrayanCobra'&&getAnioVenta(v.fecha)===anioActual&&getMesVenta(v.fecha)===mesActual).reduce((s,v)=>s+v.gan,0);
+  const comisMesAnt = VENTAS.filter(v=>v.arrayanTipo==='arrayanCobra'&&getAnioVenta(v.fecha)===anioAnt&&getMesVenta(v.fecha)===mesAnt).reduce((s,v)=>s+v.gan,0);
   const totalMesAct = vMesAct.reduce((s,v)=>s+v.total,0);
   const totalMesAnt = vMesAnt.reduce((s,v)=>s+v.total,0);
-  const ganMesAct   = vMesAct.reduce((s,v)=>s+v.gan,0);
-  const ganMesAnt   = vMesAnt.reduce((s,v)=>s+v.gan,0);
+  const ganMesAct   = vMesAct.reduce((s,v)=>s+v.gan,0) + comisMesAct;
+  const ganMesAnt   = vMesAnt.reduce((s,v)=>s+v.gan,0) + comisMesAnt;
   const varVentas   = totalMesAnt > 0 ? ((totalMesAct - totalMesAnt) / totalMesAnt * 100) : 0;
   const varGan      = ganMesAnt   > 0 ? ((ganMesAct   - ganMesAnt)   / ganMesAnt   * 100) : 0;
   const MESES_NOM   = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
@@ -2995,11 +3009,13 @@ function getGastosFiltrados() {
 function renderPnL() {
   const vf = getVentasFiltradas();
   const gf = getGastosFiltrados();
+  const ventasCobra = getComisionesArrayanCobra();
+  const comisionesCobra = ventasCobra.reduce((s,v) => s + v.gan, 0);
 
   // --- Métricas base ---
   const totalVentas = vf.reduce((s,v) => s + v.total, 0);
   const costoMerc = vf.reduce((s,v) => s + v.costoT, 0);
-  const ganBruta = totalVentas - costoMerc; // Ganancia bruta (sin gastos operativos)
+  const ganBruta = totalVentas - costoMerc + comisionesCobra; // Ganancia bruta + comisiones arrayanCobra
   const totalGastos = gf.reduce((s,g) => s + (g.monto || 0), 0);
 
   // Gastos fijos (recurrentes) vs variables
@@ -3019,7 +3035,8 @@ function renderPnL() {
 
   // 4) Flujo de caja = cobrado - gastos pagados
   const cobrado = vf.filter(v => v.pagado === 'Sí').reduce((s,v) => s + v.total, 0);
-  const flujoCaja = cobrado - totalGastos;
+  const comisionesCobradas = ventasCobra.filter(v => v.pagado === 'Sí').reduce((s,v) => s + v.gan, 0);
+  const flujoCaja = cobrado + comisionesCobradas - totalGastos;
 
   // 5) Ratio gastos fijos / ventas
   const ratioFijosVentas = totalVentas > 0 ? (totalFijos / totalVentas * 100) : 0;
@@ -3117,15 +3134,19 @@ function getMonthlyData() {
   if(dashPeriodo==='all') {
     const anios=[2024,2025,2026];
     return anios.map(a=>{
-      const vs=VENTAS.filter(v=>getAnioVenta(v.fecha)===a);
+      const vs=VENTAS.filter(v=>esVentaPropia(v)&&getAnioVenta(v.fecha)===a);
+      const cobras=VENTAS.filter(v=>v.arrayanTipo==='arrayanCobra'&&getAnioVenta(v.fecha)===a);
+      const comis=cobras.reduce((s,v)=>s+v.gan,0);
+      const ganTotal=vs.reduce((s,v)=>s+v.gan,0)+comis;
+      const ventasTotal=vs.reduce((s,v)=>s+v.total,0);
       return {
         mes:a, label:String(a),
-        ventas:vs.reduce((s,v)=>s+v.total,0),
-        gan:vs.reduce((s,v)=>s+v.gan,0),
+        ventas:ventasTotal,
+        gan:ganTotal,
         ops:vs.length,
         minor:vs.filter(v=>v.canal==='Minorista').reduce((s,v)=>s+v.total,0),
         mayor:vs.filter(v=>v.canal==='Mayorista').reduce((s,v)=>s+v.total,0),
-        margen:vs.length>0?(vs.reduce((s,v)=>s+v.gan,0)/vs.reduce((s,v)=>s+v.total,0)*100):0,
+        margen:ventasTotal>0?(ganTotal/ventasTotal*100):0,
       };
     });
   }
@@ -3133,15 +3154,19 @@ function getMonthlyData() {
   const anio = parseInt(document.getElementById('dash-anio-sel').value);
   const meses=Array.from({length:12},(_,i)=>i+1);
   return meses.map(m=>{
-    const vs=VENTAS.filter(v=>getAnioVenta(v.fecha)===anio && getMesVenta(v.fecha)===m);
+    const vs=VENTAS.filter(v=>esVentaPropia(v)&&getAnioVenta(v.fecha)===anio && getMesVenta(v.fecha)===m);
+    const cobras=VENTAS.filter(v=>v.arrayanTipo==='arrayanCobra'&&getAnioVenta(v.fecha)===anio&&getMesVenta(v.fecha)===m);
+    const comis=cobras.reduce((s,v)=>s+v.gan,0);
+    const ganTotal=vs.reduce((s,v)=>s+v.gan,0)+comis;
+    const ventasTotal=vs.reduce((s,v)=>s+v.total,0);
     return {
       mes:m, label:MESES_ABREV[m-1],
-      ventas:vs.reduce((s,v)=>s+v.total,0),
-      gan:vs.reduce((s,v)=>s+v.gan,0),
+      ventas:ventasTotal,
+      gan:ganTotal,
       ops:vs.length,
       minor:vs.filter(v=>v.canal==='Minorista').reduce((s,v)=>s+v.total,0),
       mayor:vs.filter(v=>v.canal==='Mayorista').reduce((s,v)=>s+v.total,0),
-      margen:vs.length>0?(vs.reduce((s,v)=>s+v.gan,0)/vs.reduce((s,v)=>s+v.total,0)*100):0,
+      margen:ventasTotal>0?(ganTotal/ventasTotal*100):0,
     };
   });
 }
