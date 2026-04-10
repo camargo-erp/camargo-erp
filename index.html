@@ -1132,6 +1132,17 @@
     </div>
   </div>
 
+  <!-- TABLA GLICERINA -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-title">🧴 Glicerina USP Vegetal — PRECIOS_GLICERINA</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Modalidad</th><th>Costo/Kg</th><th>Precio Lista/Kg</th><th>Gan. por Kg</th><th>Margen</th></tr></thead>
+        <tbody id="precios-glicerina-body"></tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- TABLA PRODUCTOS USD ARRAYAN -->
   <div class="card" style="margin-bottom:16px">
     <div class="card-title">💵 Productos Arrayan — En Dólares</div>
@@ -1286,9 +1297,13 @@ let PRODUCTOS_USD = [
 ];
 
 const OTROS_PROD = [
-  {nombre:"Glicerina usp vegetal fracc envase",costo:2300,precio:4236},
   {nombre:"Soda Cáustica en perlas 99%",costo:4385,precio:9700},
   {nombre:"Acido sulfónico 96% tambor recambio",costo:3710,precio:3905},
+];
+
+// Glicerina — tabla editable propia (entre Tridestilado y Arrayan)
+let PRECIOS_GLICERINA = [
+  {modal:"Fracc CON Envase 5L CON caja",costo:2300,precio:4236,unidad:"Kg",prod:"Glicerina USP Vegetal fracc con envase 5L con caja"},
 ];
 
 let VENTAS = [
@@ -3485,10 +3500,12 @@ function initForm() {
     CLIENTES.map(c=>`<option value="${c.nombre}">${c.nombre}</option>`).join('');
   const sp=document.getElementById('nv-producto');
   const triProds=PRECIOS.map(p=>p.prod);
+  const glicProds=PRECIOS_GLICERINA.map(p=>p.prod);
   const otrosProds=OTROS_PROD.map(p=>p.nombre);
   const arrayanProds = PRODUCTOS_USD.map(p=>p.nombre);
   sp.innerHTML='<option value="">— Seleccionar —</option>'+
     '<optgroup label="Tridestilado">'+triProds.map(p=>`<option>${p}</option>`).join('')+'</optgroup>'+
+    '<optgroup label="Glicerina">'+glicProds.map(p=>`<option>${p}</option>`).join('')+'</optgroup>'+
     '<optgroup label="Otros">'+otrosProds.map(p=>`<option>${p}</option>`).join('')+'</optgroup>'+
     '<optgroup label="🏭 Arrayan (comisión 5%)">'+arrayanProds.map(p=>`<option value="ARRAYAN:${p}">${p}</option>`).join('')+'</optgroup>';
   // Transportes
@@ -3593,6 +3610,9 @@ function getPrecio(prod,cant) {
     else precio=tri.lista;
     return {precio,costo:tri.costo};
   }
+  // Glicerina
+  const glic=PRECIOS_GLICERINA.find(p=>p.prod===prod);
+  if(glic) return {precio:glic.precio, costo:glic.costo};
   const otro=OTROS_PROD.find(p=>p.nombre===prod);
   if(otro) return {precio:otro.precio,costo:otro.costo};
   // Productos Arrayan
@@ -4290,6 +4310,19 @@ function renderPrecios() {
     </tr>`;
   }).join('');
 
+  // Render tabla Glicerina
+  document.getElementById('precios-glicerina-body').innerHTML = PRECIOS_GLICERINA.map((p,i) => {
+    const ganKg = (p.precio && p.costo) ? p.precio - p.costo : null;
+    const margen = (p.precio && p.costo && p.precio > 0) ? ((ganKg / p.precio) * 100).toFixed(1) + '%' : '—';
+    return `<tr>
+      <td><strong>${p.modal}</strong><br><span style="font-size:10px;color:var(--muted)">unidad: ${p.unidad || 'Kg'}</span></td>
+      <td><input class="precio-edit" type="number" value="${p.costo||''}" id="pg-${i}-costo" oninput="precioEditado()" style="width:100px"></td>
+      <td><input class="precio-edit" type="number" value="${p.precio||''}" id="pg-${i}-precio" oninput="precioEditado()" style="width:100px"></td>
+      <td style="font-family:var(--mono);color:var(--green);font-weight:600">${ganKg !== null ? '$'+ganKg.toLocaleString('es-AR') : '—'}</td>
+      <td style="font-family:var(--mono);color:var(--accent2)">${margen}</td>
+    </tr>`;
+  }).join('');
+
   document.getElementById('input-valor-dolar').value = VALOR_DOLAR;
   document.getElementById('usd-prod-body').innerHTML = PRODUCTOS_USD.map((p,i) => {
     // Productos en pesos: costo directo en ARS, sin multiplicar por dólar
@@ -4766,6 +4799,11 @@ async function guardarPrecios(){
       p.costoTambor  = parseFloat(document.getElementById(`pc-${i}-costoTambor`)?.value)  || null;
       p.precioTambor = parseFloat(document.getElementById(`pc-${i}-precioTambor`)?.value) || null;
     }
+  });
+  // Guardar precios Glicerina
+  PRECIOS_GLICERINA.forEach((p,i) => {
+    p.costo  = parseFloat(document.getElementById(`pg-${i}-costo`)?.value)  || p.costo;
+    p.precio = parseFloat(document.getElementById(`pg-${i}-precio`)?.value) || p.precio;
   });
   recalcularUSD();
   notify('✓ Precios actualizados — ventas históricas sin cambios');
