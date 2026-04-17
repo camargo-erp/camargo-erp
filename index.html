@@ -3808,7 +3808,8 @@ function limpiarForm(){
 
 // =========== PENDIENTES ===========
 function getClienteData(nombre){
-  return CLIENTES.find(c=>(c.nombre||'').toLowerCase()===nombre.toLowerCase())||{};
+  const n = String(nombre || '').toLowerCase();
+  return CLIENTES.find(c => c.nombre.toLowerCase() === n) || {};
 }
 
 function renderPendientes() {
@@ -4642,7 +4643,7 @@ async function cargarDesdeSheets() {
       if(res.compras?.length)    COMPRAS    = res.compras;
       if(res.pagosArrayan?.length) PAGOS_ARRAYAN = res.pagosArrayan;
       if(res.gastos?.length)     GASTOS     = res.gastos;
-      if(res.clientes?.length)   CLIENTES   = res.clientes;
+      if(res.clientes?.length)   CLIENTES   = res.clientes.map(c => ({...c, nombre: String(c.nombre || '')})).filter(c => c.nombre);
       if(res.transportes?.length) {
         // Combinar: usar Sheets si tiene más que el hardcoded, sino combinar
         if(res.transportes.length >= TRANSPORTES.length) {
