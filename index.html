@@ -4622,13 +4622,6 @@ async function cargarDesdeSheets() {
           }
           return {...v, fecha: f};
         });
-        // Normalizar campos entregado/pagado a 'Sí'/'No' consistente
-        ventasSheets.forEach(v => {
-          const ent = String(v.entregado || '').trim().toLowerCase();
-          v.entregado = (ent === 'sí' || ent === 'si' || ent === 'true' || ent === '1') ? 'Sí' : 'No';
-          const pag = String(v.pagado || '').trim().toLowerCase();
-          v.pagado = (pag === 'sí' || pag === 'si' || pag === 'true' || pag === '1') ? 'Sí' : 'No';
-        });
         // Si Sheets tiene menos de 500 ventas (histórico no subido),
         // combinar: mantener el array local y reemplazar/agregar solo las de Sheets
         // ESTRATEGIA: Sheets es la fuente de verdad.
