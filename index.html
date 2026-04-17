@@ -961,9 +961,11 @@
       <div class="form-grid" style="margin-bottom:14px">
         <div class="form-group"><label>Fecha</label><input type="date" id="nv-fecha"></div>
         <div class="form-group"><label>Cliente</label>
-          <select id="nv-cliente" onchange="autoCompleteCliente()">
-            <option value="">— Seleccionar —</option>
-          </select>
+          <div style="position:relative" id="nv-cliente-wrap">
+            <input type="text" id="nv-cliente" autocomplete="off" placeholder="Buscar cliente..."
+              oninput="filtrarClientes()" onfocus="filtrarClientes()" onchange="autoCompleteCliente()">
+            <div id="nv-cliente-list" style="display:none;position:absolute;top:100%;left:0;right:0;max-height:220px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:8px;z-index:999;margin-top:2px;box-shadow:0 8px 24px rgba(0,0,0,.4)"></div>
+          </div>
         </div>
         <div class="form-group"><label class="auto-label">Canal</label><input class="auto-field" id="nv-canal" readonly></div>
       </div>
@@ -3495,9 +3497,8 @@ function renderVentas() {
 function initForm() {
   const today=new Date().toISOString().split('T')[0];
   document.getElementById('nv-fecha').value=today;
-  const sc=document.getElementById('nv-cliente');
-  sc.innerHTML='<option value="">— Seleccionar —</option>'+
-    CLIENTES.map(c=>`<option value="${c.nombre}">${c.nombre}</option>`).join('');
+  // Cliente: limpiar input (ya no es select)
+  document.getElementById('nv-cliente').value='';
   const sp=document.getElementById('nv-producto');
   const triProds=PRECIOS.map(p=>p.prod);
   const glicProds=PRECIOS_GLICERINA.map(p=>p.prod);
@@ -3570,6 +3571,53 @@ function autoCompleteCliente() {
   }
   calcularPrecio();
 }
+
+// ===== Buscador de clientes con filtro parcial =====
+function filtrarClientes() {
+  const input = document.getElementById('nv-cliente');
+  const list = document.getElementById('nv-cliente-list');
+  const q = input.value.toLowerCase().trim();
+  // Ordenar clientes alfabéticamente
+  const ordenados = [...CLIENTES].sort((a,b) => a.nombre.localeCompare(b.nombre, 'es'));
+  // Filtrar por coincidencia parcial en cualquier parte del nombre
+  const filtrados = q ? ordenados.filter(c => c.nombre.toLowerCase().includes(q)) : ordenados;
+  if(!filtrados.length) {
+    list.innerHTML = '<div style="padding:10px 14px;color:var(--muted);font-size:12px">Sin resultados</div>';
+    list.style.display = 'block';
+    return;
+  }
+  list.innerHTML = filtrados.map(c => {
+    const safe = c.nombre.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;');
+    return `<div class="cli-option" onmousedown="seleccionarCliente('${c.nombre.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')"
+      style="padding:8px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);transition:background .1s"
+      onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='transparent'">
+      ${resaltarCoincidencia(safe, q)}
+      <span style="float:right;font-size:11px;color:var(--muted)">${c.canal==='menor'?'Minorista':'Mayorista'}</span>
+    </div>`;
+  }).join('');
+  list.style.display = 'block';
+}
+
+function resaltarCoincidencia(nombre, q) {
+  if(!q) return nombre;
+  const idx = nombre.toLowerCase().indexOf(q);
+  if(idx < 0) return nombre;
+  return nombre.substring(0,idx) + '<strong style="color:var(--accent)">' + nombre.substring(idx, idx+q.length) + '</strong>' + nombre.substring(idx+q.length);
+}
+
+function seleccionarCliente(nombre) {
+  document.getElementById('nv-cliente').value = nombre;
+  document.getElementById('nv-cliente-list').style.display = 'none';
+  autoCompleteCliente();
+}
+
+// Cerrar dropdown al hacer click afuera
+document.addEventListener('click', function(e) {
+  const wrap = document.getElementById('nv-cliente-wrap');
+  if(wrap && !wrap.contains(e.target)) {
+    document.getElementById('nv-cliente-list').style.display = 'none';
+  }
+});
 
 function onProductoChange() {
   const prod = document.getElementById('nv-producto').value;
@@ -3765,7 +3813,7 @@ function getClienteData(nombre){
 
 function renderPendientes() {
   const sinEntregar=VENTAS.filter(v=>esVentaPropia(v)&&v.entregado!=='Sí');
-  const sinCobrar=VENTAS.filter(v=>esVentaPropia(v)&&v.pagado==='No');
+  const sinCobrar=VENTAS.filter(v=>esVentaPropia(v)&&v.pagado!=='Sí');
   document.getElementById('cnt-entregas').textContent=sinEntregar.length;
   document.getElementById('cnt-cobros').textContent=sinCobrar.length;
   document.getElementById('lista-entregas').innerHTML=sinEntregar.map((v)=>{
@@ -3817,7 +3865,7 @@ function renderPendientes() {
 
 function marcarEntregado(idx){VENTAS[idx].entregado='Sí';actualizarBadge();notify('✓ Marcado como entregado');renderPendientes();}
 function marcarCobrado(idx){VENTAS[idx].pagado='Sí';actualizarBadge();notify('✓ Marcado como cobrado');renderPendientes();}
-function actualizarBadge(){const sinE=VENTAS.filter(v=>v.entregado==='No').length;const sinC=VENTAS.filter(v=>v.pagado==='No').length;const el=document.getElementById('badge-pend');if(el)el.textContent=sinE+sinC;}
+function actualizarBadge(){const sinE=VENTAS.filter(v=>esVentaPropia(v)&&v.entregado!=='Sí').length;const sinC=VENTAS.filter(v=>esVentaPropia(v)&&v.pagado!=='Sí').length;const el=document.getElementById('badge-pend');if(el)el.textContent=sinE+sinC;}
 
 // =========== LOGIN con hash + backend ===========
 async function doLogin(){
@@ -4573,6 +4621,13 @@ async function cargarDesdeSheets() {
           }
           return {...v, fecha: f};
         });
+        // Normalizar campos entregado/pagado a 'Sí'/'No' consistente
+        ventasSheets.forEach(v => {
+          const ent = String(v.entregado || '').trim().toLowerCase();
+          v.entregado = (ent === 'sí' || ent === 'si' || ent === 'true' || ent === '1') ? 'Sí' : 'No';
+          const pag = String(v.pagado || '').trim().toLowerCase();
+          v.pagado = (pag === 'sí' || pag === 'si' || pag === 'true' || pag === '1') ? 'Sí' : 'No';
+        });
         // Si Sheets tiene menos de 500 ventas (histórico no subido),
         // combinar: mantener el array local y reemplazar/agregar solo las de Sheets
         // ESTRATEGIA: Sheets es la fuente de verdad.
@@ -4606,6 +4661,11 @@ async function cargarDesdeSheets() {
       actualizarBadgeHome(); // Actualizar badge pendientes en launcher
       renderDashboard();
       initForm();
+      // Re-renderizar pendientes si está visible (fix: sync cargaba datos pero no refrescaba la lista)
+      if(document.getElementById('page-pendientes')?.classList.contains('active')) {
+        renderPendientes();
+        if(document.getElementById('panel-contador')?.style.display !== 'none') renderContador();
+      }
     } else {
       setSyncStatus('error');
     }
