@@ -961,9 +961,11 @@
       <div class="form-grid" style="margin-bottom:14px">
         <div class="form-group"><label>Fecha</label><input type="date" id="nv-fecha"></div>
         <div class="form-group"><label>Cliente</label>
-          <select id="nv-cliente" onchange="autoCompleteCliente()">
-            <option value="">— Seleccionar —</option>
-          </select>
+          <div style="position:relative" id="nv-cliente-wrap">
+            <input type="text" id="nv-cliente" autocomplete="off" placeholder="Buscar cliente..."
+              oninput="filtrarClientes()" onfocus="filtrarClientes()" onchange="autoCompleteCliente()">
+            <div id="nv-cliente-list" style="display:none;position:absolute;top:100%;left:0;right:0;max-height:220px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:8px;z-index:999;margin-top:2px;box-shadow:0 8px 24px rgba(0,0,0,.4)"></div>
+          </div>
         </div>
         <div class="form-group"><label class="auto-label">Canal</label><input class="auto-field" id="nv-canal" readonly></div>
       </div>
@@ -1132,6 +1134,17 @@
     </div>
   </div>
 
+  <!-- TABLA GLICERINA -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-title">🧴 Glicerina USP Vegetal — PRECIOS_GLICERINA</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Modalidad</th><th>Costo/Kg</th><th>Precio Lista/Kg</th><th>Gan. por Kg</th><th>Margen</th></tr></thead>
+        <tbody id="precios-glicerina-body"></tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- TABLA PRODUCTOS USD ARRAYAN -->
   <div class="card" style="margin-bottom:16px">
     <div class="card-title">💵 Productos Arrayan — En Dólares</div>
@@ -1286,9 +1299,13 @@ let PRODUCTOS_USD = [
 ];
 
 const OTROS_PROD = [
-  {nombre:"Glicerina usp vegetal fracc envase",costo:2300,precio:4236},
   {nombre:"Soda Cáustica en perlas 99%",costo:4385,precio:9700},
   {nombre:"Acido sulfónico 96% tambor recambio",costo:3710,precio:3905},
+];
+
+// Glicerina — tabla editable propia (entre Tridestilado y Arrayan)
+let PRECIOS_GLICERINA = [
+  {modal:"Fracc CON Envase 5L CON caja",costo:2300,precio:4236,unidad:"Kg",prod:"Glicerina USP Vegetal fracc con envase 5L con caja"},
 ];
 
 let VENTAS = [
@@ -3480,15 +3497,16 @@ function renderVentas() {
 function initForm() {
   const today=new Date().toISOString().split('T')[0];
   document.getElementById('nv-fecha').value=today;
-  const sc=document.getElementById('nv-cliente');
-  sc.innerHTML='<option value="">— Seleccionar —</option>'+
-    CLIENTES.map(c=>`<option value="${c.nombre}">${c.nombre}</option>`).join('');
+  // Cliente: limpiar input (ya no es select)
+  document.getElementById('nv-cliente').value='';
   const sp=document.getElementById('nv-producto');
   const triProds=PRECIOS.map(p=>p.prod);
+  const glicProds=PRECIOS_GLICERINA.map(p=>p.prod);
   const otrosProds=OTROS_PROD.map(p=>p.nombre);
   const arrayanProds = PRODUCTOS_USD.map(p=>p.nombre);
   sp.innerHTML='<option value="">— Seleccionar —</option>'+
     '<optgroup label="Tridestilado">'+triProds.map(p=>`<option>${p}</option>`).join('')+'</optgroup>'+
+    '<optgroup label="Glicerina">'+glicProds.map(p=>`<option>${p}</option>`).join('')+'</optgroup>'+
     '<optgroup label="Otros">'+otrosProds.map(p=>`<option>${p}</option>`).join('')+'</optgroup>'+
     '<optgroup label="🏭 Arrayan (comisión 5%)">'+arrayanProds.map(p=>`<option value="ARRAYAN:${p}">${p}</option>`).join('')+'</optgroup>';
   // Transportes
@@ -3554,6 +3572,53 @@ function autoCompleteCliente() {
   calcularPrecio();
 }
 
+// ===== Buscador de clientes con filtro parcial =====
+function filtrarClientes() {
+  const input = document.getElementById('nv-cliente');
+  const list = document.getElementById('nv-cliente-list');
+  const q = input.value.toLowerCase().trim();
+  // Ordenar clientes alfabéticamente
+  const ordenados = [...CLIENTES].sort((a,b) => a.nombre.localeCompare(b.nombre, 'es'));
+  // Filtrar por coincidencia parcial en cualquier parte del nombre
+  const filtrados = q ? ordenados.filter(c => c.nombre.toLowerCase().includes(q)) : ordenados;
+  if(!filtrados.length) {
+    list.innerHTML = '<div style="padding:10px 14px;color:var(--muted);font-size:12px">Sin resultados</div>';
+    list.style.display = 'block';
+    return;
+  }
+  list.innerHTML = filtrados.map(c => {
+    const safe = c.nombre.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;');
+    return `<div class="cli-option" onmousedown="seleccionarCliente('${c.nombre.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')"
+      style="padding:8px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);transition:background .1s"
+      onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='transparent'">
+      ${resaltarCoincidencia(safe, q)}
+      <span style="float:right;font-size:11px;color:var(--muted)">${c.canal==='menor'?'Minorista':'Mayorista'}</span>
+    </div>`;
+  }).join('');
+  list.style.display = 'block';
+}
+
+function resaltarCoincidencia(nombre, q) {
+  if(!q) return nombre;
+  const idx = nombre.toLowerCase().indexOf(q);
+  if(idx < 0) return nombre;
+  return nombre.substring(0,idx) + '<strong style="color:var(--accent)">' + nombre.substring(idx, idx+q.length) + '</strong>' + nombre.substring(idx+q.length);
+}
+
+function seleccionarCliente(nombre) {
+  document.getElementById('nv-cliente').value = nombre;
+  document.getElementById('nv-cliente-list').style.display = 'none';
+  autoCompleteCliente();
+}
+
+// Cerrar dropdown al hacer click afuera
+document.addEventListener('click', function(e) {
+  const wrap = document.getElementById('nv-cliente-wrap');
+  if(wrap && !wrap.contains(e.target)) {
+    document.getElementById('nv-cliente-list').style.display = 'none';
+  }
+});
+
 function onProductoChange() {
   const prod = document.getElementById('nv-producto').value;
   const prodName = prod.startsWith('ARRAYAN:') ? prod.replace('ARRAYAN:','') : prod;
@@ -3576,7 +3641,15 @@ function getPrecio(prod,cant) {
   if(tri){
     // Productos tambor usan precioFijo directo, no tramos
     if(tri.esTambor && tri.precioFijo) {
-      return {precio:tri.precioFijo, costo:tri.costo};
+      // Si es tambor VENTA (esRecambio=false), incluir costoTambor y precioTambor como cargo fijo
+      const esTamborVenta = !tri.esRecambio;
+      return {
+        precio: tri.precioFijo,
+        costo: tri.costo,
+        precioTambor: esTamborVenta ? (tri.precioTambor || 0) : 0,
+        costoTambor: esTamborVenta ? (tri.costoTambor || 0) : 0,
+        esTamborVenta: esTamborVenta
+      };
     }
     let precio;
     if(cant>=200) precio=tri.m200;
@@ -3585,6 +3658,9 @@ function getPrecio(prod,cant) {
     else precio=tri.lista;
     return {precio,costo:tri.costo};
   }
+  // Glicerina
+  const glic=PRECIOS_GLICERINA.find(p=>p.prod===prod);
+  if(glic) return {precio:glic.precio, costo:glic.costo};
   const otro=OTROS_PROD.find(p=>p.nombre===prod);
   if(otro) return {precio:otro.precio,costo:otro.costo};
   // Productos Arrayan
@@ -3616,8 +3692,8 @@ function calcularPrecio() {
     document.getElementById('nv-precio').value='';
     return;
   }
-  const subtotal=cant*pc.precio;
-  const costoTotal=cant*pc.costo;
+  const subtotal=cant*pc.precio + (pc.precioTambor || 0);
+  const costoTotal=cant*pc.costo + (pc.costoTambor || 0);
   const envioTotal=entrega==='Propio'?envio:0;
   const total=subtotal+envioTotal;
   const ganBruta=total-costoTotal;
@@ -3639,7 +3715,13 @@ function calcularPrecio() {
   document.getElementById('res-precio').textContent=fmt(pc.precio)+'/L'+(pc.especial?' ⭐':'');
   document.getElementById('res-costo').textContent=fmt(pc.costo)+'/L'+(pc.especial?' ⭐':'');
   document.getElementById('res-cant').textContent=cant+' Lts';
-  document.getElementById('res-subtotal').textContent=fmt(subtotal);
+  // Mostrar subtotal con desglose si hay tambor
+  const subAlcohol = cant * pc.precio;
+  if(pc.precioTambor > 0) {
+    document.getElementById('res-subtotal').textContent=fmt(subAlcohol) + ' + tambor ' + fmt(pc.precioTambor) + ' = ' + fmt(subtotal);
+  } else {
+    document.getElementById('res-subtotal').textContent=fmt(subtotal);
+  }
   document.getElementById('res-envio').textContent=envioTotal>0?fmt(envioTotal):'$0';
   document.getElementById('res-total').textContent=fmt(total);
   document.getElementById('res-ganancia').textContent=fmt(gan)+((esArrayanCobra||esArrProd)?' 🏭 5%':'');
@@ -3660,8 +3742,8 @@ function guardarVenta() {
   if(!fecha||!cliente||!prod||!cant){alert('Completá Fecha, Cliente, Producto y Cantidad');return;}
   const pc=getPrecio(prod,cant);
   if(!pc){alert('Ingresá precio y costo manual');return;}
-  const subtotal=cant*pc.precio;
-  const costoTotal=cant*pc.costo;
+  const subtotal=cant*pc.precio + (pc.precioTambor || 0);
+  const costoTotal=cant*pc.costo + (pc.costoTambor || 0);
   const envioTotal=entrega==='Propio'?envio:0;
   const total=subtotal+envioTotal;
   const gan=total-costoTotal;
@@ -3726,12 +3808,13 @@ function limpiarForm(){
 
 // =========== PENDIENTES ===========
 function getClienteData(nombre){
-  return CLIENTES.find(c=>(c.nombre||'').toLowerCase()===nombre.toLowerCase())||{};
+  const n = String(nombre || '').toLowerCase();
+  return CLIENTES.find(c => c.nombre.toLowerCase() === n) || {};
 }
 
 function renderPendientes() {
   const sinEntregar=VENTAS.filter(v=>esVentaPropia(v)&&v.entregado!=='Sí');
-  const sinCobrar=VENTAS.filter(v=>esVentaPropia(v)&&v.pagado==='No');
+  const sinCobrar=VENTAS.filter(v=>esVentaPropia(v)&&v.pagado!=='Sí');
   document.getElementById('cnt-entregas').textContent=sinEntregar.length;
   document.getElementById('cnt-cobros').textContent=sinCobrar.length;
   document.getElementById('lista-entregas').innerHTML=sinEntregar.map((v)=>{
@@ -3783,7 +3866,7 @@ function renderPendientes() {
 
 function marcarEntregado(idx){VENTAS[idx].entregado='Sí';actualizarBadge();notify('✓ Marcado como entregado');renderPendientes();}
 function marcarCobrado(idx){VENTAS[idx].pagado='Sí';actualizarBadge();notify('✓ Marcado como cobrado');renderPendientes();}
-function actualizarBadge(){const sinE=VENTAS.filter(v=>v.entregado==='No').length;const sinC=VENTAS.filter(v=>v.pagado==='No').length;const el=document.getElementById('badge-pend');if(el)el.textContent=sinE+sinC;}
+function actualizarBadge(){const sinE=VENTAS.filter(v=>esVentaPropia(v)&&v.entregado!=='Sí').length;const sinC=VENTAS.filter(v=>esVentaPropia(v)&&v.pagado!=='Sí').length;const el=document.getElementById('badge-pend');if(el)el.textContent=sinE+sinC;}
 
 // =========== LOGIN con hash + backend ===========
 async function doLogin(){
@@ -4276,6 +4359,19 @@ function renderPrecios() {
     </tr>`;
   }).join('');
 
+  // Render tabla Glicerina
+  document.getElementById('precios-glicerina-body').innerHTML = PRECIOS_GLICERINA.map((p,i) => {
+    const ganKg = (p.precio && p.costo) ? p.precio - p.costo : null;
+    const margen = (p.precio && p.costo && p.precio > 0) ? ((ganKg / p.precio) * 100).toFixed(1) + '%' : '—';
+    return `<tr>
+      <td><strong>${p.modal}</strong><br><span style="font-size:10px;color:var(--muted)">unidad: ${p.unidad || 'Kg'}</span></td>
+      <td><input class="precio-edit" type="number" value="${p.costo||''}" id="pg-${i}-costo" oninput="precioEditado()" style="width:100px"></td>
+      <td><input class="precio-edit" type="number" value="${p.precio||''}" id="pg-${i}-precio" oninput="precioEditado()" style="width:100px"></td>
+      <td style="font-family:var(--mono);color:var(--green);font-weight:600">${ganKg !== null ? '$'+ganKg.toLocaleString('es-AR') : '—'}</td>
+      <td style="font-family:var(--mono);color:var(--accent2)">${margen}</td>
+    </tr>`;
+  }).join('');
+
   document.getElementById('input-valor-dolar').value = VALOR_DOLAR;
   document.getElementById('usd-prod-body').innerHTML = PRODUCTOS_USD.map((p,i) => {
     // Productos en pesos: costo directo en ARS, sin multiplicar por dólar
@@ -4540,7 +4636,7 @@ async function cargarDesdeSheets() {
       if(res.compras?.length)    COMPRAS    = res.compras;
       if(res.pagosArrayan?.length) PAGOS_ARRAYAN = res.pagosArrayan;
       if(res.gastos?.length)     GASTOS     = res.gastos;
-      if(res.clientes?.length)   CLIENTES   = res.clientes;
+      if(res.clientes?.length)   CLIENTES   = res.clientes.map(c => ({...c, nombre: String(c.nombre || '')})).filter(c => c.nombre);
       if(res.transportes?.length) {
         // Combinar: usar Sheets si tiene más que el hardcoded, sino combinar
         if(res.transportes.length >= TRANSPORTES.length) {
@@ -4559,6 +4655,11 @@ async function cargarDesdeSheets() {
       actualizarBadgeHome(); // Actualizar badge pendientes en launcher
       renderDashboard();
       initForm();
+      // Re-renderizar pendientes si está visible (fix: sync cargaba datos pero no refrescaba la lista)
+      if(document.getElementById('page-pendientes')?.classList.contains('active')) {
+        renderPendientes();
+        if(document.getElementById('panel-contador')?.style.display !== 'none') renderContador();
+      }
     } else {
       setSyncStatus('error');
     }
@@ -4634,8 +4735,8 @@ async function guardarVenta() {
   if(!fecha||!cliente||!prod||!cant){alert('Completá Fecha, Cliente, Producto y Cantidad');return;}
   const pc=getPrecio(prod,cant);
   if(!pc){alert('Ingresá precio y costo manual');return;}
-  const subtotal=cant*pc.precio;
-  const costoTotal=cant*pc.costo;
+  const subtotal=cant*pc.precio + (pc.precioTambor || 0);
+  const costoTotal=cant*pc.costo + (pc.costoTambor || 0);
   const envioTotal=entrega==='Propio'?envio:0;
   const total=subtotal+envioTotal;
   const gan=total-costoTotal;
@@ -4752,6 +4853,11 @@ async function guardarPrecios(){
       p.costoTambor  = parseFloat(document.getElementById(`pc-${i}-costoTambor`)?.value)  || null;
       p.precioTambor = parseFloat(document.getElementById(`pc-${i}-precioTambor`)?.value) || null;
     }
+  });
+  // Guardar precios Glicerina
+  PRECIOS_GLICERINA.forEach((p,i) => {
+    p.costo  = parseFloat(document.getElementById(`pg-${i}-costo`)?.value)  || p.costo;
+    p.precio = parseFloat(document.getElementById(`pg-${i}-precio`)?.value) || p.precio;
   });
   recalcularUSD();
   notify('✓ Precios actualizados — ventas históricas sin cambios');
@@ -6239,7 +6345,6 @@ function renderArrayan() {
 
   // Créditos: ventas con pago único (solo Arrayan tiene toggle de ventas)
   const ventasConPagos = new Set(PAGOS_ARRAYAN.map(p => p.ventaId));
-  // Solo suma como crédito cuando la venta fue cobrada (pagado=Sí)
   const creditosVentasDirectas = esArrayan ? VENTAS.filter(v =>
     v.arrayan &&
     v.pagado === 'Sí' &&
