@@ -3726,7 +3726,8 @@ function limpiarForm(){
 
 // =========== PENDIENTES ===========
 function getClienteData(nombre){
-  return CLIENTES.find(c=>(c.nombre||'').toLowerCase()===nombre.toLowerCase())||{};
+  const n = String(nombre || '').toLowerCase();
+  return CLIENTES.find(c=>(c.nombre||'').toLowerCase()===n)||{};
 }
 
 function renderPendientes() {
