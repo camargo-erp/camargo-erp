@@ -4675,7 +4675,7 @@ function guardarTransporte(){
 }
 
 // =========== GOOGLE SHEETS SYNC ===========
-const GS_URL = 'https://script.google.com/macros/s/AKfycbw7-3TCOLsuqZ2eqZSXHc0hA33heiTUCB_PLQgrTEp0X-4zVAckhlj5ECPT3F8_T-Bd/exec';
+const GS_URL = 'https://script.google.com/macros/s/AKfycbwVN9Gji1dC9RNspI8bLkl6gzcbxPj-QvBIsIG3fyICuSNq8plNROpi0Ph4Lyr7udeh/exec';
 
 // ── SEGURIDAD: Token + Sesión ──
 const API_TOKEN = 'cmg_erp_2026_s3cur3_Kx9mP';
@@ -6151,6 +6151,8 @@ async function guardarEcheq() {
     ventaRelacionada: document.getElementById('echeq-venta').value.trim(),
     obs:              document.getElementById('echeq-obs').value.trim(),
   };
+  const btnGuardar = document.querySelector('#modal-echeq .btn-primary');
+  if (btnGuardar) { btnGuardar.disabled = true; btnGuardar.textContent = '⏳ Guardando...'; }
   setSyncStatus('sync');
   let res;
   if (editId) {
@@ -6171,6 +6173,7 @@ async function guardarEcheq() {
     }
   }
   setSyncStatus(res.ok ? 'ok' : 'error');
+  if (btnGuardar) { btnGuardar.disabled = false; btnGuardar.textContent = '💾 Guardar'; }
   if (!res.ok) { notify('Error: ' + (res.error || 'Error desconocido'), 'var(--red)'); return; }
   cerrarModalEcheq();
   renderEcheqs();
@@ -6181,7 +6184,7 @@ async function guardarEcheq() {
 async function eliminarEcheq(id) {
   if (!confirm('¿Eliminar este echeq? Esta acción no se puede deshacer.')) return;
   setSyncStatus('sync');
-  const res = await gsCall('deleteEcheq', {id, _usuario: window._usuarioActual || ''});
+  const res = await gsCall('deleteEcheq', {id, _usuario: SESION?.usuario || ''});
   setSyncStatus(res.ok ? 'ok' : 'error');
   if (res.ok) {
     ECHEQS = ECHEQS.filter(e => e.id !== id);
