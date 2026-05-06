@@ -572,7 +572,11 @@
     <div style="padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
       <input type="hidden" id="echeq-edit-id">
       <div class="form-group"><label>Cliente emisor *</label>
-        <input type="text" id="echeq-cliente" placeholder="Nombre del cliente">
+        <div style="position:relative" id="echeq-cliente-wrap">
+          <input type="text" id="echeq-cliente" autocomplete="off" placeholder="Buscar cliente..."
+            oninput="filtrarClientesEcheq()" onfocus="filtrarClientesEcheq()">
+          <div id="echeq-cliente-list" style="display:none;position:absolute;top:100%;left:0;right:0;max-height:200px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:8px;z-index:1100;margin-top:2px;box-shadow:0 8px 24px rgba(0,0,0,.4)"></div>
+        </div>
       </div>
       <div class="form-group"><label>CUIT</label>
         <input type="text" id="echeq-cuit" placeholder="Sin guiones">
@@ -6020,6 +6024,51 @@ function renderEcheqs() {
 }
 
 // Abre el modal de echeq en modo "nuevo"
+// Autocomplete de clientes en el modal de echeq (reutiliza CLIENTES y resaltarCoincidencia)
+function filtrarClientesEcheq() {
+  const input = document.getElementById('echeq-cliente');
+  const list  = document.getElementById('echeq-cliente-list');
+  if (!input || !list) return;
+  const q = input.value.toLowerCase().trim();
+  const ordenados = [...CLIENTES].sort((a,b) => a.nombre.localeCompare(b.nombre, 'es'));
+  const filtrados = q ? ordenados.filter(c => c.nombre.toLowerCase().includes(q)) : ordenados.slice(0, 30);
+  // Limpiar y renderizar con nodos reales para evitar problemas de escape
+  list.innerHTML = '';
+  if (!filtrados.length) {
+    list.innerHTML = '<div style="padding:10px 14px;color:var(--muted);font-size:12px">Sin resultados</div>';
+    list.style.display = 'block';
+    return;
+  }
+  filtrados.forEach(c => {
+    const safe = c.nombre.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+    const div = document.createElement('div');
+    div.style.cssText = 'padding:8px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);transition:background .1s';
+    div.innerHTML = resaltarCoincidencia(safe, q)
+      + '<span style="float:right;font-size:11px;color:var(--muted)">' + (c.cuit||'') + '</span>';
+    div.addEventListener('mousedown', () => seleccionarClienteEcheq(c.nombre, c.cuit||''));
+    div.addEventListener('mouseover', () => { div.style.background='var(--surface2)'; });
+    div.addEventListener('mouseout',  () => { div.style.background='transparent'; });
+    list.appendChild(div);
+  });
+  list.style.display = 'block';
+}
+
+function seleccionarClienteEcheq(nombre, cuit) {
+  const inp  = document.getElementById('echeq-cliente');
+  const cuitEl = document.getElementById('echeq-cuit');
+  if (inp)    inp.value  = nombre;
+  if (cuitEl && cuit) cuitEl.value = cuit;
+  const list = document.getElementById('echeq-cliente-list');
+  if (list)   list.style.display = 'none';
+}
+
+// Cerrar dropdown echeq al hacer click afuera
+document.addEventListener('click', function(e) {
+  const wrap = document.getElementById('echeq-cliente-wrap');
+  const list = document.getElementById('echeq-cliente-list');
+  if (wrap && list && !wrap.contains(e.target)) list.style.display = 'none';
+});
+
 function abrirModalEcheq(ventaId, clienteNombre) {
   document.getElementById('echeq-edit-id').value = '';
   document.getElementById('modal-echeq-titulo').textContent = '📝 Nuevo Echeq';
