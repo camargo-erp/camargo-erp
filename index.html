@@ -511,18 +511,122 @@
 <div class="page" id="page-vencimientos">
   <div class="section-header">
     <div class="section-title">🚦 Vencimientos</div>
+    <button class="btn btn-primary btn-sm" onclick="abrirModalEcheq()">+ Nuevo Echeq</button>
   </div>
-  <div class="kpi-grid" id="venc-kpis" style="margin-bottom:16px"></div>
-  <div class="card">
-    <div class="card-title">Próximos Vencimientos — Gastos con fecha de vencimiento</div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr>
-          <th>Estado</th><th>Vencimiento</th><th>Categoría</th><th>Descripción</th>
-          <th style="text-align:right">Monto</th><th>F.Pago</th><th>Días</th>
-        </tr></thead>
-        <tbody id="venc-body"></tbody>
-      </table>
+  <!-- Tabs internos: Echeqs | Gastos con vencimiento -->
+  <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:20px">
+    <button id="tab-echeqs" onclick="switchVencTab('echeqs')"
+      style="padding:10px 20px;background:none;border:none;border-bottom:3px solid var(--accent2);color:var(--accent2);font-size:13px;font-weight:600;cursor:pointer;margin-bottom:-2px">
+      💳 Echeqs
+    </button>
+    <button id="tab-gastos-venc" onclick="switchVencTab('gastos-venc')"
+      style="padding:10px 20px;background:none;border:none;border-bottom:3px solid transparent;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;margin-bottom:-2px">
+      📋 Gastos con vencimiento
+    </button>
+  </div>
+
+  <!-- Panel: Echeqs -->
+  <div id="panel-venc-echeqs">
+    <div class="kpi-grid" id="echeq-kpis" style="margin-bottom:16px"></div>
+    <div class="card">
+      <div class="card-title">Echeqs en cartera y endosados</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Estado</th><th>Vencimiento</th><th>Días</th><th>Cliente</th>
+            <th>Banco</th><th>Nro. Cheque</th>
+            <th style="text-align:right">Monto</th>
+            <th>Destino</th><th>Venta</th><th>Acciones</th>
+          </tr></thead>
+          <tbody id="echeq-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel: Gastos con vencimiento (existente, sin tocar su lógica) -->
+  <div id="panel-venc-gastos" style="display:none">
+    <div class="kpi-grid" id="venc-kpis" style="margin-bottom:16px"></div>
+    <div class="card">
+      <div class="card-title">Próximos Vencimientos — Gastos con fecha de vencimiento</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Estado</th><th>Vencimiento</th><th>Categoría</th><th>Descripción</th>
+            <th style="text-align:right">Monto</th><th>F.Pago</th><th>Días</th>
+          </tr></thead>
+          <tbody id="venc-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL ECHEQ ===== -->
+<div class="modal" id="modal-echeq" style="display:none">
+  <div class="modal-content" style="max-width:560px">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-echeq-titulo">📝 Nuevo Echeq</div>
+      <button onclick="cerrarModalEcheq()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer">✕</button>
+    </div>
+    <div style="padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <input type="hidden" id="echeq-edit-id">
+      <div class="form-group"><label>Cliente emisor *</label>
+        <input type="text" id="echeq-cliente" placeholder="Nombre del cliente">
+      </div>
+      <div class="form-group"><label>CUIT</label>
+        <input type="text" id="echeq-cuit" placeholder="Sin guiones">
+      </div>
+      <div class="form-group"><label>Monto *</label>
+        <input type="number" id="echeq-monto" placeholder="0">
+      </div>
+      <div class="form-group"><label>Banco *</label>
+        <input type="text" id="echeq-banco" placeholder="Banco emisor">
+      </div>
+      <div class="form-group"><label>Nro. Cheque</label>
+        <input type="text" id="echeq-nro" placeholder="Número de cheque">
+      </div>
+      <div class="form-group"><label>Tipo</label>
+        <select id="echeq-tipo">
+          <option value="echeq">eCheq</option>
+          <option value="fisico">Físico</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Fecha recepción *</label>
+        <input type="date" id="echeq-fecrecep">
+      </div>
+      <div class="form-group"><label>Fecha vencimiento *</label>
+        <input type="date" id="echeq-fecvenc">
+      </div>
+      <div class="form-group"><label>Estado</label>
+        <select id="echeq-estado" onchange="toggleEcheqEstadoCampos()">
+          <option value="en_cartera">En cartera</option>
+          <option value="endosado_pendiente">Endosado (pendiente cobro)</option>
+          <option value="cobrado">Cobrado (Arrayan)</option>
+          <option value="depositado_propio">Depositado (propio)</option>
+          <option value="rechazado">Rechazado</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Venta relacionada</label>
+        <input type="text" id="echeq-venta" placeholder="ID de venta (opcional)">
+      </div>
+      <!-- Campos que aparecen según estado -->
+      <div class="form-group" id="echeq-grupo-destino" style="display:none"><label>Destino endoso</label>
+        <input type="text" id="echeq-destino" placeholder="Ej: Arrayan">
+      </div>
+      <div class="form-group" id="echeq-grupo-fecendoso" style="display:none"><label>Fecha endoso</label>
+        <input type="date" id="echeq-fecendoso">
+      </div>
+      <div class="form-group" id="echeq-grupo-feccobro" style="display:none"><label>Fecha cobro</label>
+        <input type="date" id="echeq-feccobro">
+      </div>
+      <div class="form-group" style="grid-column:1/-1"><label>Observaciones</label>
+        <input type="text" id="echeq-obs" placeholder="Notas adicionales">
+      </div>
+    </div>
+    <div style="padding:0 20px 20px;display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-secondary btn-sm" onclick="cerrarModalEcheq()">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarEcheq()">💾 Guardar</button>
     </div>
   </div>
 </div>
@@ -991,7 +1095,7 @@
       </div>
       <div class="form-grid" style="margin-bottom:14px">
         <div class="form-group"><label>Forma de Pago</label>
-          <select id="nv-fpago" onchange="toggleFpagoArrayan()">
+          <select id="nv-fpago" onchange="toggleFpagoArrayan();toggleEcheqForm()">
             <option>Transferencia</option><option>Efectivo</option><option>Echeq</option>
           </select>
         </div>
@@ -1002,6 +1106,33 @@
           <select id="nv-entrega" onchange="calcularPrecio()">
             <option>Propio</option><option>Retiro cliente</option><option>Envío transporte</option>
           </select>
+        </div>
+      </div>
+      <!-- Bloque opcional de datos del echeq — aparece solo cuando fpago=Echeq -->
+      <div id="nv-echeq-bloque" style="display:none;margin-bottom:14px;padding:14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px">
+        <div style="font-size:12px;font-weight:600;color:var(--accent2);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between">
+          💳 Datos del Echeq
+          <span style="font-size:11px;font-weight:400;color:var(--muted)">(opcional — podés completarlo después)</span>
+        </div>
+        <div class="form-grid cols2">
+          <div class="form-group"><label>Banco emisor</label>
+            <input type="text" id="nv-echeq-banco" placeholder="Nombre del banco">
+          </div>
+          <div class="form-group"><label>Nro. Cheque</label>
+            <input type="text" id="nv-echeq-nro" placeholder="Número">
+          </div>
+          <div class="form-group"><label>Fecha vencimiento</label>
+            <input type="date" id="nv-echeq-venc">
+          </div>
+          <div class="form-group"><label>Tipo</label>
+            <select id="nv-echeq-tipo">
+              <option value="echeq">eCheq</option>
+              <option value="fisico">Físico</option>
+            </select>
+          </div>
+          <div class="form-group" style="grid-column:1/-1"><label>Observaciones del echeq</label>
+            <input type="text" id="nv-echeq-obs" placeholder="Notas del cheque">
+          </div>
         </div>
       </div>
       <div class="form-grid cols2">
@@ -2547,7 +2678,7 @@ function showPage(id) {
   if(id==='clientes') renderClientes();
   if(id==='transportes') renderTransportes();
   if(id==='gastos' && typeof renderGastos === 'function') renderGastos();
-  if(id==='vencimientos' && typeof renderVencimientos === 'function') renderVencimientos();
+  if(id==='vencimientos') { if(typeof renderEcheqs==='function') renderEcheqs(); if(typeof renderVencimientos==='function') renderVencimientos(); }
 }
 
 function notify(msg,color) {
@@ -4636,6 +4767,7 @@ async function cargarDesdeSheets() {
       if(res.compras?.length)    COMPRAS    = res.compras;
       if(res.pagosArrayan?.length) PAGOS_ARRAYAN = res.pagosArrayan;
       if(res.gastos?.length)     GASTOS     = res.gastos;
+      if(res.echeqs?.length)     ECHEQS     = res.echeqs;
       if(res.clientes?.length)   CLIENTES   = res.clientes.map(c => ({...c, nombre: String(c.nombre || '')})).filter(c => c.nombre);
       if(res.transportes?.length) {
         // Combinar: usar Sheets si tiene más que el hardcoded, sino combinar
@@ -5219,6 +5351,7 @@ async function guardarEdicionCliente() {
 let COMPRAS = [];
 let PAGOS_ARRAYAN = []; // Pagos parciales de ventas Arrayan
 let GASTOS = []; // Gastos operativos (módulo Finanzas)
+let ECHEQS = []; // eCheqs recibidos (módulo Finanzas > Vencimientos)
 
 function abrirModalCompra() {
   // Fecha de hoy por defecto
@@ -5731,6 +5864,286 @@ async function eliminarGasto(idx) {
 }
 
 // =========== VENCIMIENTOS (paso 5) ===========
+// =========== ECHEQS (módulo Finanzas > Vencimientos) ===========
+
+// Alterna tabs internos de la sección Vencimientos
+function switchVencTab(tab) {
+  const panelEcheqs = document.getElementById('panel-venc-echeqs');
+  const panelGastos = document.getElementById('panel-venc-gastos');
+  const tabEcheqs   = document.getElementById('tab-echeqs');
+  const tabGastos   = document.getElementById('tab-gastos-venc');
+  if (!panelEcheqs || !panelGastos) return;
+  if (tab === 'echeqs') {
+    panelEcheqs.style.display = '';
+    panelGastos.style.display = 'none';
+    tabEcheqs.style.borderBottomColor = 'var(--accent2)';
+    tabEcheqs.style.color = 'var(--accent2)';
+    tabGastos.style.borderBottomColor = 'transparent';
+    tabGastos.style.color = 'var(--muted)';
+  } else {
+    panelEcheqs.style.display = 'none';
+    panelGastos.style.display = '';
+    tabGastos.style.borderBottomColor = 'var(--accent2)';
+    tabGastos.style.color = 'var(--accent2)';
+    tabEcheqs.style.borderBottomColor = 'transparent';
+    tabEcheqs.style.color = 'var(--muted)';
+  }
+}
+
+// Muestra/oculta campos del modal según el estado elegido
+function toggleEcheqEstadoCampos() {
+  const est = document.getElementById('echeq-estado')?.value;
+  const grpDestino   = document.getElementById('echeq-grupo-destino');
+  const grpFecEndoso = document.getElementById('echeq-grupo-fecendoso');
+  const grpFecCobro  = document.getElementById('echeq-grupo-feccobro');
+  if (!grpDestino) return;
+  const endosado = est === 'endosado_pendiente' || est === 'cobrado';
+  grpDestino.style.display   = endosado ? '' : 'none';
+  grpFecEndoso.style.display = endosado ? '' : 'none';
+  grpFecCobro.style.display  = (est === 'cobrado' || est === 'depositado_propio') ? '' : 'none';
+}
+
+// Muestra/oculta el bloque de datos del echeq en el form de nueva venta
+function toggleEcheqForm() {
+  const fpago = document.getElementById('nv-fpago')?.value;
+  const bloque = document.getElementById('nv-echeq-bloque');
+  if (bloque) bloque.style.display = fpago === 'Echeq' ? '' : 'none';
+}
+
+// Parsea DD/MM/YYYY → Date; devuelve null si inválido
+function _parseFechaEcheq(str) {
+  if (!str || typeof str !== 'string') return null;
+  const p = str.split('/');
+  if (p.length !== 3) return null;
+  const d = new Date(parseInt(p[2]), parseInt(p[1])-1, parseInt(p[0]));
+  return isNaN(d.getTime()) ? null : d;
+}
+
+// Formatea Date → YYYY-MM-DD para inputs type="date"
+function _toInputDate(ddmmyyyy) {
+  if (!ddmmyyyy) return '';
+  const p = String(ddmmyyyy).split('/');
+  if (p.length !== 3) return '';
+  return p[2] + '-' + p[1].padStart(2,'0') + '-' + p[0].padStart(2,'0');
+}
+
+// Formatea Date input (YYYY-MM-DD) → DD/MM/YYYY para guardar
+function _fromInputDate(yyyymmdd) {
+  if (!yyyymmdd) return '';
+  const p = String(yyyymmdd).split('-');
+  if (p.length !== 3) return '';
+  return p[2] + '/' + p[1] + '/' + p[0];
+}
+
+// Calcula semáforo de echeq en cartera
+function _semaforo(diasVenc, estado) {
+  if (estado !== 'en_cartera') {
+    const labels = {endosado_pendiente:'🔵 Endosado', cobrado:'✅ Cobrado', depositado_propio:'✅ Depositado', rechazado:'⛔ Rechazado'};
+    return {icono: labels[estado] || estado, color: 'var(--muted)', label: ''};
+  }
+  if (diasVenc < 0)    return {icono:'⚫', color:'#888',            label:'Vencido ' + Math.abs(diasVenc) + 'd'};
+  if (diasVenc <= 10)  return {icono:'🔴', color:'var(--red)',      label: diasVenc + 'd — ENDOSAR YA'};
+  if (diasVenc <= 13)  return {icono:'🟡', color:'var(--yellow)',   label: diasVenc + 'd — Atención'};
+  return                      {icono:'🟢', color:'var(--green)',    label: diasVenc + 'd'};
+}
+
+// Renderiza la tabla de echeqs
+function renderEcheqs() {
+  const hoy = new Date();
+  hoy.setHours(0,0,0,0);
+
+  const kpis  = document.getElementById('echeq-kpis');
+  const tbody = document.getElementById('echeq-body');
+  if (!tbody) return;
+
+  if (!ECHEQS.length) {
+    if (kpis) kpis.innerHTML = '';
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:20px">Sin echeqs registrados. Usá "+ Nuevo Echeq" para cargar uno.</td></tr>';
+    return;
+  }
+
+  // Enriquecer con días al vencimiento
+  const items = ECHEQS.map(e => {
+    const fv = _parseFechaEcheq(e.fechaVencimiento);
+    const dias = fv ? Math.ceil((fv - hoy) / 86400000) : 9999;
+    const sem = _semaforo(dias, e.estado);
+    return {...e, _dias: dias, _sem: sem};
+  }).sort((a,b) => a._dias - b._dias);
+
+  // KPIs
+  const enCartera  = items.filter(e => e.estado === 'en_cartera');
+  const endosados  = items.filter(e => e.estado === 'endosado_pendiente');
+  const porEndosar = enCartera.filter(e => e._dias <= 10);
+  const totalCartera = enCartera.reduce((s,e) => s + (e.monto||0), 0);
+
+  if (kpis) kpis.innerHTML = `
+    <div class="kpi" style="border-color:${porEndosar.length ? 'var(--red)' : 'var(--border)'}">
+      <div class="kpi-label">🔴 Endosar ya (≤10d)</div>
+      <div class="kpi-value" style="color:var(--red)">${porEndosar.length}</div>
+      <div class="kpi-sub">${porEndosar.length ? fmt(porEndosar.reduce((s,e)=>s+(e.monto||0),0)) : 'Ninguno urgente'}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">📂 En cartera</div>
+      <div class="kpi-value">${enCartera.length}</div>
+      <div class="kpi-sub">${fmt(totalCartera)}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">🔵 Endosados</div>
+      <div class="kpi-value" style="color:var(--accent2)">${endosados.length}</div>
+      <div class="kpi-sub">${fmt(endosados.reduce((s,e)=>s+(e.monto||0),0))}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Total echeqs</div>
+      <div class="kpi-value">${items.length}</div>
+      <div class="kpi-sub">${fmt(items.filter(e=>['en_cartera','endosado_pendiente'].includes(e.estado)).reduce((s,e)=>s+(e.monto||0),0))} activos</div>
+    </div>`;
+
+  tbody.innerHTML = items.map(e => {
+    const s = e._sem;
+    const diasLabel = s.label || '';
+    return `<tr>
+      <td style="text-align:center;font-size:15px;white-space:nowrap" title="${e.estado}">${s.icono}</td>
+      <td style="font-family:var(--mono)">${e.fechaVencimiento || '—'}</td>
+      <td style="font-family:var(--mono);color:${s.color};font-weight:600">${diasLabel}</td>
+      <td>${e.clienteEmisor || '—'}</td>
+      <td>${e.banco || '—'}</td>
+      <td style="font-family:var(--mono)">${e.nroCheque || '—'}</td>
+      <td style="text-align:right;font-family:var(--mono);font-weight:600">${fmt(e.monto||0)}</td>
+      <td>${e.destinoEndoso || '—'}</td>
+      <td style="font-size:11px;color:var(--muted)">${e.ventaRelacionada || '—'}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-ghost btn-sm" onclick="editarEcheq('${e.id}')" style="padding:3px 8px;font-size:11px">✏️</button>
+        <button class="btn btn-ghost btn-sm" onclick="eliminarEcheq('${e.id}')" style="padding:3px 8px;font-size:11px;color:var(--red)">🗑</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// Abre el modal de echeq en modo "nuevo"
+function abrirModalEcheq(ventaId, clienteNombre) {
+  document.getElementById('echeq-edit-id').value = '';
+  document.getElementById('modal-echeq-titulo').textContent = '📝 Nuevo Echeq';
+  // Limpiar campos
+  ['echeq-cliente','echeq-cuit','echeq-monto','echeq-banco','echeq-nro','echeq-destino','echeq-obs'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  ['echeq-fecrecep','echeq-fecvenc','echeq-fecendoso','echeq-feccobro'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('echeq-estado').value = 'en_cartera';
+  document.getElementById('echeq-tipo').value = 'echeq';
+  // Pre-llenar si viene de una venta
+  if (ventaId) document.getElementById('echeq-venta').value = ventaId;
+  else document.getElementById('echeq-venta').value = '';
+  if (clienteNombre) document.getElementById('echeq-cliente').value = clienteNombre;
+  // Fecha recepción = hoy
+  const hoy = new Date();
+  document.getElementById('echeq-fecrecep').value =
+    hoy.getFullYear() + '-' + String(hoy.getMonth()+1).padStart(2,'0') + '-' + String(hoy.getDate()).padStart(2,'0');
+  toggleEcheqEstadoCampos();
+  abrirModal('modal-echeq');
+}
+
+// Cierra el modal
+function cerrarModalEcheq() {
+  cerrarModal('modal-echeq');
+}
+
+// Abre modal en modo edición
+function editarEcheq(id) {
+  const e = ECHEQS.find(x => x.id === id);
+  if (!e) return;
+  document.getElementById('echeq-edit-id').value = e.id;
+  document.getElementById('modal-echeq-titulo').textContent = '✏️ Editar Echeq';
+  document.getElementById('echeq-cliente').value   = e.clienteEmisor || '';
+  document.getElementById('echeq-cuit').value      = e.cuit || '';
+  document.getElementById('echeq-monto').value     = e.monto || '';
+  document.getElementById('echeq-banco').value     = e.banco || '';
+  document.getElementById('echeq-nro').value       = e.nroCheque || '';
+  document.getElementById('echeq-tipo').value      = e.tipoCheque || 'echeq';
+  document.getElementById('echeq-fecrecep').value  = _toInputDate(e.fechaRecepcion);
+  document.getElementById('echeq-fecvenc').value   = _toInputDate(e.fechaVencimiento);
+  document.getElementById('echeq-fecendoso').value = _toInputDate(e.fechaEndoso);
+  document.getElementById('echeq-feccobro').value  = _toInputDate(e.fechaCobro);
+  document.getElementById('echeq-estado').value    = e.estado || 'en_cartera';
+  document.getElementById('echeq-destino').value   = e.destinoEndoso || '';
+  document.getElementById('echeq-venta').value     = e.ventaRelacionada || '';
+  document.getElementById('echeq-obs').value       = e.obs || '';
+  toggleEcheqEstadoCampos();
+  abrirModal('modal-echeq');
+}
+
+// Guarda (nuevo o actualización)
+async function guardarEcheq() {
+  const editId = document.getElementById('echeq-edit-id').value.trim();
+  const monto  = parseFloat(document.getElementById('echeq-monto').value) || 0;
+  const cliente = document.getElementById('echeq-cliente').value.trim();
+  const fecVenc = document.getElementById('echeq-fecvenc').value;
+  if (!cliente || !monto || !fecVenc) {
+    notify('Completá cliente, monto y fecha de vencimiento', 'var(--red)');
+    return;
+  }
+  const echeq = {
+    id:               editId || '',
+    clienteEmisor:    cliente,
+    cuit:             document.getElementById('echeq-cuit').value.trim(),
+    monto:            monto,
+    banco:            document.getElementById('echeq-banco').value.trim(),
+    nroCheque:        document.getElementById('echeq-nro').value.trim(),
+    tipoCheque:       document.getElementById('echeq-tipo').value,
+    fechaRecepcion:   _fromInputDate(document.getElementById('echeq-fecrecep').value),
+    fechaVencimiento: _fromInputDate(fecVenc),
+    estado:           document.getElementById('echeq-estado').value,
+    destinoEndoso:    document.getElementById('echeq-destino').value.trim(),
+    fechaEndoso:      _fromInputDate(document.getElementById('echeq-fecendoso').value),
+    fechaCobro:       _fromInputDate(document.getElementById('echeq-feccobro').value),
+    ventaRelacionada: document.getElementById('echeq-venta').value.trim(),
+    obs:              document.getElementById('echeq-obs').value.trim(),
+  };
+  setSyncStatus('sync');
+  let res;
+  if (editId) {
+    // Actualización
+    res = await gsCall('updateEcheq', {id: editId, campos: echeq});
+    if (res.ok) {
+      const idx = ECHEQS.findIndex(x => x.id === editId);
+      if (idx >= 0) ECHEQS[idx] = {...ECHEQS[idx], ...echeq};
+      notify('Echeq actualizado ✓', 'var(--green)');
+    }
+  } else {
+    // Nuevo
+    res = await gsCall('saveEcheq', {echeq});
+    if (res.ok) {
+      echeq.id = res.id;
+      ECHEQS.push(echeq);
+      notify('Echeq guardado ✓', 'var(--green)');
+    }
+  }
+  setSyncStatus(res.ok ? 'ok' : 'error');
+  if (!res.ok) { notify('Error: ' + (res.error || 'Error desconocido'), 'var(--red)'); return; }
+  cerrarModalEcheq();
+  renderEcheqs();
+  calcularAlertas();
+}
+
+// Elimina un echeq (solo admin)
+async function eliminarEcheq(id) {
+  if (!confirm('¿Eliminar este echeq? Esta acción no se puede deshacer.')) return;
+  setSyncStatus('sync');
+  const res = await gsCall('deleteEcheq', {id, _usuario: window._usuarioActual || ''});
+  setSyncStatus(res.ok ? 'ok' : 'error');
+  if (res.ok) {
+    ECHEQS = ECHEQS.filter(e => e.id !== id);
+    notify('Echeq eliminado', 'var(--yellow)');
+    renderEcheqs();
+    calcularAlertas();
+  } else {
+    notify('Error al eliminar: ' + (res.error || '?'), 'var(--red)');
+  }
+}
+
 function renderVencimientos() {
   const hoy = new Date();
   // Tomar todos los gastos con fecha de vencimiento
@@ -5865,6 +6278,30 @@ function calcularAlertas() {
   const bajoMargen = VENTAS.filter(v=>getAnioVenta(v.fecha)===new Date().getFullYear() && v.margen>0 && v.margen<0.10);
   if(bajoMargen.length) {
     alertas.push({tipo:'warn', icono:'📉', msg:`<b>${bajoMargen.length} ventas</b> con margen menor al 10% este año`, sub:`Total afectado: $${Math.round(bajoMargen.reduce((s,v)=>s+v.total,0)/1000)}K`});
+  }
+
+  // 4. Echeqs próximos a vencer (≤ 13 días) y sin datos de echeq en ventas con fpago=Echeq
+  if(typeof ECHEQS !== 'undefined' && ECHEQS.length) {
+    const porEndosar = ECHEQS.filter(e => e.estado === 'en_cartera' && e.fechaVencimiento);
+    porEndosar.forEach(e => {
+      const p = String(e.fechaVencimiento).split('/');
+      if(p.length !== 3) return;
+      const fv = new Date(parseInt(p[2]), parseInt(p[1])-1, parseInt(p[0]));
+      const dias = Math.ceil((fv - hoy) / 86400000);
+      if(dias <= 10) {
+        alertas.push({tipo:'error', icono:'💳', msg:`Echeq de <b>${e.clienteEmisor||'?'}</b> — $${fmt(e.monto||0)}`, sub:`Vence en ${dias >= 0 ? dias + 'd — ENDOSAR YA' : 'Vencido hace ' + Math.abs(dias) + 'd'}`, accion:"showModulo('finanzas','vencimientos')"});
+      } else if(dias <= 13) {
+        alertas.push({tipo:'warn', icono:'💳', msg:`Echeq de <b>${e.clienteEmisor||'?'}</b> — $${fmt(e.monto||0)}`, sub:`Vence en ${dias}d — Atención`, accion:"showModulo('finanzas','vencimientos')"});
+      }
+    });
+  }
+  // Ventas con fpago=Echeq sin echeq cargado (alerta diaria)
+  const ventasEcheqSinDatos = VENTAS.filter(v => v.fpago === 'Echeq' && v.pagado !== 'Sí').filter(v => {
+    if(typeof ECHEQS === 'undefined') return false;
+    return !ECHEQS.some(e => e.ventaRelacionada && String(e.ventaRelacionada) === String(v.ventaId || ''));
+  });
+  if(ventasEcheqSinDatos.length) {
+    alertas.push({tipo:'info', icono:'📋', msg:`<b>${ventasEcheqSinDatos.length} venta${ventasEcheqSinDatos.length>1?'s':''}</b> con Echeq sin datos cargados`, sub:'Cargá los datos del echeq en Finanzas > Vencimientos', accion:"showModulo('finanzas','vencimientos')"});
   }
 
   // 4. Sin compras registradas este mes
