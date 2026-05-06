@@ -563,11 +563,11 @@
 </div>
 
 <!-- ===== MODAL ECHEQ ===== -->
-<div class="modal" id="modal-echeq" style="display:none">
-  <div class="modal-content" style="max-width:560px">
+<div class="modal-overlay" id="modal-echeq" onclick="if(event.target===this)cerrarModalEcheq()" style="display:none">
+  <div class="modal" style="max-width:560px">
     <div class="modal-header">
       <div class="modal-title" id="modal-echeq-titulo">📝 Nuevo Echeq</div>
-      <button onclick="cerrarModalEcheq()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer">✕</button>
+      <div class="modal-close" onclick="cerrarModalEcheq()">✕</div>
     </div>
     <div style="padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
       <input type="hidden" id="echeq-edit-id">
