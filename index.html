@@ -919,6 +919,12 @@
     <div class="card" id="dash-proyeccion-card"></div>
   </div>
 
+  <!-- PROYECCIÓN GANANCIA FIN DE MES (sólo en modo 'month') -->
+  <div id="dash-proyeccion-gan-wrap" style="display:none;margin-bottom:24px">
+    <div style="font-size:11px;font-weight:600;letter-spacing:2px;color:#22c987;text-transform:uppercase;margin:8px 0 12px">✅ Proyección Ganancia Fin de Mes</div>
+    <div class="card" id="dash-proyeccion-gan-card"></div>
+  </div>
+
   <div class="grid3" id="dash-cards2"></div>
   <div class="grid2">
     <div class="card">
@@ -2927,6 +2933,7 @@ function renderDashboard() {
   renderChartsMensual();
   // Proyección fin de mes (sólo se muestra si dashPeriodo==='month')
   renderProyeccionMes();
+  renderProyeccionGanancia();
   // P&L Real — Finanzas
   renderPnL();
   // KPIs avanzados
@@ -3457,6 +3464,13 @@ function renderProyeccionMes() {
   const acumulado = vsMes.reduce((s,v)=>s+v.total,0);
   const opsMes = vsMes.length;
 
+  // Ganancia acumulada del mes (para calcular margen %)
+  // Mismo cálculo que getMonthlyData: ventas propias + comisiones arrayanCobra
+  const ganVentasPropias = vsMes.reduce((s,v)=>s+v.gan,0);
+  const comisCobraMes = VENTAS.filter(v=>v.arrayanTipo==='arrayanCobra' && getAnioVenta(v.fecha)===anio && getMesVenta(v.fecha)===mes).reduce((s,v)=>s+v.gan,0);
+  const ganAcumuladaMes = ganVentasPropias + comisCobraMes;
+  const margenMes = acumulado>0 ? (ganAcumuladaMes/acumulado*100) : 0;
+
   // Días hábiles
   const primerDiaMes = new Date(anio, mes-1, 1);
   const ultimoDiaMes = new Date(anio, mes, 0); // día 0 del mes siguiente = último día del mes actual
@@ -3512,6 +3526,7 @@ function renderProyeccionMes() {
         <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Acumulado ${nombreMes}</div>
         <div style="font-size:24px;font-weight:600;color:#3d7fff">${fmt(acumulado)}</div>
         <div style="font-size:11px;color:var(--muted)">${opsMes} ops · día hábil ${diasHabilesTranscurridos}/${diasHabilesTotales}</div>
+        <div style="font-size:11px;color:#22c987;margin-top:2px">📊 Margen acum: <b>${margenMes.toFixed(1)}%</b></div>
       </div>
       <div>
         <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Proyectado fin de mes</div>
@@ -3541,6 +3556,116 @@ function renderProyeccionMes() {
       </div>
       <div style="height:8px;background:#1a2040;border-radius:4px;overflow:hidden">
         <div style="height:100%;width:${progresoPct}%;background:linear-gradient(90deg,#3d7fff,#ffd166);transition:width 0.4s"></div>
+      </div>
+    </div>
+  `;
+  wrap.style.display = 'block';
+}
+
+// ===== Proyección de Ganancia fin de mes =====
+// Card paralela a renderProyeccionMes pero proyectando GANANCIA en vez de ventas.
+// Usa el mismo cálculo que getMonthlyData / dashboard: ventas propias + comisiones arrayanCobra.
+// Solo se muestra cuando dashPeriodo === 'month'.
+function renderProyeccionGanancia() {
+  const wrap = document.getElementById('dash-proyeccion-gan-wrap');
+  const card = document.getElementById('dash-proyeccion-gan-card');
+  if(!wrap || !card) return;
+  if(dashPeriodo !== 'month') { wrap.style.display = 'none'; return; }
+
+  const anio = parseInt(document.getElementById('dash-anio-sel')?.value || new Date().getFullYear());
+  const mes  = parseInt(document.getElementById('dash-mes-sel')?.value  || (new Date().getMonth()+1));
+
+  // Ganancia acumulada del mes: ventas propias + comisiones arrayanCobra
+  const vsMes = VENTAS.filter(v => esVentaPropia(v) && getAnioVenta(v.fecha)===anio && getMesVenta(v.fecha)===mes);
+  const ventasAcum = vsMes.reduce((s,v)=>s+v.total,0);
+  const ganVentasPropias = vsMes.reduce((s,v)=>s+v.gan,0);
+  const comisCobraMes = VENTAS.filter(v=>v.arrayanTipo==='arrayanCobra' && getAnioVenta(v.fecha)===anio && getMesVenta(v.fecha)===mes).reduce((s,v)=>s+v.gan,0);
+  const acumulado = ganVentasPropias + comisCobraMes;
+  const opsMes = vsMes.length;
+  const margenAcum = ventasAcum>0 ? (acumulado/ventasAcum*100) : 0;
+
+  // Días hábiles (idéntico a la card de ventas)
+  const primerDiaMes = new Date(anio, mes-1, 1);
+  const ultimoDiaMes = new Date(anio, mes, 0);
+  const diasHabilesTotales = contarDiasHabiles(primerDiaMes, ultimoDiaMes);
+  const hoy = new Date();
+  const esMesActual = (anio === hoy.getFullYear() && mes === (hoy.getMonth()+1));
+  const fechaCorte = esMesActual ? hoy : ultimoDiaMes;
+  const diasHabilesTranscurridos = contarDiasHabiles(primerDiaMes, fechaCorte);
+
+  // Proyección
+  let proyectado;
+  if(!esMesActual || diasHabilesTranscurridos >= diasHabilesTotales) {
+    proyectado = acumulado;
+  } else if(diasHabilesTranscurridos <= 0) {
+    proyectado = 0;
+  } else {
+    proyectado = (acumulado / diasHabilesTranscurridos) * diasHabilesTotales;
+  }
+
+  // Promedio últimos 3 meses de GANANCIA (sólo meses con datos)
+  const ultimos3 = [];
+  for(let i=1;i<=3;i++) {
+    let mAux = mes - i;
+    let aAux = anio;
+    if(mAux <= 0) { mAux += 12; aAux -= 1; }
+    const vsA = VENTAS.filter(v => esVentaPropia(v) && getAnioVenta(v.fecha)===aAux && getMesVenta(v.fecha)===mAux);
+    const ganVA = vsA.reduce((s,v)=>s+v.gan,0);
+    const comisA = VENTAS.filter(v=>v.arrayanTipo==='arrayanCobra' && getAnioVenta(v.fecha)===aAux && getMesVenta(v.fecha)===mAux).reduce((s,v)=>s+v.gan,0);
+    const totGan = ganVA + comisA;
+    // Para considerar un mes con datos, exigimos que tenga ventas (no solo gan)
+    const totVtas = vsA.reduce((s,v)=>s+v.total,0);
+    if(totVtas>0) ultimos3.push(totGan);
+  }
+  const promedio3 = ultimos3.length>0 ? (ultimos3.reduce((a,b)=>a+b,0) / ultimos3.length) : 0;
+
+  // Gap
+  const gap$ = proyectado - promedio3;
+  const gapPct = promedio3>0 ? (gap$/promedio3*100) : 0;
+  const progresoPct = diasHabilesTotales>0 ? Math.min(100, (diasHabilesTranscurridos/diasHabilesTotales*100)) : 0;
+
+  const gapColor = gap$ >= 0 ? '#22c987' : '#ff5e6d';
+  const gapIcono = gap$ >= 0 ? '▲' : '▼';
+  const gapTexto = gap$ >= 0 ? 'sobre' : 'bajo';
+  const tieneRef = promedio3 > 0;
+  const nombreMes = MESES_ABREV[mes-1];
+
+  card.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;align-items:center">
+      <div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Ganancia acum. ${nombreMes}</div>
+        <div style="font-size:24px;font-weight:600;color:#22c987">${fmt(acumulado)}</div>
+        <div style="font-size:11px;color:var(--muted)">${opsMes} ops · día hábil ${diasHabilesTranscurridos}/${diasHabilesTotales}</div>
+        <div style="font-size:11px;color:#22c987;margin-top:2px">📊 Margen: <b>${margenAcum.toFixed(1)}%</b></div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Proyectada fin de mes</div>
+        <div style="font-size:24px;font-weight:600;color:#ffd166">${fmt(proyectado)}</div>
+        <div style="font-size:11px;color:var(--muted)">${esMesActual?'Ritmo actual × días restantes':'Mes cerrado'}</div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Prom. últ. 3 meses</div>
+        <div style="font-size:24px;font-weight:600;color:#e0e6ff">${tieneRef?fmt(promedio3):'—'}</div>
+        <div style="font-size:11px;color:var(--muted)">${tieneRef?ultimos3.length+' meses con ventas':'Sin datos previos'}</div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Gap vs promedio</div>
+        ${tieneRef ? `
+          <div style="font-size:24px;font-weight:600;color:${gapColor}">${gapIcono} ${fmt(Math.abs(gap$))}</div>
+          <div style="font-size:11px;color:${gapColor}">${gapPct>=0?'+':''}${gapPct.toFixed(1)}% ${gapTexto} promedio</div>
+        ` : `
+          <div style="font-size:24px;font-weight:600;color:var(--muted)">—</div>
+          <div style="font-size:11px;color:var(--muted)">Sin referencia</div>
+        `}
+      </div>
+    </div>
+    <div style="margin-top:16px">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px">
+        <span>Progreso del mes (días hábiles)</span>
+        <span>${progresoPct.toFixed(0)}%</span>
+      </div>
+      <div style="height:8px;background:#1a2040;border-radius:4px;overflow:hidden">
+        <div style="height:100%;width:${progresoPct}%;background:linear-gradient(90deg,#22c987,#ffd166);transition:width 0.4s"></div>
       </div>
     </div>
   `;
