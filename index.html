@@ -913,6 +913,12 @@
   <div class="kpi-grid" id="dash-pnl" style="margin-bottom:8px"></div>
   <div class="kpi-grid" id="dash-pnl2" style="margin-bottom:24px"></div>
 
+  <!-- PROYECCIÓN FIN DE MES (sólo en modo 'month') -->
+  <div id="dash-proyeccion-wrap" style="display:none;margin-bottom:24px">
+    <div style="font-size:11px;font-weight:600;letter-spacing:2px;color:#ffd166;text-transform:uppercase;margin:8px 0 12px">📊 Proyección Fin de Mes</div>
+    <div class="card" id="dash-proyeccion-card"></div>
+  </div>
+
   <div class="grid3" id="dash-cards2"></div>
   <div class="grid2">
     <div class="card">
@@ -942,6 +948,17 @@
     <div class="card">
       <div class="card-title">Operaciones por Mes &amp; Margen</div>
       <canvas id="chart-ops-mes" height="140"></canvas>
+    </div>
+  </div>
+  <!-- TENDENCIAS — Margen % y Operaciones (línea) -->
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title" id="chart-title-margen">Evolución Mensual — Margen %</div>
+      <canvas id="chart-margen-line" height="140"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title" id="chart-title-ops-line">Evolución Mensual — Operaciones</div>
+      <canvas id="chart-ops-line" height="140"></canvas>
     </div>
   </div>
 
@@ -2908,6 +2925,8 @@ function renderDashboard() {
 
   // Evolución mensual
   renderChartsMensual();
+  // Proyección fin de mes (sólo se muestra si dashPeriodo==='month')
+  renderProyeccionMes();
   // P&L Real — Finanzas
   renderPnL();
   // KPIs avanzados
@@ -3372,6 +3391,162 @@ function getMonthlyData() {
 
 const MESES_ABREV=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
+// ===== FERIADOS NACIONALES AR (hardcoded por año) =====
+// Cargar manualmente cada año en diciembre. Fuente: Ley 27.399 + decretos PEN.
+// Formato: 'YYYY-MM-DD' (sin hora).
+// Incluye feriados nacionales inamovibles y trasladables. NO incluye días no laborables
+// con fines turísticos (puentes): si querés contarlos como NO hábiles, agregalos acá.
+const FERIADOS_AR = {
+  2024: [
+    '2024-01-01','2024-02-12','2024-02-13','2024-03-24','2024-03-28','2024-03-29',
+    '2024-04-01','2024-04-02','2024-05-01','2024-05-25','2024-06-17','2024-06-20',
+    '2024-07-09','2024-08-19','2024-10-12','2024-11-18','2024-12-08','2024-12-25'
+  ],
+  2025: [
+    '2025-01-01','2025-03-03','2025-03-04','2025-03-24','2025-04-02','2025-04-17',
+    '2025-04-18','2025-05-01','2025-05-02','2025-05-25','2025-06-16','2025-06-20',
+    '2025-07-09','2025-08-15','2025-08-17','2025-10-12','2025-11-21','2025-11-24',
+    '2025-12-08','2025-12-25'
+  ],
+  2026: [
+    '2026-01-01','2026-02-16','2026-02-17','2026-03-24','2026-04-02','2026-04-03',
+    '2026-05-01','2026-05-25','2026-06-15','2026-06-20','2026-07-09','2026-08-17',
+    '2026-10-12','2026-11-23','2026-12-08','2026-12-25'
+  ]
+};
+
+// Devuelve true si la fecha es día hábil (lun-vie y no es feriado nacional)
+function esDiaHabil(fecha) {
+  const d = fecha.getDay();
+  if(d===0 || d===6) return false; // domingo o sábado
+  const anio = fecha.getFullYear();
+  const mm = String(fecha.getMonth()+1).padStart(2,'0');
+  const dd = String(fecha.getDate()).padStart(2,'0');
+  const key = `${anio}-${mm}-${dd}`;
+  const feriados = FERIADOS_AR[anio] || [];
+  return !feriados.includes(key);
+}
+
+// Cuenta días hábiles entre dos fechas (inclusivo en ambos extremos)
+function contarDiasHabiles(desde, hasta) {
+  let count = 0;
+  const cur = new Date(desde.getFullYear(), desde.getMonth(), desde.getDate());
+  const fin = new Date(hasta.getFullYear(), hasta.getMonth(), hasta.getDate());
+  while(cur <= fin) {
+    if(esDiaHabil(cur)) count++;
+    cur.setDate(cur.getDate()+1);
+  }
+  return count;
+}
+
+// ===== Proyección fin de mes =====
+// Renderiza la card de proyección: acumulado, proyectado, gap vs promedio 3 meses anteriores
+// Solo se muestra cuando dashPeriodo === 'month'
+function renderProyeccionMes() {
+  const wrap = document.getElementById('dash-proyeccion-wrap');
+  const card = document.getElementById('dash-proyeccion-card');
+  if(!wrap || !card) return;
+  // Sólo aplica al modo 'month'
+  if(dashPeriodo !== 'month') { wrap.style.display = 'none'; return; }
+
+  const anio = parseInt(document.getElementById('dash-anio-sel')?.value || new Date().getFullYear());
+  const mes  = parseInt(document.getElementById('dash-mes-sel')?.value  || (new Date().getMonth()+1));
+
+  // Ventas acumuladas del mes seleccionado (sólo propias, no arrayanCobra)
+  const vsMes = VENTAS.filter(v => esVentaPropia(v) && getAnioVenta(v.fecha)===anio && getMesVenta(v.fecha)===mes);
+  const acumulado = vsMes.reduce((s,v)=>s+v.total,0);
+  const opsMes = vsMes.length;
+
+  // Días hábiles
+  const primerDiaMes = new Date(anio, mes-1, 1);
+  const ultimoDiaMes = new Date(anio, mes, 0); // día 0 del mes siguiente = último día del mes actual
+  const diasHabilesTotales = contarDiasHabiles(primerDiaMes, ultimoDiaMes);
+  // Día actual del cálculo: si estamos mirando el mes actual usamos hoy, si no, el último día del mes
+  const hoy = new Date();
+  const esMesActual = (anio === hoy.getFullYear() && mes === (hoy.getMonth()+1));
+  const fechaCorte = esMesActual ? hoy : ultimoDiaMes;
+  const diasHabilesTranscurridos = contarDiasHabiles(primerDiaMes, fechaCorte);
+
+  // Proyección: si ya pasó el mes, proyectado = acumulado
+  let proyectado;
+  if(!esMesActual || diasHabilesTranscurridos >= diasHabilesTotales) {
+    proyectado = acumulado;
+  } else if(diasHabilesTranscurridos <= 0) {
+    proyectado = 0;
+  } else {
+    proyectado = (acumulado / diasHabilesTranscurridos) * diasHabilesTotales;
+  }
+
+  // Promedio últimos 3 meses (sólo meses con ventas, para no enganchar con meses vacíos)
+  const ultimos3 = [];
+  for(let i=1;i<=3;i++) {
+    let mAux = mes - i;
+    let aAux = anio;
+    if(mAux <= 0) { mAux += 12; aAux -= 1; }
+    const vsA = VENTAS.filter(v => esVentaPropia(v) && getAnioVenta(v.fecha)===aAux && getMesVenta(v.fecha)===mAux);
+    const tot = vsA.reduce((s,v)=>s+v.total,0);
+    if(tot>0) ultimos3.push(tot);
+  }
+  const promedio3 = ultimos3.length>0 ? (ultimos3.reduce((a,b)=>a+b,0) / ultimos3.length) : 0;
+
+  // Gap vs promedio
+  const gap$ = proyectado - promedio3;
+  const gapPct = promedio3>0 ? (gap$/promedio3*100) : 0;
+
+  // Progreso visual del mes
+  const progresoPct = diasHabilesTotales>0 ? Math.min(100, (diasHabilesTranscurridos/diasHabilesTotales*100)) : 0;
+
+  // Colores según gap
+  const gapColor = gap$ >= 0 ? '#22c987' : '#ff5e6d';
+  const gapIcono = gap$ >= 0 ? '▲' : '▼';
+  const gapTexto = gap$ >= 0 ? 'sobre' : 'bajo';
+
+  // Si no hay promedio 3 meses, no mostramos gap
+  const tieneRef = promedio3 > 0;
+
+  const nombreMes = MESES_ABREV[mes-1];
+
+  card.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;align-items:center">
+      <div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Acumulado ${nombreMes}</div>
+        <div style="font-size:24px;font-weight:600;color:#3d7fff">${fmt(acumulado)}</div>
+        <div style="font-size:11px;color:var(--muted)">${opsMes} ops · día hábil ${diasHabilesTranscurridos}/${diasHabilesTotales}</div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Proyectado fin de mes</div>
+        <div style="font-size:24px;font-weight:600;color:#ffd166">${fmt(proyectado)}</div>
+        <div style="font-size:11px;color:var(--muted)">${esMesActual?'Ritmo actual × días restantes':'Mes cerrado'}</div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Prom. últ. 3 meses</div>
+        <div style="font-size:24px;font-weight:600;color:#e0e6ff">${tieneRef?fmt(promedio3):'—'}</div>
+        <div style="font-size:11px;color:var(--muted)">${tieneRef?ultimos3.length+' meses con ventas':'Sin datos previos'}</div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Gap vs promedio</div>
+        ${tieneRef ? `
+          <div style="font-size:24px;font-weight:600;color:${gapColor}">${gapIcono} ${fmt(Math.abs(gap$))}</div>
+          <div style="font-size:11px;color:${gapColor}">${gapPct>=0?'+':''}${gapPct.toFixed(1)}% ${gapTexto} promedio</div>
+        ` : `
+          <div style="font-size:24px;font-weight:600;color:var(--muted)">—</div>
+          <div style="font-size:11px;color:var(--muted)">Sin referencia</div>
+        `}
+      </div>
+    </div>
+    <div style="margin-top:16px">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px">
+        <span>Progreso del mes (días hábiles)</span>
+        <span>${progresoPct.toFixed(0)}%</span>
+      </div>
+      <div style="height:8px;background:#1a2040;border-radius:4px;overflow:hidden">
+        <div style="height:100%;width:${progresoPct}%;background:linear-gradient(90deg,#3d7fff,#ffd166);transition:width 0.4s"></div>
+      </div>
+    </div>
+  `;
+  wrap.style.display = 'block';
+}
+
 // ── Tooltip global ──────────────────────────────────────────────
 let _chartTooltip = null;
 function getChartTooltip() {
@@ -3503,7 +3678,7 @@ function drawBarCanvas(canvasId, labels, datasets, opts={}) {
   canvas.onmouseleave = hideTooltip;
 }
 
-function drawLineCanvas(canvasId, labels, datasets) {
+function drawLineCanvas(canvasId, labels, datasets, opts={}) {
   const canvas=document.getElementById(canvasId);
   if(!canvas) return;
   const ctx=canvas.getContext('2d');
@@ -3517,6 +3692,13 @@ function drawLineCanvas(canvasId, labels, datasets) {
   ctx.clearRect(0,0,W,H);
   const allVals=datasets.flatMap(d=>d.data);
   const maxVal=Math.max(...allVals)||1;
+  // Formato del eje Y: 'money' (default), 'pct', 'count'
+  const yFmt = opts.yFmt || 'money';
+  const fmtY = (val)=>{
+    if(yFmt==='pct') return val.toFixed(1)+'%';
+    if(yFmt==='count') return Math.round(val).toString();
+    return val>=1e6?(val/1e6).toFixed(1)+'M':val>=1e3?Math.round(val/1e3)+'K':Math.round(val);
+  };
   const gridLines=4;
   ctx.strokeStyle='#2a3050';ctx.lineWidth=1;
   ctx.fillStyle='#7a84a8';ctx.font='10px DM Sans';
@@ -3524,11 +3706,10 @@ function drawLineCanvas(canvasId, labels, datasets) {
     const y=pad.top+chartH-(i/gridLines)*chartH;
     ctx.beginPath();ctx.moveTo(pad.left,y);ctx.lineTo(pad.left+chartW,y);ctx.stroke();
     const val=(maxVal*i/gridLines);
-    const label=val>=1e6?(val/1e6).toFixed(1)+'M':val>=1e3?Math.round(val/1e3)+'K':Math.round(val);
-    ctx.textAlign='right';ctx.fillText(label,pad.left-5,y+4);
+    ctx.textAlign='right';ctx.fillText(fmtY(val),pad.left-5,y+4);
   }
 
-  _chartData[canvasId] = {labels, datasets, pad, chartW, chartH, W, H, type:'line'};
+  _chartData[canvasId] = {labels, datasets, pad, chartW, chartH, W, H, type:'line', opts};
 
   datasets.forEach(ds=>{
     ctx.beginPath();ctx.strokeStyle=ds.color;ctx.lineWidth=2;
@@ -3562,11 +3743,28 @@ function drawLineCanvas(canvasId, labels, datasets) {
     const m = md ? md[idx] : null;
     let html = `<div style="font-weight:600;color:#fff;margin-bottom:4px;border-bottom:1px solid #2a3a6e;padding-bottom:4px">${d.labels[idx]}</div>`;
     if(m) {
-      html += `<div><span style="color:#3d7fff">■</span> Minorista: <b style="color:#3d7fff">${fmtTip(m.minor)}</b></div>`;
-      html += `<div><span style="color:#00d4aa">■</span> Mayorista: <b style="color:#00d4aa">${fmtTip(m.mayor)}</b></div>`;
-      const tot = m.minor + m.mayor;
-      if(tot>0) html += `<div>📊 Minor: <b>${(m.minor/tot*100).toFixed(0)}%</b> / Mayor: <b>${(m.mayor/tot*100).toFixed(0)}%</b></div>`;
-      html += `<div>📦 Ops: <b>${m.ops}</b></div>`;
+      if(canvasId==='chart-margen-line') {
+        // Tooltip para gráfico de Margen %
+        const ticket = m.ops>0 ? Math.round(m.ventas/m.ops) : 0;
+        html += `<div>📊 Margen: <b style="color:#22c987">${m.margen.toFixed(1)}%</b></div>`;
+        html += `<div>✅ Ganancia: <b>${fmtTip(m.gan)}</b></div>`;
+        html += `<div>💰 Ventas: <b>${fmtTip(m.ventas)}</b></div>`;
+        html += `<div>📦 Ops: <b>${m.ops}</b> · 🎫 ${fmtTip(ticket)}</div>`;
+      } else if(canvasId==='chart-ops-line') {
+        // Tooltip para gráfico de Operaciones (línea de tendencia)
+        const ticket = m.ops>0 ? Math.round(m.ventas/m.ops) : 0;
+        html += `<div>📦 Operaciones: <b style="color:#3d7fff">${m.ops}</b></div>`;
+        html += `<div>💰 Ventas: <b>${fmtTip(m.ventas)}</b></div>`;
+        html += `<div>🎫 Ticket prom: <b>${fmtTip(ticket)}</b></div>`;
+        html += `<div>📊 Margen: <b>${m.margen.toFixed(1)}%</b></div>`;
+      } else {
+        // Tooltip default (canales: minor/mayor)
+        html += `<div><span style="color:#3d7fff">■</span> Minorista: <b style="color:#3d7fff">${fmtTip(m.minor)}</b></div>`;
+        html += `<div><span style="color:#00d4aa">■</span> Mayorista: <b style="color:#00d4aa">${fmtTip(m.mayor)}</b></div>`;
+        const tot = m.minor + m.mayor;
+        if(tot>0) html += `<div>📊 Minor: <b>${(m.minor/tot*100).toFixed(0)}%</b> / Mayor: <b>${(m.mayor/tot*100).toFixed(0)}%</b></div>`;
+        html += `<div>📦 Ops: <b>${m.ops}</b></div>`;
+      }
     } else {
       d.datasets.forEach((ds,di)=>{ html += `<div style="color:${ds.color}">${ds.label||'Serie '+(di+1)}: ${fmtTip(ds.data[idx]||0)}</div>`; });
     }
@@ -3591,9 +3789,13 @@ function renderChartsMensual() {
   const t1=document.getElementById('chart-title-ventas');
   const t2=document.getElementById('chart-title-gan');
   const t3=document.getElementById('chart-title-canal');
+  const t4=document.getElementById('chart-title-margen');
+  const t5=document.getElementById('chart-title-ops-line');
   if(t1) t1.textContent='Evolución '+tipoLabel+' — Ventas'+anio;
   if(t2) t2.textContent='Evolución '+tipoLabel+' — Ganancia Neta'+anio;
   if(t3) t3.textContent='Minorista vs Mayorista — Evolución'+anio;
+  if(t4) t4.textContent='Evolución '+tipoLabel+' — Margen %'+anio;
+  if(t5) t5.textContent='Evolución '+tipoLabel+' — Operaciones'+anio;
   setTimeout(()=>{
     drawBarCanvas('chart-ventas-mes',labels,[{data:md.map(m=>m.ventas),color:'#3d7fff'}]);
     drawBarCanvas('chart-gan-mes',labels,[{data:md.map(m=>m.gan),color:'#22c987'}]);
@@ -3602,6 +3804,13 @@ function renderChartsMensual() {
       {data:md.map(m=>m.mayor),color:'#00d4aa'}
     ]);
     drawBarCanvas('chart-ops-mes',labels,[{data:md.map(m=>m.ops),color:'#ffd166'}]);
+    // Nuevos gráficos de tendencia (línea): Margen % y Operaciones
+    drawLineCanvas('chart-margen-line',labels,[
+      {data:md.map(m=>m.margen),color:'#22c987'}
+    ],{yFmt:'pct'});
+    drawLineCanvas('chart-ops-line',labels,[
+      {data:md.map(m=>m.ops),color:'#3d7fff'}
+    ],{yFmt:'count'});
   },150);
 }
 
