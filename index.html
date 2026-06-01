@@ -1286,7 +1286,7 @@
     <div class="card-title">🧪 Alcohol de Cereal Tridestilado — PRECIOS_TRIDEST</div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Modalidad</th><th>Costo/L</th><th>Lista</th><th>Mayor 80L</th><th>Mayor 120L</th><th>Mayor 200L</th><th>Precio Fijo/L</th><th>Costo Tambor</th><th>Precio Tambor</th><th>Gan. Alcohol</th><th>Gan. Tambor</th><th>Gan. Total</th></tr></thead>
+        <thead><tr><th>Modalidad</th><th>Costo/L</th><th>Lím 1 (L)</th><th>Lím 2 (L)</th><th>Lím 3 (L)</th><th>Lím 4 (L)</th><th>P. E1</th><th>P. E2</th><th>P. E3</th><th>P. E4</th><th>P. E5</th><th>Costo Tambor</th><th>Precio Tambor</th><th>Gan. Alcohol</th><th>Gan. Tambor</th><th>Gan. Total</th></tr></thead>
         <tbody id="precios-body"></tbody>
       </table>
     </div>
@@ -1479,13 +1479,17 @@ let TODOS_PRODUCTOS = [
 ];
 
 let PRECIOS = [
-  {modal:"CON Envase 5L SIN caja",costo:1556.4,lista:2268,m80:2177,m120:2109,m200:2041,prod:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO fracc envase"},
-  {modal:"CON Envase 5L CON caja",costo:1596.4,lista:2390,m80:2294,m120:2223,m200:2151,prod:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO fracc envase caja"},
-  {modal:"SIN Envase 5L SIN caja",costo:1440,lista:2110,m80:2026,m120:1962,m200:1899,prod:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO fracc recambio"},
-  {modal:"CEREAL TAMBOR 200L RECAMBIO",costo:1440,precioFijo:1600,costoTambor:null,precioTambor:null,esTambor:true,esRecambio:true,prod:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO tambor recambio"},
-  {modal:"CEREAL TAMBOR 200L VENTA",costo:1520,precioFijo:1726.25,costoTambor:null,precioTambor:null,esTambor:true,esRecambio:false,prod:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO tambor venta"},
-  {modal:"ETÍLICO TAMBOR 200L RECAMBIO",costo:1315,precioFijo:1505,costoTambor:null,precioTambor:null,esTambor:true,esRecambio:true,prod:"Alcohol Etílico al 96% Buen gusto tambor recambio"},
-  {modal:"ETÍLICO TAMBOR 200L VENTA",costo:1395,precioFijo:1631.25,costoTambor:null,precioTambor:null,esTambor:true,esRecambio:false,prod:"Alcohol Etílico al 96% Buen gusto tambor venta"},
+  // CEREAL fraccionados — 5 escalones (lim1=80, lim2=195, lim3=495, lim4=995)
+  {modal:"CON Envase 5L SIN caja",costo:1675,lim1:80,lim2:195,lim3:495,lim4:995,p_e1:2280,p_e2:2100,p_e3:1910,p_e4:1880,p_e5:1880,costoTambor:null,precioTambor:null,esTambor:false,esRecambio:false,prod:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO fracc envase"},
+  {modal:"CON Envase 5L CON caja",costo:1706,lim1:80,lim2:195,lim3:495,lim4:995,p_e1:2300,p_e2:2200,p_e3:2050,p_e4:1980,p_e5:1930,costoTambor:null,precioTambor:null,esTambor:false,esRecambio:false,prod:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO fracc envase caja"},
+  {modal:"SIN Envase 5L SIN caja",costo:1495,lim1:80,lim2:195,lim3:495,lim4:995,p_e1:2100,p_e2:1930,p_e3:1800,p_e4:1730,p_e5:1670,costoTambor:null,precioTambor:null,esTambor:false,esRecambio:false,prod:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO fracc recambio"},
+  // CEREAL TAMBOR RECAMBIO — 3 escalones (lim1=400, lim2=800, resto null)
+  {modal:"CEREAL TAMBOR 200L RECAMBIO",costo:1495,lim1:400,lim2:800,lim3:null,lim4:null,p_e1:1720,p_e2:1680,p_e3:1640,p_e4:null,p_e5:null,costoTambor:null,precioTambor:null,esTambor:true,esRecambio:true,prod:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO tambor recambio"},
+  // CEREAL TAMBOR VENTA — 5 escalones (lim1=200, lim2=400, lim3=600, lim4=800) + tambor $33.000
+  {modal:"CEREAL TAMBOR 200L VENTA",costo:1495,lim1:200,lim2:400,lim3:600,lim4:800,p_e1:1720,p_e2:1680,p_e3:1680,p_e4:1640,p_e5:1610,costoTambor:17000,precioTambor:33000,esTambor:true,esRecambio:false,prod:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO tambor venta"},
+  // ETÍLICO TAMBOR — sin escalones definidos (solo p_e1, todos los lim null)
+  {modal:"ETÍLICO TAMBOR 200L RECAMBIO",costo:1315,lim1:null,lim2:null,lim3:null,lim4:null,p_e1:1505,p_e2:null,p_e3:null,p_e4:null,p_e5:null,costoTambor:null,precioTambor:null,esTambor:true,esRecambio:true,prod:"Alcohol Etílico al 96% Buen gusto tambor recambio"},
+  {modal:"ETÍLICO TAMBOR 200L VENTA",costo:1395,lim1:null,lim2:null,lim3:null,lim4:null,p_e1:1631.25,p_e2:null,p_e3:null,p_e4:null,p_e5:null,costoTambor:null,precioTambor:null,esTambor:true,esRecambio:false,prod:"Alcohol Etílico al 96% Buen gusto tambor venta"},
 ];
 
 let VALOR_DOLAR = 1200;
@@ -4145,6 +4149,25 @@ function onProductoChange() {
   calcularPrecio();
 }
 
+// Helper: precio según escalón de cantidad (compartido entre productos del array PRECIOS)
+function _precioPorEscala(item, cant) {
+  const lims = [item.lim1, item.lim2, item.lim3, item.lim4];
+  const pes  = [item.p_e1, item.p_e2, item.p_e3, item.p_e4, item.p_e5];
+  for (let n = 0; n < 4; n++) {
+    const lim = parseFloat(lims[n]);
+    if (!isNaN(lim) && cant <= lim) {
+      const p = parseFloat(pes[n]);
+      if (!isNaN(p) && p > 0) return p;
+    }
+  }
+  // Fallback: último escalón válido (cuando supera todos los límites o no hay límites definidos)
+  for (let k = 4; k >= 0; k--) {
+    const p = parseFloat(pes[k]);
+    if (!isNaN(p) && p > 0) return p;
+  }
+  return 0;
+}
+
 function getPrecio(prod,cant) {
   const espe=document.getElementById('toggle-especial').checked;
   if(espe) {
@@ -4155,24 +4178,18 @@ function getPrecio(prod,cant) {
   }
   const tri=PRECIOS.find(p=>p.prod===prod);
   if(tri){
-    // Productos tambor usan precioFijo directo, no tramos
-    if(tri.esTambor && tri.precioFijo) {
-      // Si es tambor VENTA (esRecambio=false), incluir costoTambor y precioTambor como cargo fijo
-      const esTamborVenta = !tri.esRecambio;
-      return {
-        precio: tri.precioFijo,
-        costo: tri.costo,
-        precioTambor: esTamborVenta ? (tri.precioTambor || 0) : 0,
-        costoTambor: esTamborVenta ? (tri.costoTambor || 0) : 0,
-        esTamborVenta: esTamborVenta
-      };
-    }
-    let precio;
-    if(cant>=200) precio=tri.m200;
-    else if(cant>=120) precio=tri.m120;
-    else if(cant>=80) precio=tri.m80;
-    else precio=tri.lista;
-    return {precio,costo:tri.costo};
+    // Precio del alcohol por escalón (mismo para fraccionados y tambor)
+    const precio = _precioPorEscala(tri, cant);
+    // Para tambor venta, sumar costo/precio del tambor físico por CADA tambor (cant/200)
+    const esTamborVenta = tri.esTambor && !tri.esRecambio;
+    const numTambores = esTamborVenta ? Math.ceil(cant / 200) : 0;
+    return {
+      precio: precio,
+      costo: tri.costo,
+      precioTambor: esTamborVenta && tri.precioTambor ? (tri.precioTambor * numTambores) : 0,
+      costoTambor:  esTamborVenta && tri.costoTambor  ? (tri.costoTambor  * numTambores) : 0,
+      esTamborVenta: esTamborVenta
+    };
   }
   // Glicerina
   const glic=PRECIOS_GLICERINA.find(p=>p.prod===prod);
@@ -4849,26 +4866,32 @@ function renderPrecios() {
   document.getElementById('precios-body').innerHTML=PRECIOS.map((p,i)=>{
     const esTambor = p.esTambor === true;
     const esVenta  = esTambor && !p.esRecambio;
-    // Ganancias para tambores
-    const ganAlc   = esTambor && p.costo && p.precioFijo ? Math.round((p.precioFijo - p.costo) * 200) : null;
+    // Ganancia alcohol estimada: usa p_e1 (escalón más chico = precio de venta de referencia)
+    // para tambor: × 200L. Para fraccionado: × 1L (gan por litro).
+    const precioRef = p.p_e1 || p.p_e2 || null;
+    const ganPorLitro = (precioRef && p.costo) ? Math.round(precioRef - p.costo) : null;
+    const ganAlc   = esTambor && ganPorLitro !== null ? ganPorLitro * 200 : ganPorLitro;
     const ganTambor= esVenta && p.costoTambor && p.precioTambor ? Math.round(p.precioTambor - p.costoTambor) : null;
-    const ganTotal = ganAlc !== null && (esVenta ? ganTambor !== null : true) ? ganAlc + (ganTambor||0) : null;
+    const ganTotal = ganAlc !== null ? ganAlc + (ganTambor||0) : null;
     const dash = '<span style="color:var(--muted);font-size:11px">—</span>';
+
+    // Helper: input para límite o precio (acepta null)
+    const inpNum = (val, id, ph) => `<input class="precio-edit" type="number" placeholder="${ph||''}" value="${val!=null?val:''}" id="${id}" oninput="precioEditado()" style="width:80px">`;
+
     return `<tr style="${esTambor?'background:#0f1820;':''}"}>
-      <td><strong>${p.modal}</strong>${esTambor?'<br><span style="font-size:10px;color:var(--muted)">precio fijo ×200L</span>':''}</td>
-      <td><input class="precio-edit" type="number" value="${p.costo||''}" id="pc-${i}-costo" oninput="calcGanTambor(${i})"></td>
-      ${esTambor ? `
-      <td>${dash}</td><td>${dash}</td><td>${dash}</td><td>${dash}</td>
-      <td><input class="precio-edit" type="number" placeholder="$/L" value="${p.precioFijo||''}" id="pc-${i}-precioFijo" oninput="calcGanTambor(${i})" style="width:90px"></td>
-      ` : `
-      <td><input class="precio-edit" type="number" value="${p.lista||''}" id="pc-${i}-lista" oninput="precioEditado()"></td>
-      <td><input class="precio-edit" type="number" value="${p.m80||''}" id="pc-${i}-m80" oninput="precioEditado()"></td>
-      <td><input class="precio-edit" type="number" value="${p.m120||''}" id="pc-${i}-m120" oninput="precioEditado()"></td>
-      <td><input class="precio-edit" type="number" value="${p.m200||''}" id="pc-${i}-m200" oninput="precioEditado()"></td>
-      <td>${dash}</td>
-      `}
-      <td>${esVenta ? `<input class="precio-edit" type="number" placeholder="Costo $" value="${p.costoTambor||''}" id="pc-${i}-costoTambor" oninput="calcGanTambor(${i})" style="width:90px">` : dash}</td>
-      <td>${esVenta ? `<input class="precio-edit" type="number" placeholder="Precio $" value="${p.precioTambor||''}" id="pc-${i}-precioTambor" oninput="calcGanTambor(${i})" style="width:90px">` : dash}</td>
+      <td><strong>${p.modal}</strong>${esTambor?'<br><span style="font-size:10px;color:var(--muted)">tambor 200L</span>':''}</td>
+      <td>${inpNum(p.costo, `pc-${i}-costo`, '$/L')}</td>
+      <td>${inpNum(p.lim1, `pc-${i}-lim1`, 'Hasta')}</td>
+      <td>${inpNum(p.lim2, `pc-${i}-lim2`, 'Hasta')}</td>
+      <td>${inpNum(p.lim3, `pc-${i}-lim3`, 'Hasta')}</td>
+      <td>${inpNum(p.lim4, `pc-${i}-lim4`, 'Hasta')}</td>
+      <td>${inpNum(p.p_e1, `pc-${i}-p_e1`, '$/L')}</td>
+      <td>${inpNum(p.p_e2, `pc-${i}-p_e2`, '$/L')}</td>
+      <td>${inpNum(p.p_e3, `pc-${i}-p_e3`, '$/L')}</td>
+      <td>${inpNum(p.p_e4, `pc-${i}-p_e4`, '$/L')}</td>
+      <td>${inpNum(p.p_e5, `pc-${i}-p_e5`, '$/L')}</td>
+      <td>${esVenta ? inpNum(p.costoTambor, `pc-${i}-costoTambor`, 'Costo') : dash}</td>
+      <td>${esVenta ? inpNum(p.precioTambor, `pc-${i}-precioTambor`, 'Precio') : dash}</td>
       <td style="font-family:var(--mono);color:var(--accent2)" id="pc-${i}-ganAlc">${ganAlc !== null ? '$'+ganAlc.toLocaleString('es-AR') : dash}</td>
       <td style="font-family:var(--mono);color:var(--yellow)" id="pc-${i}-ganTambor">${ganTambor !== null ? '$'+ganTambor.toLocaleString('es-AR') : dash}</td>
       <td style="font-family:var(--mono);color:var(--green);font-weight:700" id="pc-${i}-ganTotal">${ganTotal !== null ? '$'+ganTotal.toLocaleString('es-AR') : dash}</td>
@@ -4935,13 +4958,15 @@ function precioEditado(){document.getElementById('precio-alert-box').classList.a
 function calcGanTambor(i){
   const p = PRECIOS[i];
   if(!p) return;
-  // Leer valores actuales del DOM
+  // Leer valores actuales del DOM (nueva estructura: usa p_e1 como precio de referencia)
   const costo = parseFloat(document.getElementById(`pc-${i}-costo`)?.value) || null;
-  const precioFijo = parseFloat(document.getElementById(`pc-${i}-precioFijo`)?.value) || null;
+  const precioRef = parseFloat(document.getElementById(`pc-${i}-p_e1`)?.value) || null;
   const costoTambor = parseFloat(document.getElementById(`pc-${i}-costoTambor`)?.value) || null;
   const precioTambor = parseFloat(document.getElementById(`pc-${i}-precioTambor`)?.value) || null;
-  // Calcular ganancias
-  const ganAlc = (costo && precioFijo) ? Math.round((precioFijo - costo) * 200) : null;
+  // Calcular ganancias (tambor = ×200, fraccionado = ×1)
+  const esTambor = p.esTambor === true;
+  const factor = esTambor ? 200 : 1;
+  const ganAlc = (costo && precioRef) ? Math.round((precioRef - costo) * factor) : null;
   const ganTambor = (costoTambor && precioTambor) ? Math.round(precioTambor - costoTambor) : null;
   const ganTotal = ganAlc !== null ? ganAlc + (ganTambor||0) : null;
   const elGA = document.getElementById(`pc-${i}-ganAlc`);
@@ -4977,10 +5002,16 @@ function recalcularUSD(){
 function guardarPrecios(){
   PRECIOS.forEach((p,i)=>{
     p.costo=parseFloat(document.getElementById(`pc-${i}-costo`).value)||p.costo;
-    p.lista=parseFloat(document.getElementById(`pc-${i}-lista`).value)||p.lista;
-    p.m80=parseFloat(document.getElementById(`pc-${i}-m80`).value)||p.m80;
-    p.m120=parseFloat(document.getElementById(`pc-${i}-m120`).value)||p.m120;
-    p.m200=parseFloat(document.getElementById(`pc-${i}-m200`).value)||p.m200;
+    // Límites (acepta vacío → null)
+    [1,2,3,4].forEach(n => {
+      const v = document.getElementById(`pc-${i}-lim${n}`)?.value;
+      p['lim'+n] = (v === '' || v == null) ? null : (parseFloat(v) || null);
+    });
+    // Precios por escalón (acepta vacío → null)
+    [1,2,3,4,5].forEach(n => {
+      const v = document.getElementById(`pc-${i}-p_e${n}`)?.value;
+      p['p_e'+n] = (v === '' || v == null) ? null : (parseFloat(v) || null);
+    });
   });
   notify('✓ Precios actualizados — ventas históricas sin cambios');
 }
@@ -5365,14 +5396,20 @@ async function guardarTransporte(){
 async function guardarPrecios(){
   PRECIOS.forEach((p,i)=>{
     p.costo = parseFloat(document.getElementById(`pc-${i}-costo`)?.value) || p.costo;
-    if(p.esTambor) {
-      p.precioFijo = parseFloat(document.getElementById(`pc-${i}-precioFijo`)?.value) || p.precioFijo;
-    } else {
-      p.lista = parseFloat(document.getElementById(`pc-${i}-lista`)?.value) || p.lista;
-      p.m80   = parseFloat(document.getElementById(`pc-${i}-m80`)?.value)   || p.m80;
-      p.m120  = parseFloat(document.getElementById(`pc-${i}-m120`)?.value)  || p.m120;
-      p.m200  = parseFloat(document.getElementById(`pc-${i}-m200`)?.value)  || p.m200;
-    }
+    // Límites (acepta vacío → null)
+    [1,2,3,4].forEach(n => {
+      const el = document.getElementById(`pc-${i}-lim${n}`);
+      if(!el) return;
+      const v = el.value;
+      p['lim'+n] = (v === '' || v == null) ? null : (parseFloat(v) || null);
+    });
+    // Precios por escalón (acepta vacío → null)
+    [1,2,3,4,5].forEach(n => {
+      const el = document.getElementById(`pc-${i}-p_e${n}`);
+      if(!el) return;
+      const v = el.value;
+      p['p_e'+n] = (v === '' || v == null) ? null : (parseFloat(v) || null);
+    });
     if(!p.esRecambio) {
       p.costoTambor  = parseFloat(document.getElementById(`pc-${i}-costoTambor`)?.value)  || null;
       p.precioTambor = parseFloat(document.getElementById(`pc-${i}-precioTambor`)?.value) || null;
