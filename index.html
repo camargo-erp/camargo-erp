@@ -5578,6 +5578,7 @@ async function gsActualizarVenta(idx, campos) {
   // Pasar siempre clave única para encontrar la fila correcta en Sheets
   const camposConClave = {
     ...campos,
+    _id: venta.id || '',
     _fecha: venta.fecha,
     _cliente: venta.cliente,
     _total: venta.total,
