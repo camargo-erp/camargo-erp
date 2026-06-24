@@ -973,6 +973,10 @@
   <div class="grid3" id="dash-kpis-avanzados" style="margin-bottom:16px"></div>
   <div class="grid2" id="dash-kpis-avanzados2" style="margin-bottom:24px"></div>
 
+  <!-- CONTROL DE STOCK -->
+  <div style="font-size:11px;font-weight:600;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin:24px 0 12px">Control de Stock</div>
+  <div id="dash-stock" style="margin-bottom:24px"></div>
+
   <!-- MÁRGENES POR PRODUCTO -->
   <div style="font-size:11px;font-weight:600;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin:8px 0 12px">Márgenes por Producto</div>
   <div class="card" id="dash-margenes-producto" style="margin-bottom:24px"></div>
@@ -1279,6 +1283,40 @@
   </div>
   <div class="precio-alert show" id="precio-alert-box">
     ⚠️ <strong>Importante:</strong> Modificar estos valores afectará únicamente las <strong>ventas nuevas</strong>. Las ventas ya registradas conservan sus precios y costos originales.
+  </div>
+
+  <!-- PANEL CONTROL DE STOCK -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-title">📦 Control de Stock — Alcohol de Cereal</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:14px">
+      El stock se calcula solo a partir de tus ventas y compras. Acá fijás el punto de partida (lo que tenés HOY en el galpón) y los umbrales del semáforo. Editá esto cuando hagas un conteo físico.
+    </div>
+    <div class="form-grid cols4">
+      <div class="form-group">
+        <label>Stock inicial (L)</label>
+        <input type="number" id="sc-inicial" placeholder="1300">
+      </div>
+      <div class="form-group">
+        <label>Fecha de inicio</label>
+        <input type="date" id="sc-fecha">
+      </div>
+      <div class="form-group">
+        <label>Costo por litro ($)</label>
+        <input type="number" id="sc-costo" placeholder="1440">
+      </div>
+      <div class="form-group">
+        <label>Umbral verde (días)</label>
+        <input type="number" id="sc-verde" placeholder="14">
+      </div>
+      <div class="form-group">
+        <label>Umbral amarillo (días)</label>
+        <input type="number" id="sc-amarillo" placeholder="7">
+      </div>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:10px;align-items:center">
+      <button class="btn btn-primary" onclick="guardarStock()">💾 Guardar stock inicial</button>
+      <span style="font-size:11px;color:var(--muted)">Verde: +X días · Amarillo: entre amarillo y verde · Rojo: por debajo del amarillo</span>
+    </div>
   </div>
 
   <!-- TABLA TRIDESTILADO -->
@@ -3153,7 +3191,256 @@ function renderKPIsAvanzados() {
     </div>`;
   // Márgenes por producto
   renderMargenesPorProducto(vf);
+  // Control de stock continuo
+  renderStock();
+  renderStockConfig();
 }
+
+// ====================== CONTROL DE STOCK ======================
+// Convierte 'dd/mm/yyyy' o 'yyyy-mm-dd' a Date (00:00). Devuelve null si no parsea.
+function _stockFechaADate(f){
+  const s = String(f||'').trim();
+  let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(m) return new Date(parseInt(m[3]), parseInt(m[2])-1, parseInt(m[1]));
+  m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m) return new Date(parseInt(m[1]), parseInt(m[2])-1, parseInt(m[3]));
+  return null;
+}
+function _esEntregado(v){
+  const e = String(v.entregado||'').trim().toLowerCase();
+  return e==='sí' || e==='si';
+}
+
+// Calcula físico / comprometido / disponible / cobertura / valor por producto configurado.
+function calcStock(){
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  const hace30 = new Date(hoy.getTime() - 30*86400000);
+  return (STOCK_CONFIG||[]).map(e => {
+    const kw = String(e.keyword||'').toLowerCase();
+    const inicio = _stockFechaADate(e.fechaInicio) || hoy;
+    let comprado=0, entregadoLts=0, comprometido=0, vendido30=0;
+    VENTAS.forEach(v => {
+      if(!String(v.producto||'').toLowerCase().includes(kw)) return;
+      const fv = _stockFechaADate(v.fecha); if(!fv) return;
+      const cant = parseFloat(v.cant)||0;
+      if(fv >= inicio){
+        if(_esEntregado(v)) entregadoLts += cant; else comprometido += cant;
+      }
+      if(fv >= hace30) vendido30 += cant;
+    });
+    COMPRAS.forEach(co => {
+      if(!String(co.producto||'').toLowerCase().includes(kw)) return;
+      const fc = _stockFechaADate(co.fecha); if(!fc || fc < inicio) return;
+      comprado += parseFloat(co.cant)||0;
+    });
+    const inicial   = parseFloat(e.inicial)||0;
+    const fisico    = inicial + comprado - entregadoLts;
+    const disponible= fisico - comprometido;
+    const ventaDia  = vendido30/30;
+    const cobertura = ventaDia>0 ? disponible/ventaDia : null;
+    const valor     = fisico * (parseFloat(e.costoLitro)||0);
+    const uv = parseFloat(e.umbralVerde)||14, ua = parseFloat(e.umbralAmarillo)||7;
+    let estado='gris', estadoTxt='Sin ventas';
+    if(cobertura!=null){
+      if(cobertura>=uv){ estado='verde'; estadoTxt='OK'; }
+      else if(cobertura>=ua){ estado='amarillo'; estadoTxt='Vigilar'; }
+      else { estado='rojo'; estadoTxt='Recomprar'; }
+    }
+    return {...e, inicial, comprado, entregadoLts, comprometido, fisico, disponible, ventaDia, cobertura, valor, estado, estadoTxt};
+  });
+}
+
+// Render de la sección Control de Stock en el Resumen.
+function renderStock(){
+  const cont = document.getElementById('dash-stock');
+  if(!cont) return;
+  const data = calcStock();
+  if(!data.length){ cont.innerHTML=''; return; }
+  const nf = n => Math.round(n).toLocaleString('es-AR');
+  const totFisico = data.reduce((s,d)=>s+d.fisico,0);
+  const totComp   = data.reduce((s,d)=>s+d.comprometido,0);
+  const totDisp   = data.reduce((s,d)=>s+d.disponible,0);
+  const totValor  = data.reduce((s,d)=>s+d.valor,0);
+  const colEstado = {verde:'var(--green)', amarillo:'var(--yellow)', rojo:'var(--red)', gris:'var(--muted)'};
+  const chipBg    = {verde:'#1a3d2e', amarillo:'#2d2a14', rojo:'#2d1a22', gris:'#1e2335'};
+
+  const kpis = `
+    <div class="kpi-grid" style="margin-bottom:16px">
+      <div class="kpi">
+        <div class="kpi-label">🟡 Litros sin entregar</div>
+        <div class="kpi-value" style="color:var(--yellow)">${nf(totComp)}</div>
+        <div class="kpi-sub">comprometido en ventas</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">📦 Stock físico total</div>
+        <div class="kpi-value">${nf(totFisico)}</div>
+        <div class="kpi-sub">litros en depósito</div>
+      </div>
+      <div class="kpi highlight2">
+        <div class="kpi-label">✅ Disponible para vender</div>
+        <div class="kpi-value green">${nf(totDisp)}</div>
+        <div class="kpi-sub">físico − comprometido</div>
+      </div>
+      <div class="kpi highlight">
+        <div class="kpi-label">💵 Valor del stock</div>
+        <div class="kpi-value accent">${fmt(totValor)}</div>
+        <div class="kpi-sub">capital inmovilizado</div>
+      </div>
+    </div>`;
+
+  const filas = data.map(d => `
+    <tr>
+      <td style="font-weight:500">${d.label}</td>
+      <td style="text-align:right;font-family:var(--mono)">${nf(d.fisico)}</td>
+      <td style="text-align:right;font-family:var(--mono);color:var(--yellow);cursor:pointer;text-decoration:underline dotted" onclick="verComprometido('${d.clave}')" title="Ver detalle de clientes">${nf(d.comprometido)} →</td>
+      <td style="text-align:right;font-family:var(--mono);color:var(--green)">${nf(d.disponible)}</td>
+      <td style="text-align:right;font-family:var(--mono);color:${colEstado[d.estado]}">${d.cobertura!=null ? Math.round(d.cobertura)+' días' : '—'}</td>
+      <td style="text-align:right;font-family:var(--mono)">${fmt(d.valor)}</td>
+      <td style="text-align:center"><span style="background:${chipBg[d.estado]};color:${colEstado[d.estado]};padding:3px 9px;border-radius:20px;font-size:11px">${d.estadoTxt}</span></td>
+    </tr>`).join('');
+
+  cont.innerHTML = kpis + `
+    <div class="card">
+      <div class="card-title">Detalle por producto</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Producto</th>
+            <th style="text-align:right">Físico</th>
+            <th style="text-align:right">Comprometido</th>
+            <th style="text-align:right">Disponible</th>
+            <th style="text-align:right">Cobertura</th>
+            <th style="text-align:right">Valor $</th>
+            <th style="text-align:center">Estado</th>
+          </tr></thead>
+          <tbody>${filas}</tbody>
+        </table>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:12px;display:flex;gap:16px;flex-wrap:wrap">
+        <span>🟢 OK: +verde</span><span>🟡 Vigilar: amarillo a verde</span><span>🔴 Recomprar: bajo amarillo</span>
+        <span style="margin-left:auto">Cobertura = disponible ÷ venta diaria (últimos 30 días)</span>
+      </div>
+    </div>`;
+}
+
+// Devuelve las ventas comprometidas (sin entregar, desde inicio) de un producto.
+function _comprometidoFilas(clave){
+  const e = (STOCK_CONFIG||[]).find(x=>x.clave===clave);
+  if(!e) return {label:'', filas:[], total:0};
+  const kw = String(e.keyword||'').toLowerCase();
+  const inicio = _stockFechaADate(e.fechaInicio) || new Date();
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  const filas = VENTAS.filter(v => {
+    if(!String(v.producto||'').toLowerCase().includes(kw)) return false;
+    const fv=_stockFechaADate(v.fecha); if(!fv||fv<inicio) return false;
+    return !_esEntregado(v);
+  }).map(v => {
+    const fv=_stockFechaADate(v.fecha);
+    const dias=Math.max(0,Math.round((hoy-fv)/86400000));
+    return {fecha:v.fecha, cliente:v.cliente||'—', cant:parseFloat(v.cant)||0, dias};
+  }).sort((a,b)=>b.dias-a.dias);
+  const total = filas.reduce((s,f)=>s+f.cant,0);
+  return {label:e.label, filas, total};
+}
+
+// Abre el modal de detalle de comprometido (reusa modal-detalle).
+function verComprometido(clave){
+  const {label, filas, total} = _comprometidoFilas(clave);
+  const nf = n => Math.round(n).toLocaleString('es-AR');
+  const colDia = d => d>=7 ? 'var(--red)' : d>=3 ? 'var(--yellow)' : 'var(--green)';
+  const cuerpo = filas.length ? filas.map(f => `
+    <tr>
+      <td style="font-family:var(--mono)">${f.fecha}</td>
+      <td>${f.cliente}</td>
+      <td style="text-align:right;font-family:var(--mono)">${nf(f.cant)}</td>
+      <td style="text-align:center;font-family:var(--mono);color:${colDia(f.dias)}">${f.dias}</td>
+    </tr>`).join('') : `<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:16px">Sin ventas pendientes de entrega ✅</td></tr>`;
+
+  document.getElementById('modal-detalle-titulo').innerHTML = `🟡 Comprometido · ${label}`;
+  document.getElementById('modal-detalle-contenido').innerHTML = `
+    <div style="font-size:12px;color:var(--muted);margin-bottom:14px">Ventas registradas sin entregar (en el galpón)</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Fecha</th><th>Cliente</th><th style="text-align:right">Litros</th><th style="text-align:center">Días</th></tr></thead>
+        <tbody>${cuerpo}</tbody>
+        <tfoot><tr style="font-weight:600">
+          <td colspan="2" style="color:var(--muted)">TOTAL · ${filas.length} venta${filas.length===1?'':'s'}</td>
+          <td style="text-align:right;font-family:var(--mono);color:var(--yellow);font-size:15px">${nf(total)}</td>
+          <td></td>
+        </tr></tfoot>
+      </table>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="cerrarModal('modal-detalle')">Cerrar</button>
+      <button class="btn btn-primary" onclick="imprimirComprometido('${clave}')">🖨️ Imprimir</button>
+    </div>`;
+  abrirModal('modal-detalle');
+}
+
+// Imprime el detalle de comprometido en una ventana limpia (no toca el ERP).
+function imprimirComprometido(clave){
+  const {label, filas, total} = _comprometidoFilas(clave);
+  const nf = n => Math.round(n).toLocaleString('es-AR');
+  const hoyStr = new Date().toLocaleDateString('es-AR');
+  const rows = filas.map(f => `<tr><td>${f.fecha}</td><td>${f.cliente}</td><td style="text-align:right">${nf(f.cant)}</td><td style="text-align:center">${f.dias}</td></tr>`).join('');
+  const w = window.open('', '_blank', 'width=720,height=800');
+  if(!w){ notify('⚠️ Permití las ventanas emergentes para imprimir'); return; }
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Comprometido ${label}</title>
+    <style>
+      body{font-family:Arial,Helvetica,sans-serif;color:#111;padding:24px;}
+      h1{font-size:18px;margin:0 0 2px;} .sub{font-size:12px;color:#555;margin-bottom:16px;}
+      table{width:100%;border-collapse:collapse;font-size:13px;}
+      th{text-align:left;border-bottom:2px solid #333;padding:7px 6px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;}
+      td{padding:7px 6px;border-bottom:1px solid #ddd;}
+      tfoot td{font-weight:bold;border-top:2px solid #333;border-bottom:none;font-size:14px;}
+    </style></head><body>
+      <h1>Pendiente de entrega — ${label}</h1>
+      <div class="sub">Camargo Distribuidora · Emitido ${hoyStr}</div>
+      <table>
+        <thead><tr><th>Fecha</th><th>Cliente</th><th style="text-align:right">Litros</th><th style="text-align:center">Días</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan=4 style="text-align:center;color:#888">Sin pendientes</td></tr>'}</tbody>
+        <tfoot><tr><td colspan="2">TOTAL · ${filas.length} venta${filas.length===1?'':'s'}</td><td style="text-align:right">${nf(total)} L</td><td></td></tr></tfoot>
+      </table>
+    </body></html>`);
+  w.document.close();
+  setTimeout(()=>{ w.focus(); w.print(); }, 250);
+}
+
+// Llena el panel de Catálogo con la config actual de stock.
+function renderStockConfig(){
+  const e = (STOCK_CONFIG||[])[0];
+  const el = document.getElementById('sc-inicial');
+  if(!el || !e) return;
+  el.value = e.inicial!=null ? e.inicial : '';
+  const fd = _stockFechaADate(e.fechaInicio);
+  const fechaEl = document.getElementById('sc-fecha');
+  if(fechaEl && fd) fechaEl.value = fd.getFullYear()+'-'+String(fd.getMonth()+1).padStart(2,'0')+'-'+String(fd.getDate()).padStart(2,'0');
+  const set = (id,val)=>{ const x=document.getElementById(id); if(x) x.value = val!=null?val:''; };
+  set('sc-costo', e.costoLitro);
+  set('sc-verde', e.umbralVerde);
+  set('sc-amarillo', e.umbralAmarillo);
+}
+
+// Guarda la config de stock en Sheets y refresca.
+async function guardarStock(){
+  if(typeof esAdmin==='function' && !esAdmin()){ notify('⚠️ Solo admin puede modificar el stock'); return; }
+  const e = (STOCK_CONFIG||[])[0];
+  if(!e){ notify('⚠️ No hay producto de stock configurado'); return; }
+  const fechaInput = document.getElementById('sc-fecha').value; // yyyy-mm-dd
+  let fechaInicio = e.fechaInicio;
+  if(fechaInput){ const p=fechaInput.split('-'); fechaInicio = p[2]+'/'+p[1]+'/'+p[0]; }
+  e.inicial        = parseFloat(document.getElementById('sc-inicial').value)||0;
+  e.fechaInicio    = fechaInicio;
+  e.costoLitro     = parseFloat(document.getElementById('sc-costo').value)||0;
+  e.umbralVerde    = parseFloat(document.getElementById('sc-verde').value)||14;
+  e.umbralAmarillo = parseFloat(document.getElementById('sc-amarillo').value)||7;
+  setSyncStatus('sync');
+  const res = await gsCall('saveStock', {stock: STOCK_CONFIG});
+  setSyncStatus(res.ok ? 'ok' : 'error');
+  notify(res.ok ? '✅ Stock inicial guardado' : '⚠️ Error al guardar');
+  renderStock();
+}
+
 
 function renderMargenesPorProducto(vf) {
   const el = document.getElementById('dash-margenes-producto');
@@ -5191,6 +5478,7 @@ async function cargarDesdeSheets() {
       // Precios y escala Arrayan (módulo Catálogo)
       if(res.preciosArrayan?.length) PRECIOS_ARRAYAN_HIST = res.preciosArrayan;
       if(res.escalaArrayan?.length)  ESCALA_ARRAYAN       = res.escalaArrayan;
+      if(res.stock?.length)          STOCK_CONFIG         = res.stock;
       if(res.clientes?.length)   CLIENTES   = res.clientes.map(c => ({...c, nombre: String(c.nombre || '')})).filter(c => c.nombre);
       if(res.transportes?.length) {
         // Combinar: usar Sheets si tiene más que el hardcoded, sino combinar
@@ -5781,6 +6069,11 @@ let COMPRAS = [];
 let PAGOS_ARRAYAN = []; // Pagos parciales de ventas Arrayan
 let GASTOS = []; // Gastos operativos (módulo Finanzas)
 let ECHEQS = []; // eCheqs recibidos (módulo Finanzas > Vencimientos)
+// === CONTROL DE STOCK (continuo, derivado de ventas/compras) ===
+// Por ahora solo alcohol de cereal. Se sobreescribe desde getAll() si Sheets responde.
+let STOCK_CONFIG = [
+  {clave:'cereal', label:'Alcohol de Cereal', keyword:'cereal', inicial:1300, fechaInicio:'23/06/2026', costoLitro:1483, umbralVerde:14, umbralAmarillo:7}
+];
 
 function abrirModalCompra() {
   // Fecha de hoy por defecto
