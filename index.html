@@ -1219,11 +1219,13 @@
 
   <!-- Panel Sin Entregar -->
   <div id="panel-entregas">
+    <div id="resumen-entregas"></div>
     <div id="lista-entregas"></div>
   </div>
 
   <!-- Panel Sin Cobrar -->
   <div id="panel-cobros" style="display:none">
+    <div id="resumen-cobros"></div>
     <div id="lista-cobros"></div>
   </div>
 
@@ -4664,6 +4666,14 @@ function renderPendientes() {
   const sinCobrar=VENTAS.filter(v=>esVentaPropia(v)&&v.pagado!=='Sí');
   document.getElementById('cnt-entregas').textContent=sinEntregar.length;
   document.getElementById('cnt-cobros').textContent=sinCobrar.length;
+  // Totales en plata/litros
+  const totLtsEnt = sinEntregar.reduce((s,v)=>s+(parseFloat(v.cant)||0),0);
+  const totEnt    = sinEntregar.reduce((s,v)=>s+(parseFloat(v.total)||0),0);
+  const totCob    = sinCobrar.reduce((s,v)=>s+(parseFloat(v.total)||0),0);
+  const _re = document.getElementById('resumen-entregas');
+  if(_re) _re.innerHTML = sinEntregar.length ? `<div style="display:flex;gap:24px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 18px;margin-bottom:16px"><div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Total a entregar</div><div style="font-size:22px;font-weight:600;font-family:var(--mono);color:var(--yellow)">${Math.round(totLtsEnt).toLocaleString('es-AR')} Lts</div></div><div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Valor</div><div style="font-size:22px;font-weight:600;font-family:var(--mono)">${fmt(totEnt)}</div></div></div>` : '';
+  const _rc = document.getElementById('resumen-cobros');
+  if(_rc) _rc.innerHTML = sinCobrar.length ? `<div style="display:flex;gap:24px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 18px;margin-bottom:16px"><div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Total a cobrar</div><div style="font-size:22px;font-weight:600;font-family:var(--mono);color:var(--red)">${fmt(totCob)}</div></div><div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Operaciones</div><div style="font-size:22px;font-weight:600;font-family:var(--mono)">${sinCobrar.length}</div></div></div>` : '';
   document.getElementById('lista-entregas').innerHTML=sinEntregar.map((v)=>{
     const cli=getClienteData(v.cliente);
     const transporte=v.transporte||cli.entrega||'—';
