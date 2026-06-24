@@ -3223,14 +3223,16 @@ function calcStock(){
       if(!String(v.producto||'').toLowerCase().includes(kw)) return;
       const fv = _stockFechaADate(v.fecha); if(!fv) return;
       const cant = parseFloat(v.cant)||0;
-      if(fv >= inicio){
-        if(_esEntregado(v)) entregadoLts += cant; else comprometido += cant;
-      }
+      // Sin entregar = comprometido, sin importar la fecha (está en el galpón igual)
+      if(!_esEntregado(v)) comprometido += cant;
+      // Entregado DESPUÉS del inicio = salió del físico (simétrico con compras)
+      else if(fv > inicio) entregadoLts += cant;
       if(fv >= hace30) vendido30 += cant;
     });
     COMPRAS.forEach(co => {
       if(!String(co.producto||'').toLowerCase().includes(kw)) return;
-      const fc = _stockFechaADate(co.fecha); if(!fc || fc < inicio) return;
+      // Solo compras POSTERIORES al inicio. Las del día de inicio ya están en el stock inicial.
+      const fc = _stockFechaADate(co.fecha); if(!fc || fc <= inicio) return;
       comprado += parseFloat(co.cant)||0;
     });
     const inicial   = parseFloat(e.inicial)||0;
@@ -3328,12 +3330,11 @@ function _comprometidoFilas(clave){
   const e = (STOCK_CONFIG||[]).find(x=>x.clave===clave);
   if(!e) return {label:'', filas:[], total:0};
   const kw = String(e.keyword||'').toLowerCase();
-  const inicio = _stockFechaADate(e.fechaInicio) || new Date();
   const hoy = new Date(); hoy.setHours(0,0,0,0);
   const filas = VENTAS.filter(v => {
     if(!String(v.producto||'').toLowerCase().includes(kw)) return false;
-    const fv=_stockFechaADate(v.fecha); if(!fv||fv<inicio) return false;
-    return !_esEntregado(v);
+    if(_esEntregado(v)) return false;
+    return _stockFechaADate(v.fecha) != null;
   }).map(v => {
     const fv=_stockFechaADate(v.fecha);
     const dias=Math.max(0,Math.round((hoy-fv)/86400000));
