@@ -5650,7 +5650,7 @@ async function guardarVenta() {
     else arrayanTipo2 = 'unico';
   }
   const venta = {
-    fecha:new Date(fecha).toLocaleDateString('es-AR'),
+    fecha: (()=>{ const [y,m,d]=fecha.split('-'); return d.padStart(2,'0')+'/'+m.padStart(2,'0')+'/'+y; })(),
     canal:canal||'Mayorista',cliente,producto:prodNombre2,
     cant,precioU:pc.precio,total,
     costoU:esArrayanCobra2 ? Math.round(costoTFinal2/cant) : pc.costo,
