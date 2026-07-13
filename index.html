@@ -7504,21 +7504,35 @@ function renderEscalaArrayan() {
     return;
   }
 
-  const totalLts    = comprasMes.reduce((s,c)=>s+c.cant, 0);
-  const pctActual   = getPctArrayan(totalLts);
-  const totalPagado = comprasMes.reduce((s,c)=>s+c.costoTotal, 0);
-
-  // Calcular precio correcto por cada compra usando el precio de lista VIGENTE A SU FECHA
-  // Si el etílico (u otro) no tiene precio cargado para esa fecha, esa compra se excluye del "Total correcto"
-  const totalCorrecto = comprasMes.reduce((s,c)=>{
+  // Separar compras que aplican a la escala (alcohol con precio de lista vigente)
+  // de las que NO aplican (IBC, envases, facturas de IVA, etc. — sin precio de referencia).
+  // Solo las de escala se usan para calcular Total litros, Total pagado y A tu favor.
+  const comprasEscala = [];
+  const comprasExcluidas = [];
+  comprasMes.forEach(c => {
     const esCereal = (c.producto||'').toLowerCase().includes('cereal') || (c.producto||'').toLowerCase().includes('tri');
     const precios = getPrecioArrayanVigente(c.fecha);
     const lista = esCereal ? precios.cereal : precios.etilico;
-    if(lista == null || !isFinite(lista)) return s;
+    if(lista != null && isFinite(lista)) comprasEscala.push(c);
+    else comprasExcluidas.push(c);
+  });
+
+  const totalLts    = comprasEscala.reduce((s,c)=>s+c.cant, 0);
+  const pctActual   = getPctArrayan(totalLts);
+  const totalPagado = comprasEscala.reduce((s,c)=>s+c.costoTotal, 0);
+
+  // Calcular precio correcto por cada compra usando el precio de lista VIGENTE A SU FECHA
+  const totalCorrecto = comprasEscala.reduce((s,c)=>{
+    const esCereal = (c.producto||'').toLowerCase().includes('cereal') || (c.producto||'').toLowerCase().includes('tri');
+    const precios = getPrecioArrayanVigente(c.fecha);
+    const lista = esCereal ? precios.cereal : precios.etilico;
     return s + c.cant * lista * (1 + pctActual);
   }, 0);
 
   const ajuste = totalPagado - totalCorrecto;
+
+  // Total de las compras excluidas del cálculo (para mostrar como nota informativa)
+  const totalExcluido = comprasExcluidas.reduce((s,c)=>s+c.costoTotal, 0);
 
   const filas = comprasMes.map(c => {
     const esCereal = (c.producto||'').toLowerCase().includes('cereal') || (c.producto||'').toLowerCase().includes('tri');
@@ -7571,7 +7585,10 @@ function renderEscalaArrayan() {
       <div>Total correcto: <b style="color:var(--green)">$${Math.round(totalCorrecto).toLocaleString('es-AR')}</b></div>
       <div>Total pagado: <b>$${Math.round(totalPagado).toLocaleString('es-AR')}</b></div>
       <div>${ajuste>=0?'✅ A tu favor':'⚠️ Diferencia'}: <b style="color:${ajuste>=0?'var(--green)':'var(--red)'}">$${Math.round(Math.abs(ajuste)).toLocaleString('es-AR')}</b></div>
-    </div>`;
+    </div>
+    ${comprasExcluidas.length ? `<div style="margin-top:8px;padding:8px 10px;background:var(--surface2);border-radius:6px;font-size:11px;color:var(--muted);text-align:right">
+      ℹ️ ${comprasExcluidas.length} compra${comprasExcluidas.length>1?'s':''} excluida${comprasExcluidas.length>1?'s':''} del cálculo por no ser alcohol de escala (sin precio de lista): <b style="color:var(--text)">$${Math.round(totalExcluido).toLocaleString('es-AR')}</b>
+    </div>` : ''}`;
 }
 function esCuentaCorrienteArrayan(fpago) {
   const f = (fpago||'').toLowerCase().trim();
