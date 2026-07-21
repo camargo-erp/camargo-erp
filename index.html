@@ -926,6 +926,10 @@
   </div>
 
   <div class="grid3" id="dash-cards2"></div>
+
+  <!-- BREAKDOWN por Forma de Cobro (Efectivo vs Transferencia+Echeq) -->
+  <div id="dash-fpago-breakdown" style="margin:16px 0 24px"></div>
+
   <div class="grid2">
     <div class="card">
       <div class="card-title">Ventas por Cliente (Top 8)</div>
@@ -2980,8 +2984,85 @@ function renderDashboard() {
   renderProyeccionGanancia();
   // P&L Real — Finanzas
   renderPnL();
+  // Breakdown por forma de cobro (efectivo vs transferencia+echeq)
+  renderFpagoBreakdown();
   // KPIs avanzados
   renderKPIsAvanzados();
+}
+
+// =========== BREAKDOWN por Forma de Cobro ===========
+// Separa las ventas del período en dos grupos:
+//   - Efectivo
+//   - Transferencia + Echeq (bancarizado)
+// Muestra monto y % de cada grupo sobre el total facturado.
+function renderFpagoBreakdown() {
+  const el = document.getElementById('dash-fpago-breakdown');
+  if(!el) return;
+  const vf = getVentasFiltradas();
+  if(!vf.length) { el.innerHTML = ''; return; }
+
+  // Normalizar forma de pago (minúsculas, trim)
+  const fp = v => String(v.fpago || '').toLowerCase().trim();
+
+  const efectivo = vf.filter(v => fp(v) === 'efectivo')
+                     .reduce((s,v) => s + v.total, 0);
+  const banc     = vf.filter(v => fp(v) === 'transferencia' || fp(v) === 'echeq')
+                     .reduce((s,v) => s + v.total, 0);
+  // "Otros" cubre cualquier fpago fuera de los dos grupos (ej: cuenta corriente).
+  // Se calcula pero solo se muestra si es > 0, para no ensuciar la vista.
+  const otros    = vf.reduce((s,v) => s + v.total, 0) - efectivo - banc;
+
+  const totalMostrable = efectivo + banc + (otros > 0 ? otros : 0);
+  const pctE = totalMostrable > 0 ? (efectivo / totalMostrable * 100) : 0;
+  const pctB = totalMostrable > 0 ? (banc     / totalMostrable * 100) : 0;
+  const pctO = totalMostrable > 0 ? (otros    / totalMostrable * 100) : 0;
+
+  // Etiqueta del período para el título de la card
+  let periodoLabel = 'Histórico';
+  if(dashPeriodo === 'year') {
+    periodoLabel = 'Año ' + (document.getElementById('dash-anio-sel')?.value || '');
+  } else if(dashPeriodo === 'month') {
+    const mes = parseInt(document.getElementById('dash-mes-sel')?.value || 0);
+    const anio = document.getElementById('dash-anio-sel')?.value || '';
+    periodoLabel = (MESES_ABREV[mes-1] || '') + ' ' + anio;
+  }
+
+  el.innerHTML = `
+    <div class="card">
+      <div class="card-title">💳 Facturación por Forma de Cobro <span style="color:var(--muted);font-weight:400;font-size:12px">· ${periodoLabel}</span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr${otros>0?' 1fr':''};gap:14px;margin-top:14px">
+        <div style="padding:14px;background:var(--surface2);border-radius:8px;border-left:4px solid #ffd166">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">💵 Efectivo</div>
+          <div style="font-size:22px;font-weight:700;color:#ffd166;margin-top:6px;font-family:var(--mono)">${fmt(efectivo)}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px">${pctE.toFixed(1)}% del total</div>
+          <!-- Barra visual proporcional -->
+          <div style="height:4px;background:var(--border);border-radius:2px;margin-top:8px;overflow:hidden">
+            <div style="height:100%;width:${pctE.toFixed(1)}%;background:#ffd166"></div>
+          </div>
+        </div>
+        <div style="padding:14px;background:var(--surface2);border-radius:8px;border-left:4px solid #3d7fff">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">🏦 Transferencia + Echeq</div>
+          <div style="font-size:22px;font-weight:700;color:#3d7fff;margin-top:6px;font-family:var(--mono)">${fmt(banc)}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px">${pctB.toFixed(1)}% del total</div>
+          <div style="height:4px;background:var(--border);border-radius:2px;margin-top:8px;overflow:hidden">
+            <div style="height:100%;width:${pctB.toFixed(1)}%;background:#3d7fff"></div>
+          </div>
+        </div>
+        ${otros > 0 ? `
+        <div style="padding:14px;background:var(--surface2);border-radius:8px;border-left:4px solid var(--muted)">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">📋 Otros</div>
+          <div style="font-size:22px;font-weight:700;color:var(--muted);margin-top:6px;font-family:var(--mono)">${fmt(otros)}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px">${pctO.toFixed(1)}% del total</div>
+          <div style="height:4px;background:var(--border);border-radius:2px;margin-top:8px;overflow:hidden">
+            <div style="height:100%;width:${pctO.toFixed(1)}%;background:var(--muted)"></div>
+          </div>
+        </div>` : ''}
+      </div>
+      <div style="margin-top:14px;padding:10px 14px;background:var(--surface2);border-radius:6px;font-size:13px;color:var(--muted);display:flex;justify-content:space-between;align-items:center">
+        <span>Total facturado en el período</span>
+        <b style="color:var(--text);font-family:var(--mono);font-size:15px">${fmt(totalMostrable)}</b>
+      </div>
+    </div>`;
 }
 
 function renderKPIsAvanzados() {
@@ -4084,6 +4165,65 @@ function drawBarCanvas(canvasId, labels, datasets, opts={}) {
     ctx.fillText(l,x,H-8);
   });
 
+  // ─── Línea de tendencia (regresión lineal — opt-in vía opts.trendline) ───
+  // Solo se dibuja si opts.trendline === true.
+  // opts.trendUpTo permite limitar la regresión a los primeros N puntos
+  // (útil en año en curso para no meter meses futuros en 0 y sesgar la recta).
+  if(opts.trendline && datasets.length > 0) {
+    const data = datasets[0].data;
+    const n = Math.min(opts.trendUpTo || data.length, data.length);
+    // Necesitamos al menos 2 puntos con datos para calcular una recta
+    const puntosValidos = data.slice(0, n).filter(v => v > 0).length;
+    if(n >= 2 && puntosValidos >= 2) {
+      // Fórmulas de mínimos cuadrados: y = a + b*x
+      let sumX=0, sumY=0, sumXY=0, sumX2=0;
+      for(let i=0; i<n; i++){
+        const yi = data[i] || 0;
+        sumX  += i;
+        sumY  += yi;
+        sumXY += i * yi;
+        sumX2 += i * i;
+      }
+      const denom = n * sumX2 - sumX * sumX;
+      if(denom !== 0) {
+        const slope     = (n * sumXY - sumX * sumY) / denom;
+        const intercept = (sumY - slope * sumX) / n;
+        // Coordenadas de la línea (del primer al último punto considerado)
+        const x0 = pad.left + 0     * barGroupW + barGroupW/2;
+        const x1 = pad.left + (n-1) * barGroupW + barGroupW/2;
+        const yVal0 = intercept;
+        const yVal1 = intercept + slope * (n-1);
+        // Convertir a coordenadas de canvas, clamppeando al área del gráfico
+        const clampY = v => {
+          const y = pad.top + chartH - (v / maxVal) * chartH;
+          return Math.max(pad.top, Math.min(pad.top + chartH, y));
+        };
+        const y0 = clampY(yVal0);
+        const y1 = clampY(yVal1);
+        // Trazado: línea punteada naranja para destacar sobre las barras
+        ctx.save();
+        ctx.strokeStyle = '#ff8b3d';
+        ctx.lineWidth   = 2;
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x1, y1);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        // Etiqueta pequeña con la pendiente (📈 sube / 📉 baja / ➡️ estable)
+        const primerVal = data[0] || 0;
+        const pctVar = primerVal > 0 ? ((yVal1 - yVal0) / primerVal * 100) : 0;
+        const icono = Math.abs(pctVar) < 5 ? '➡️' : (slope > 0 ? '📈' : '📉');
+        const txt = icono + ' Tendencia';
+        ctx.font = '10px DM Sans';
+        ctx.fillStyle = '#ff8b3d';
+        ctx.textAlign = 'right';
+        ctx.fillText(txt, pad.left + chartW - 4, pad.top + 12);
+        ctx.restore();
+      }
+    }
+  }
+
   // Registrar eventos mousemove/mouseleave
   canvas.onmousemove = function(e) {
     const rect = canvas.getBoundingClientRect();
@@ -4241,9 +4381,21 @@ function renderChartsMensual() {
   if(t3) t3.textContent='Minorista vs Mayorista — Evolución'+anio;
   if(t4) t4.textContent='Evolución '+tipoLabel+' — Margen %'+anio;
   if(t5) t5.textContent='Evolución '+tipoLabel+' — Operaciones'+anio;
+  // Calcular hasta qué punto entra en la línea de tendencia:
+  // - modo 'all': los 3 años completos (2024, 2025, 2026)
+  // - modo 'year'/'month' + año actual: sólo hasta el mes actual (no meter meses futuros en 0)
+  // - modo 'year'/'month' + año pasado: los 12 meses completos
+  let trendUpTo = md.length;
+  if(dashPeriodo !== 'all') {
+    const anioSel = parseInt(document.getElementById('dash-anio-sel')?.value || 0);
+    const hoyLocal = new Date();
+    if(anioSel === hoyLocal.getFullYear()) {
+      trendUpTo = hoyLocal.getMonth() + 1; // ej: julio → 7
+    }
+  }
   setTimeout(()=>{
-    drawBarCanvas('chart-ventas-mes',labels,[{data:md.map(m=>m.ventas),color:'#3d7fff'}]);
-    drawBarCanvas('chart-gan-mes',labels,[{data:md.map(m=>m.gan),color:'#22c987'}]);
+    drawBarCanvas('chart-ventas-mes',labels,[{data:md.map(m=>m.ventas),color:'#3d7fff'}],{trendline:true, trendUpTo});
+    drawBarCanvas('chart-gan-mes',labels,[{data:md.map(m=>m.gan),color:'#22c987'}],{trendline:true, trendUpTo});
     drawLineCanvas('chart-canales-mes',labels,[
       {data:md.map(m=>m.minor),color:'#3d7fff'},
       {data:md.map(m=>m.mayor),color:'#00d4aa'}
