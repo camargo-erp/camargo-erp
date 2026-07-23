@@ -1077,7 +1077,17 @@
       <option value="Sí">Entregado: Sí</option>
       <option value="No">Entregado: No</option>
     </select>
+    <select id="flt-facturado" onchange="renderVentas()" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px">
+      <option value="">Factura: Todas</option>
+      <option value="pendiente">Factura: Pendientes</option>
+      <option value="facturada">Factura: Facturadas</option>
+    </select>
+    <label style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;cursor:pointer">
+      <input type="checkbox" id="modo-facturar-toggle" onchange="toggleModoFacturar()" style="cursor:pointer">
+      <span>🧾 Modo facturar</span>
+    </label>
     <button class="btn btn-ghost btn-sm" onclick="limpiarFiltrosVentas()" style="font-size:12px">✕ Limpiar</button>
+    <button id="btn-excel-facturadas" onclick="descargarFacturadasExcel()" style="display:none;padding:6px 12px;background:#22c987;color:white;border:none;border-radius:8px;font-size:12px;cursor:pointer;font-weight:600">📥 Descargar Excel</button>
     <span id="flt-count" style="margin-left:auto;font-size:12px;color:var(--muted)"></span>
   </div>
   <div class="card">
@@ -4467,6 +4477,8 @@ function getVentasFiltradas_tabla() {
   const pagado    = document.getElementById('flt-pagado')?.value   || '';
   const entrega   = document.getElementById('flt-entrega')?.value  || '';
   const entregado = document.getElementById('flt-entregado')?.value|| '';
+  const factFilter = document.getElementById('flt-facturado')?.value || '';
+  const esFact = (v) => (v.facturado===true || v.facturado==='TRUE' || v.facturado==='true');
   return VENTAS.filter(v=>{
     if(!esVentaPropia(v))                                                  return false;
     if(anio      && getAnioVenta(v.fecha) !== anio)                        return false;
@@ -4476,12 +4488,14 @@ function getVentasFiltradas_tabla() {
     if(pagado    && v.pagado    !== pagado)                                 return false;
     if(entrega   && v.entrega   !== entrega)                               return false;
     if(entregado && v.entregado !== entregado)                             return false;
+    if(factFilter === 'pendiente' && esFact(v))                            return false;
+    if(factFilter === 'facturada' && !esFact(v))                           return false;
     return true;
   });
 }
 
 function limpiarFiltrosVentas() {
-  ['flt-anio','flt-mes','flt-cliente','flt-fpago','flt-pagado','flt-entrega','flt-entregado'].forEach(id=>{
+  ['flt-anio','flt-mes','flt-cliente','flt-fpago','flt-pagado','flt-entrega','flt-entregado','flt-facturado'].forEach(id=>{
     const el=document.getElementById(id);
     if(el) el.value='';
   });
@@ -4491,12 +4505,21 @@ function limpiarFiltrosVentas() {
 function renderVentas() {
   const tb=document.getElementById('ventas-body');
   const filtradas = getVentasFiltradas_tabla();
+  const modoFact = document.getElementById('modo-facturar-toggle')?.checked;
+  const factFilter = document.getElementById('flt-facturado')?.value || '';
   const cnt = document.getElementById('flt-count');
   if(cnt) {
-    const hayFiltro = ['flt-anio','flt-mes','flt-cliente','flt-fpago','flt-pagado','flt-entrega','flt-entregado']
+    const hayFiltro = ['flt-anio','flt-mes','flt-cliente','flt-fpago','flt-pagado','flt-entrega','flt-entregado','flt-facturado']
       .some(id=>{ const el=document.getElementById(id); return el && (el.value||'')!=='' && el.value!=='2026'; });
     cnt.textContent = hayFiltro ? `${filtradas.length} de ${VENTAS.length} ventas` : `${VENTAS.length} ventas`;
   }
+  // Mostrar/ocultar botón Excel según filtro facturadas
+  const btnExcel = document.getElementById('btn-excel-facturadas');
+  if(btnExcel) btnExcel.style.display = (factFilter === 'facturada') ? 'inline-block' : 'none';
+
+  // Cambiar headers según modo
+  actualizarHeadersVentas(modoFact);
+
   // Ordenar de más reciente a más antigua
   const filtradas_ord = [...filtradas].sort((a,b)=>{
     const pa=a.fecha.split('/'), pb=b.fecha.split('/');
@@ -4508,6 +4531,28 @@ function renderVentas() {
     // Buscar índice real en VENTAS por clave única
     const i = VENTAS.findIndex(x => x.fecha===v.fecha && x.cliente===v.cliente && x.total===v.total && x.producto===v.producto);
     const yaFact = !!(v.facturado===true || v.facturado==='TRUE' || v.facturado==='true');
+    const btnFact = yaFact
+        ? `<a href="${v.pdf_url||'#'}" target="_blank" style="color:var(--accent);font-family:var(--mono);font-size:11px;text-decoration:none;white-space:nowrap" title="Ver PDF">📄 ${v.nroFactura||''}</a>`
+        : `<button onclick="abrirFacturar(${i})" style="padding:4px 10px;font-size:11px;background:var(--accent);color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600">Facturar</button>`;
+    const btnEdit = `<button class="btn btn-ghost btn-sm" onclick="abrirEditar(${i})" style="padding:4px 10px;font-size:12px">✏️</button>`;
+
+    if(modoFact) {
+      // Modo facturar: solo columnas esenciales para el flujo de emisión
+      return `
+      <tr style="${yaFact?'background:rgba(34,201,135,0.05)':''}">
+        <td>${v.fecha}</td>
+        <td>${v.cliente}</td>
+        <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis" title="${v.producto}">${v.producto.substring(0,40)}…</td>
+        <td style="font-family:var(--mono)">${v.cant}</td>
+        <td style="font-family:var(--mono);font-weight:600">${fmt(v.total)}</td>
+        <td>${v.fpago}</td>
+        <td><span class="chip ${v.pagado==='Sí'?'green':'red'}">${v.pagado==='Sí'?'✓':'✗'}</span></td>
+        <td>${btnFact}</td>
+        <td>${btnEdit}</td>
+      </tr>`;
+    }
+
+    // Modo normal: tabla completa
     return `
     <tr style="${yaFact?'background:rgba(34,201,135,0.05)':''}">
       <td>${v.fecha}</td>
@@ -4524,13 +4569,74 @@ function renderVentas() {
       <td><span class="chip ${v.pagado==='Sí'?'green':'red'}">${v.pagado==='Sí'?'✓ Sí':'✗ No'}</span></td>
       <td>${v.entrega}</td>
       <td><span class="chip ${v.entregado==='Sí'?'green':'yellow'}">${v.entregado==='Sí'?'✓ Sí':'⏳ No'}</span></td>
-      <td>${yaFact
-        ? `<a href="${v.pdf_url||'#'}" target="_blank" style="color:var(--accent);font-family:var(--mono);font-size:11px;text-decoration:none;white-space:nowrap" title="Ver PDF">📄 ${v.nroFactura||''}</a>`
-        : `<button onclick="abrirFacturar(${i})" style="padding:4px 10px;font-size:11px;background:var(--accent);color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600">Facturar</button>`
-      }</td>
-      <td><button class="btn btn-ghost btn-sm" onclick="abrirEditar(${i})" style="padding:4px 10px;font-size:12px">✏️</button></td>
+      <td>${btnFact}</td>
+      <td>${btnEdit}</td>
     </tr>`;
   }).join('');
+}
+
+// Cambia los headers de la tabla ventas según el modo
+function actualizarHeadersVentas(modoFact) {
+  const thead = document.querySelector('#tabla-ventas thead tr');
+  if(!thead) return;
+  if(modoFact) {
+    thead.innerHTML = `
+      <th>Fecha</th><th>Cliente</th><th>Producto</th>
+      <th>Cant.</th><th>Total</th><th>Pago</th><th>Pagado</th>
+      <th>Factura</th><th></th>`;
+  } else {
+    thead.innerHTML = `
+      <th>Fecha</th><th>Canal</th><th>Cliente</th><th>Producto</th>
+      <th>Cant.</th><th>$ Unit.</th><th>Total</th><th>Costo</th>
+      <th>Ganancia</th><th>Margen</th><th>Pago</th><th>Pagado</th>
+      <th>Entrega</th><th>Entregado</th><th>Factura</th><th></th>`;
+  }
+}
+
+// Toggle "Modo facturar"
+function toggleModoFacturar() {
+  renderVentas();
+}
+
+// Descarga las ventas facturadas visibles a Excel
+function descargarFacturadasExcel() {
+  const filtradas = getVentasFiltradas_tabla().filter(v =>
+    v.facturado===true || v.facturado==='TRUE' || v.facturado==='true'
+  );
+  if(!filtradas.length) { notify('No hay ventas facturadas para exportar'); return; }
+  // Ordenar por fecha (más reciente primero)
+  filtradas.sort((a,b)=>{
+    const pa=a.fecha.split('/'), pb=b.fecha.split('/');
+    const da=new Date(parseInt(pa[2]),parseInt(pa[1])-1,parseInt(pa[0]));
+    const db=new Date(parseInt(pb[2]),parseInt(pb[1])-1,parseInt(pb[0]));
+    return db-da;
+  });
+  // Armar filas del Excel
+  const filas = filtradas.map(v => {
+    const cli = CLIENTES.find(c => c.nombre === v.cliente) || {};
+    return {
+      'Fecha': v.fecha,
+      'N° Factura': v.nroFactura || '',
+      'Cliente': v.cliente,
+      'CUIT': cli.cuit || '',
+      'Provincia': cli.provincia || '',
+      'Producto': v.producto || '',
+      'Total': v.total || 0,
+      'CAE': v.cae || '',
+      'Link PDF': v.pdf_url || ''
+    };
+  });
+  // Generar Excel con SheetJS (ya está cargado en el ERP)
+  const ws = XLSX.utils.json_to_sheet(filas);
+  // Anchos de columna
+  ws['!cols'] = [
+    {wch:11},{wch:18},{wch:30},{wch:14},{wch:14},{wch:35},{wch:12},{wch:18},{wch:50}
+  ];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Facturadas');
+  const hoy = new Date().toISOString().substring(0,10);
+  XLSX.writeFile(wb, `Camargo_Facturadas_${hoy}.xlsx`);
+  notify(`✅ ${filas.length} facturas exportadas`, 'green');
 }
 
 // =========== NUEVA VENTA ===========
