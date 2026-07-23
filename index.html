@@ -6186,7 +6186,9 @@ async function confirmarFacturar() {
     _origCant: v.cant,
     _origProducto: v.producto,
     // Datos de facturación
-    cliente_nombre: v.cliente,
+    // Priorizamos el nombre real del cliente (columna A de CLIENTES_ERP)
+    // sobre el nombre guardado en la venta (que puede ser el contacto viejo)
+    cliente_nombre: (cli.nombre || v.cliente || '').toString().trim(),
     cliente_cuit: (document.getElementById('fac-cuit').value || '').replace(/[^\d]/g,''),
     cliente_cond_iva: document.getElementById('fac-cond-iva').value,
     cliente_dir: cli.dir || '-',
