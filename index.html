@@ -4613,7 +4613,7 @@ function descargarFacturadasExcel() {
   });
   // Armar filas del Excel
   const filas = filtradas.map(v => {
-    const cli = CLIENTES.find(c => c.nombre === v.cliente) || {};
+    const cli = findClienteTolerante(v.cliente);
     return {
       'Fecha': v.fecha,
       'N° Factura': v.nroFactura || '',
@@ -6084,16 +6084,58 @@ async function marcarCobrado(idx){
 // ==================== FACTURACIÓN ARCA ====================
 let facturarIdx = -1;
 
+// Busca un cliente por nombre/contacto/cuit con tolerancia
+// Estrategias en orden: nombre exacto, nombre incluido, contacto, cuit
+function findClienteTolerante(nombreVenta) {
+  const q = (nombreVenta || '').toString().trim().toLowerCase();
+  if (!q) return {};
+  const norm = (s) => (s || '').toString().trim().toLowerCase();
+  // 1) Match exacto de nombre (case-insensitive)
+  let cli = CLIENTES.find(c => norm(c.nombre) === q);
+  if (cli) return cli;
+  // 2) Nombre del cliente incluye el buscado (o viceversa)
+  cli = CLIENTES.find(c => {
+    const n = norm(c.nombre);
+    return n && (n.includes(q) || q.includes(n));
+  });
+  if (cli) return cli;
+  // 3) Match por contacto (case-insensitive)
+  cli = CLIENTES.find(c => norm(c.contacto) === q);
+  if (cli) return cli;
+  // 4) Match parcial por contacto
+  cli = CLIENTES.find(c => {
+    const co = norm(c.contacto);
+    return co && (co.includes(q) || q.includes(co));
+  });
+  if (cli) return cli;
+  // 5) Si nombreVenta parece un CUIT, buscar por CUIT
+  const qDigits = q.replace(/[^\d]/g,'');
+  if (qDigits.length >= 8) {
+    cli = CLIENTES.find(c => (c.cuit || '').toString().replace(/[^\d]/g,'') === qDigits);
+    if (cli) return cli;
+  }
+  return {};
+}
+
 function abrirFacturar(idx) {
   const v = VENTAS[idx];
   if(!v) { notify('Venta no encontrada'); return; }
   facturarIdx = idx;
   // Buscar cliente para prellenar CUIT + condición IVA
-  const cli = CLIENTES.find(c => c.nombre === v.cliente) || {};
+  const cli = findClienteTolerante(v.cliente);
   const set = (id, val) => { const el=document.getElementById(id); if(el) el.value = val==null?'':val; };
   const setTxt = (id, val) => { const el=document.getElementById(id); if(el) el.textContent = val==null?'':val; };
   setTxt('fac-fecha', v.fecha);
-  setTxt('fac-cliente', v.cliente);
+  // Si el cliente fue encontrado con nombre distinto, mostrarlo
+  const nombreVenta = (v.cliente || '').trim();
+  const nombreCli = (cli.nombre || '').trim();
+  if (nombreCli && nombreCli.toLowerCase() !== nombreVenta.toLowerCase()) {
+    setTxt('fac-cliente', nombreVenta + ' → ' + nombreCli + ' ✓');
+  } else if (!nombreCli) {
+    setTxt('fac-cliente', nombreVenta + ' (no vinculado — completá datos)');
+  } else {
+    setTxt('fac-cliente', nombreVenta);
+  }
   set('fac-cuit', (cli.cuit||'').toString().replace(/[^\d]/g,''));
   set('fac-cond-iva', cli.condicion || 'Consumidor Final');
   set('fac-descripcion', v.producto || '');
@@ -6117,7 +6159,7 @@ async function confirmarFacturar() {
   if(facturarIdx < 0) return;
   const v = VENTAS[facturarIdx];
   if(!v) return;
-  const cli = CLIENTES.find(c => c.nombre === v.cliente) || {};
+  const cli = findClienteTolerante(v.cliente);
   const btn = document.getElementById('btn-confirmar-facturar');
   const errBox = document.getElementById('fac-error');
   const monto = parseFloat(document.getElementById('fac-monto').value) || 0;
