@@ -775,6 +775,53 @@
   </div>
 </div>
 
+<!-- MODAL FACTURAR -->
+<div class="modal-overlay" id="modal-facturar">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-title">🧾 Emitir Factura C</div>
+    <div id="fac-info" style="background:var(--surface);border-radius:8px;padding:12px;margin-bottom:14px;font-size:13px">
+      <div><span style="color:var(--muted)">Fecha venta:</span> <span id="fac-fecha" style="font-weight:600"></span></div>
+      <div style="margin-top:4px"><span style="color:var(--muted)">Cliente:</span> <span id="fac-cliente" style="font-weight:600"></span></div>
+    </div>
+    <div class="form-grid cols2" style="gap:12px">
+      <div class="form-group"><label>CUIT / CUIL / DNI</label><input id="fac-cuit" placeholder="Sin guiones"></div>
+      <div class="form-group"><label>Condición IVA</label>
+        <select id="fac-cond-iva">
+          <option>Consumidor Final</option>
+          <option>Monotributo</option>
+          <option>Responsable Inscripto</option>
+          <option>Exento</option>
+        </select>
+      </div>
+      <div class="form-group" style="grid-column:1/-1"><label>Descripción del producto</label><input id="fac-descripcion"></div>
+      <div class="form-group"><label>Cantidad</label><input type="number" step="0.01" id="fac-cantidad" value="1" oninput="facRecalc()"></div>
+      <div class="form-group"><label>U. Medida</label>
+        <select id="fac-unidad">
+          <option>unidades</option>
+          <option>litros</option>
+          <option>kg</option>
+          <option>servicio</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Precio Unitario</label><input type="number" step="0.01" id="fac-precio" oninput="facRecalc()"></div>
+      <div class="form-group"><label>Monto Total (editable)</label><input type="number" step="0.01" id="fac-monto" style="font-weight:600;color:var(--accent2)"></div>
+      <div class="form-group" style="grid-column:1/-1"><label>Condición de venta</label>
+        <select id="fac-cond-venta">
+          <option>Contado</option>
+          <option>Transferencia Bancaria</option>
+          <option>Efectivo</option>
+          <option>Cuenta Corriente</option>
+        </select>
+      </div>
+    </div>
+    <div id="fac-error" style="display:none;margin-top:12px;padding:10px;background:rgba(255,77,106,0.1);border:1px solid rgba(255,77,106,0.3);border-radius:8px;color:#ff4d6a;font-size:13px"></div>
+    <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="cerrarModal('modal-facturar')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-confirmar-facturar" onclick="confirmarFacturar()">🚀 Emitir Factura</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL DETALLE GENERAL -->
 <div class="modal-overlay" id="modal-detalle">
   <div class="modal" style="max-width:700px;max-height:80vh;overflow-y:auto">
@@ -1040,7 +1087,7 @@
           <th>Fecha</th><th>Canal</th><th>Cliente</th><th>Producto</th>
           <th>Cant.</th><th>$ Unit.</th><th>Total</th><th>Costo</th>
           <th>Ganancia</th><th>Margen</th><th>Pago</th><th>Pagado</th>
-          <th>Entrega</th><th>Entregado</th><th></th>
+          <th>Entrega</th><th>Entregado</th><th>Factura</th><th></th>
         </tr></thead>
         <tbody id="ventas-body"></tbody>
       </table>
@@ -4460,8 +4507,9 @@ function renderVentas() {
   tb.innerHTML=filtradas_ord.map((v)=>{
     // Buscar índice real en VENTAS por clave única
     const i = VENTAS.findIndex(x => x.fecha===v.fecha && x.cliente===v.cliente && x.total===v.total && x.producto===v.producto);
+    const yaFact = !!(v.facturado===true || v.facturado==='TRUE' || v.facturado==='true');
     return `
-    <tr>
+    <tr style="${yaFact?'background:rgba(34,201,135,0.05)':''}">
       <td>${v.fecha}</td>
       <td><span class="chip ${v.canal==='Mayorista'?'blue':'gray'}">${v.canal}</span></td>
       <td>${v.cliente}</td>
@@ -4476,6 +4524,10 @@ function renderVentas() {
       <td><span class="chip ${v.pagado==='Sí'?'green':'red'}">${v.pagado==='Sí'?'✓ Sí':'✗ No'}</span></td>
       <td>${v.entrega}</td>
       <td><span class="chip ${v.entregado==='Sí'?'green':'yellow'}">${v.entregado==='Sí'?'✓ Sí':'⏳ No'}</span></td>
+      <td>${yaFact
+        ? `<a href="${v.pdf_url||'#'}" target="_blank" style="color:var(--accent);font-family:var(--mono);font-size:11px;text-decoration:none;white-space:nowrap" title="Ver PDF">📄 ${v.nroFactura||''}</a>`
+        : `<button onclick="abrirFacturar(${i})" style="padding:4px 10px;font-size:11px;background:var(--accent);color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600">Facturar</button>`
+      }</td>
       <td><button class="btn btn-ghost btn-sm" onclick="abrirEditar(${i})" style="padding:4px 10px;font-size:12px">✏️</button></td>
     </tr>`;
   }).join('');
@@ -5923,6 +5975,107 @@ async function marcarCobrado(idx){
 }
 
 // =========== EDITAR VENTA ===========
+// ==================== FACTURACIÓN ARCA ====================
+let facturarIdx = -1;
+
+function abrirFacturar(idx) {
+  const v = VENTAS[idx];
+  if(!v) { notify('Venta no encontrada'); return; }
+  facturarIdx = idx;
+  // Buscar cliente para prellenar CUIT + condición IVA
+  const cli = CLIENTES.find(c => c.nombre === v.cliente) || {};
+  const set = (id, val) => { const el=document.getElementById(id); if(el) el.value = val==null?'':val; };
+  const setTxt = (id, val) => { const el=document.getElementById(id); if(el) el.textContent = val==null?'':val; };
+  setTxt('fac-fecha', v.fecha);
+  setTxt('fac-cliente', v.cliente);
+  set('fac-cuit', (cli.cuit||'').toString().replace(/[^\d]/g,''));
+  set('fac-cond-iva', cli.condicion || 'Consumidor Final');
+  set('fac-descripcion', v.producto || '');
+  set('fac-cantidad', 1);
+  set('fac-unidad', 'unidades');
+  set('fac-precio', v.total || 0);
+  set('fac-monto', v.total || 0);
+  set('fac-cond-venta', v.fpago === 'Transferencia' ? 'Transferencia Bancaria' : (v.fpago || 'Contado'));
+  const err = document.getElementById('fac-error');
+  if(err) { err.style.display='none'; err.textContent=''; }
+  abrirModal('modal-facturar');
+}
+
+function facRecalc() {
+  const cant = parseFloat(document.getElementById('fac-cantidad').value) || 0;
+  const precio = parseFloat(document.getElementById('fac-precio').value) || 0;
+  document.getElementById('fac-monto').value = (cant * precio).toFixed(2);
+}
+
+async function confirmarFacturar() {
+  if(facturarIdx < 0) return;
+  const v = VENTAS[facturarIdx];
+  if(!v) return;
+  const cli = CLIENTES.find(c => c.nombre === v.cliente) || {};
+  const btn = document.getElementById('btn-confirmar-facturar');
+  const errBox = document.getElementById('fac-error');
+  const monto = parseFloat(document.getElementById('fac-monto').value) || 0;
+  if(monto <= 0) {
+    errBox.textContent = 'El monto tiene que ser mayor a 0';
+    errBox.style.display = 'block';
+    return;
+  }
+  const descripcion = (document.getElementById('fac-descripcion').value || '').trim();
+  if(!descripcion) {
+    errBox.textContent = 'La descripción no puede estar vacía';
+    errBox.style.display = 'block';
+    return;
+  }
+  errBox.style.display = 'none';
+  btn.disabled = true;
+  const textoOrig = btn.textContent;
+  btn.textContent = '⏳ Emitiendo... (10-15 seg)';
+  const payload = {
+    // Claves para encontrar la fila en Sheets
+    _origFecha: v.fecha,
+    _origCliente: v.cliente,
+    _origTotal: v.total,
+    _origCant: v.cant,
+    _origProducto: v.producto,
+    // Datos de facturación
+    cliente_nombre: v.cliente,
+    cliente_cuit: (document.getElementById('fac-cuit').value || '').replace(/[^\d]/g,''),
+    cliente_cond_iva: document.getElementById('fac-cond-iva').value,
+    cliente_dir: cli.dir || '-',
+    cond_venta: document.getElementById('fac-cond-venta').value,
+    descripcion: descripcion,
+    cantidad: parseFloat(document.getElementById('fac-cantidad').value) || 1,
+    unidad: document.getElementById('fac-unidad').value,
+    precio_unit: parseFloat(document.getElementById('fac-precio').value) || monto,
+    monto_total: monto
+  };
+  const res = await gsCall('emitirFactura', payload);
+  btn.disabled = false;
+  btn.textContent = textoOrig;
+  if(res && res.ok) {
+    // Actualizar en memoria
+    VENTAS[facturarIdx] = {
+      ...VENTAS[facturarIdx],
+      nroFactura: res.nroFactura,
+      cae: res.cae,
+      cae_vto: res.cae_vto,
+      pdf_url: res.pdf_url,
+      facturado: true,
+      fechaFactura: new Date().toLocaleDateString('es-AR')
+    };
+    cerrarModal('modal-facturar');
+    renderVentas();
+    if(typeof renderPendientes === 'function') renderPendientes();
+    if(typeof renderDashboard === 'function') renderDashboard();
+    notify(`✅ Factura ${res.nroFactura} emitida`, 'green');
+  } else {
+    const msg = (res && res.error) ? res.error : 'Error desconocido';
+    errBox.textContent = '❌ ' + msg;
+    errBox.style.display = 'block';
+  }
+}
+// ==================== FIN FACTURACIÓN ARCA ====================
+
 let editIdx = -1;
 let editClienteIdx = -1;
 
