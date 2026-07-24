@@ -102,6 +102,41 @@
   .radar-mono-bar-fill.radar-amarillo{background:linear-gradient(90deg,#d49b1e,var(--yellow));}
   .radar-mono-bar-fill.radar-rojo{background:linear-gradient(90deg,#c93353,var(--red));}
   .radar-mono-foot{display:flex;justify-content:space-between;color:var(--muted);font-size:11px;margin-top:6px;}
+  /* ===== SIMULADOR MONOTRIBUTO — Capa 3 ===== */
+  .mono-sim-base-info{background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--muted);border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:var(--text);}
+  .mono-sim-base-info b{color:var(--accent2);}
+  .mono-sim-hint{color:var(--muted);font-size:11px;margin-left:8px;}
+  .mono-sim-resultado{background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--muted);border-radius:10px;padding:20px 24px;margin-bottom:16px;text-align:center;}
+  .mono-sim-resultado.radar-verde{border-left-color:var(--green);}
+  .mono-sim-resultado.radar-amarillo{border-left-color:var(--yellow);}
+  .mono-sim-resultado.radar-rojo{border-left-color:var(--red);}
+  .mono-sim-titulo{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.8px;font-weight:600;margin-bottom:6px;}
+  .mono-sim-valor{color:var(--text);font-size:34px;font-weight:700;font-family:var(--mono);margin-bottom:6px;}
+  .mono-sim-detalle{color:var(--muted);font-size:13px;margin-bottom:12px;}
+  .mono-sim-detalle b{color:var(--text);}
+  .mono-sim-bar{background:var(--bg);height:8px;border-radius:4px;overflow:hidden;margin:12px auto 6px;max-width:600px;}
+  .mono-sim-bar-fill{height:100%;border-radius:4px;background:var(--muted);transition:width .3s,background .3s;}
+  .mono-sim-bar-fill.radar-verde{background:linear-gradient(90deg,#1a9660,var(--green));}
+  .mono-sim-bar-fill.radar-amarillo{background:linear-gradient(90deg,#d49b1e,var(--yellow));}
+  .mono-sim-bar-fill.radar-rojo{background:linear-gradient(90deg,#c93353,var(--red));}
+  .mono-sim-pct{color:var(--muted);font-size:11px;font-family:var(--mono);}
+  .mono-sim-escenarios{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:16px;flex-wrap:wrap;}
+  .mono-sim-esc-label{color:var(--muted);font-size:12px;margin-right:4px;}
+  .mono-sim-escenarios input{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-family:var(--mono);font-size:13px;width:160px;}
+  .mono-sim-escenarios .btn-sm{padding:6px 12px;font-size:12px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;cursor:pointer;transition:all .15s;}
+  .mono-sim-escenarios .btn-sm:hover{background:var(--accent);border-color:var(--accent);}
+  .mono-sim-tabla-wrap{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+  .mono-sim-tabla{width:100%;border-collapse:collapse;font-size:13px;}
+  .mono-sim-tabla thead th{background:var(--surface2);color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.6px;padding:12px 16px;border-bottom:1px solid var(--border);font-weight:600;text-align:left;}
+  .mono-sim-tabla tbody td{padding:10px 16px;border-bottom:1px solid var(--border);color:var(--text);font-family:var(--mono);}
+  .mono-sim-tabla tbody tr:last-child td{border-bottom:none;}
+  .mono-sim-tabla tbody tr.mono-sim-mes-actual{background:rgba(76,163,255,.06);}
+  .mono-sim-tabla tbody tr.mono-sim-mes-actual td:first-child::after{content:' · actual';color:var(--accent);font-size:10px;font-family:var(--sans);font-weight:600;}
+  .mono-sim-tabla tbody td:first-child{font-family:var(--sans);font-weight:500;}
+  .mono-sim-real{color:var(--muted);text-align:right;}
+  .mono-sim-total-mes{text-align:right;color:var(--accent2);font-weight:600;}
+  .mono-sim-input{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-family:var(--mono);font-size:13px;width:140px;text-align:right;}
+  .mono-sim-input:focus{border-color:var(--accent);outline:none;}
   .chip.red{background:#2d1a22;color:var(--red);}
   .chip.yellow{background:#2d2a14;color:var(--yellow);}
   .chip.blue{background:#1a2540;color:var(--accent);}
@@ -1127,6 +1162,54 @@
   <!-- MÁRGENES POR PRODUCTO -->
   <div style="font-size:11px;font-weight:600;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin:8px 0 12px">Márgenes por Producto</div>
   <div class="card" id="dash-margenes-producto" style="margin-bottom:24px"></div>
+</div>
+
+<!-- ===== SIMULADOR MONOTRIBUTO ===== -->
+<div class="page" id="page-monotributo">
+  <div class="section-header">
+    <div class="section-title">🎯 Simulador Monotributo</div>
+    <button class="btn btn-primary" onclick="renderSimuladorMono()">🔄 Refrescar</button>
+  </div>
+
+  <!-- Base ARCA info -->
+  <div class="mono-sim-base-info" id="mono-sim-base-info" style="display:none">
+    📁 Base ARCA congelada al <b id="mono-sim-fecha-corte">—</b>: <b id="mono-sim-base-monto">—</b>
+    <span class="mono-sim-hint">· acumula todo lo facturado hasta esa fecha</span>
+  </div>
+
+  <!-- Card de resultado -->
+  <div class="mono-sim-resultado" id="mono-sim-resultado" style="display:none">
+    <div class="mono-sim-titulo">Ventana 12M proyectada</div>
+    <div class="mono-sim-valor" id="mono-sim-total">—</div>
+    <div class="mono-sim-detalle">
+      Categoría <b id="mono-sim-cat">—</b> · tope <span id="mono-sim-tope">—</span> · margen <span id="mono-sim-margen">—</span>
+    </div>
+    <div class="mono-sim-bar"><div class="mono-sim-bar-fill" id="mono-sim-barfill"></div></div>
+    <div class="mono-sim-pct" id="mono-sim-pct">—</div>
+  </div>
+
+  <!-- Escenarios -->
+  <div class="mono-sim-escenarios" id="mono-sim-escenarios" style="display:none">
+    <span class="mono-sim-esc-label">Autocompletar meses futuros con:</span>
+    <input type="number" id="mono-sim-esc-input" min="0" step="100000" placeholder="Ej: 5000000" />
+    <button class="btn btn-sm" onclick="aplicarEscenarioMono('custom')">✅ Aplicar</button>
+    <button class="btn btn-sm" onclick="aplicarEscenarioMono('cero')">🔄 Reset</button>
+  </div>
+
+  <!-- Tabla mensual -->
+  <div class="mono-sim-tabla-wrap" id="mono-sim-tabla-wrap" style="display:none">
+    <table class="mono-sim-tabla">
+      <thead>
+        <tr>
+          <th>Mes</th>
+          <th style="text-align:right">Real (sistema)</th>
+          <th style="text-align:right">Proyectado</th>
+          <th style="text-align:right">Total mes</th>
+        </tr>
+      </thead>
+      <tbody id="mono-sim-tabla-body"></tbody>
+    </table>
+  </div>
 </div>
 
 <!-- ===== VENTAS ===== -->
@@ -2873,7 +2956,8 @@ function getNroRemito(){
 // =========== NAVEGACIÓN MODULAR ===========
 // Mapa de módulos → sub-secciones
 const MODULOS = {
-  resumen:     [{ id: 'dashboard',        label: '📊 Dashboard' }],
+  resumen:     [{ id: 'dashboard',        label: '📊 Dashboard' },
+                { id: 'monotributo',      label: '🎯 Monotributo' }],
   comercial:   [{ id: 'ventas',           label: '🧾 Historial' },
                 { id: 'nueva-venta',      label: '➕ Nueva Venta' },
                 { id: 'clientes',         label: '👥 Clientes' },
@@ -2950,6 +3034,7 @@ function showPage(id) {
   if(id==='precios') renderPrecios();
   if(id==='nueva-venta') initForm();
   if(id==='dashboard') renderDashboard();
+  if(id==='monotributo') renderSimuladorMono();
   if(id==='clientes') renderClientes();
   if(id==='transportes') renderTransportes();
   if(id==='gastos' && typeof renderGastos === 'function') renderGastos();
@@ -3200,6 +3285,138 @@ async function renderRadarMonotributoDash() {
     errBox.style.display = 'block';
     box.style.display = 'block';
   }
+}
+
+// ============ SIMULADOR MONOTRIBUTO — Capa 3 ============
+let _monoSimData = null;
+let _monoSimProyecciones = {};
+
+async function renderSimuladorMono() {
+  try {
+    const r = await gsCall('simuladorMonotributo');
+    if (!r || !r.ok) { notify('Error al cargar simulador: ' + (r?.error || ''), 'red'); return; }
+    _monoSimData = r.data;
+
+    // Mostrar bloques
+    document.getElementById('mono-sim-base-info').style.display = 'block';
+    document.getElementById('mono-sim-resultado').style.display = 'block';
+    document.getElementById('mono-sim-escenarios').style.display = 'flex';
+    document.getElementById('mono-sim-tabla-wrap').style.display = 'block';
+
+    // Base info
+    document.getElementById('mono-sim-fecha-corte').textContent = _monoSimData.baseArca.fechaCorte;
+    document.getElementById('mono-sim-base-monto').textContent = _fmtMonoSim(_monoSimData.baseArca.monto);
+
+    _construirTablaMonoSim();
+    _recalcularMonoSim();
+  } catch (e) {
+    console.error('renderSimuladorMono:', e);
+    notify('Error al cargar el simulador', 'red');
+  }
+}
+
+function _mesesVentana() {
+  // Devuelve los 12 meses móviles desde el mes actual + 11 futuros
+  const hoy = new Date(_monoSimData.hoy + 'T12:00:00-03:00');
+  const startY = hoy.getFullYear();
+  const startM = hoy.getMonth(); // 0-11
+  const meses = [];
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(startY, startM + i, 1);
+    const y = d.getFullYear();
+    const m = d.getMonth() + 1;
+    const key = y + '-' + String(m).padStart(2, '0');
+    meses.push({ key, label: _nombreMes(m) + ' ' + y, esMesActual: (i === 0) });
+  }
+  return meses;
+}
+
+function _construirTablaMonoSim() {
+  const meses = _mesesVentana();
+  const tbody = document.getElementById('mono-sim-tabla-body');
+  tbody.innerHTML = meses.map(mes => {
+    const real = Number(_monoSimData.facturadoPorMes[mes.key] || 0);
+    const proy = Number(_monoSimProyecciones[mes.key] || 0);
+    const total = real + proy;
+    return `
+      <tr class="${mes.esMesActual ? 'mono-sim-mes-actual' : ''}">
+        <td>${mes.label}</td>
+        <td class="mono-sim-real">${_fmtMonoSim(real)}</td>
+        <td style="text-align:right"><input type="number" class="mono-sim-input" min="0" step="10000" value="${proy || ''}"
+          placeholder="0" oninput="_onProyMonoInput('${mes.key}', this.value)" /></td>
+        <td class="mono-sim-total-mes" id="mono-sim-tot-${mes.key}">${_fmtMonoSim(total)}</td>
+      </tr>`;
+  }).join('');
+}
+
+function _onProyMonoInput(key, val) {
+  const n = Number(val) || 0;
+  if (n === 0) delete _monoSimProyecciones[key];
+  else _monoSimProyecciones[key] = n;
+  const real = Number(_monoSimData.facturadoPorMes[key] || 0);
+  const totEl = document.getElementById('mono-sim-tot-' + key);
+  if (totEl) totEl.textContent = _fmtMonoSim(real + n);
+  _recalcularMonoSim();
+}
+
+function _recalcularMonoSim() {
+  const baseArca = _monoSimData.baseArca.monto;
+  const meses = _mesesVentana();
+  let sumaReal = 0, sumaProy = 0;
+  meses.forEach(mes => {
+    sumaReal += Number(_monoSimData.facturadoPorMes[mes.key] || 0);
+    sumaProy += Number(_monoSimProyecciones[mes.key] || 0);
+  });
+  const totalVentana = baseArca + sumaReal + sumaProy;
+
+  // Categoría
+  const cats = _monoSimData.categorias;
+  let cat = cats[cats.length - 1];
+  for (const c of cats) {
+    if (totalVentana <= c.tope) { cat = c; break; }
+  }
+  const margen = cat.tope - totalVentana;
+  const pct = Math.min(100, Math.max(0, (totalVentana / cat.tope) * 100));
+  const semaforo = margen < 2000000 ? 'rojo' : margen < 10000000 ? 'amarillo' : 'verde';
+
+  document.getElementById('mono-sim-total').textContent = _fmtMonoSim(totalVentana);
+  document.getElementById('mono-sim-cat').textContent = cat.cat;
+  document.getElementById('mono-sim-tope').textContent = _fmtMonoSim(cat.tope);
+  document.getElementById('mono-sim-margen').textContent = _fmtMonoSim(margen);
+  document.getElementById('mono-sim-pct').textContent = pct.toFixed(1) + '% del tope';
+  document.getElementById('mono-sim-resultado').className = 'mono-sim-resultado radar-' + semaforo;
+  const bar = document.getElementById('mono-sim-barfill');
+  bar.className = 'mono-sim-bar-fill radar-' + semaforo;
+  bar.style.width = pct + '%';
+}
+
+function aplicarEscenarioMono(tipo) {
+  let valor = 0;
+  if (tipo === 'custom') {
+    const inp = document.getElementById('mono-sim-esc-input');
+    valor = Number(inp.value) || 0;
+    if (valor <= 0) { notify('Ingresá un monto mayor a 0', 'yellow'); return; }
+  }
+  const meses = _mesesVentana();
+  // Aplicar a todos los meses (incluyendo el actual)
+  Object.keys(_monoSimProyecciones).forEach(k => delete _monoSimProyecciones[k]);
+  if (valor > 0) {
+    meses.forEach(mes => {
+      _monoSimProyecciones[mes.key] = valor;
+    });
+  }
+  _construirTablaMonoSim();
+  _recalcularMonoSim();
+}
+
+function _fmtMonoSim(n) {
+  if (n == null || isNaN(n)) return '—';
+  return '$' + Math.round(Number(n)).toLocaleString('es-AR');
+}
+
+function _nombreMes(m) {
+  const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  return meses[m - 1];
 }
 
 // =========== BREAKDOWN por Forma de Cobro ===========
