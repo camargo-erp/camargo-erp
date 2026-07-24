@@ -149,6 +149,12 @@
   .mono-cartel-pasos code{background:var(--surface2);padding:1px 6px;border-radius:4px;font-family:var(--mono);font-size:11px;color:var(--accent2);}
   .mono-cartel-toggle{background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px;align-self:flex-start;transition:all .15s;}
   .mono-cartel-toggle:hover{background:var(--surface2);color:var(--text);}
+  /* ===== CONSULTA PADRÓN ARCA ===== */
+  .fac-cuit-arca{font-size:11px;color:var(--muted);margin-top:4px;min-height:14px;font-family:var(--mono);}
+  .fac-cuit-arca.arca-loading{color:var(--muted);}
+  .fac-cuit-arca.arca-ok{color:var(--green);}
+  .fac-cuit-arca.arca-warn{color:var(--yellow);}
+  .fac-cuit-arca.arca-error{color:var(--red);}
   .chip.red{background:#2d1a22;color:var(--red);}
   .chip.yellow{background:#2d2a14;color:var(--yellow);}
   .chip.blue{background:#1a2540;color:var(--accent);}
@@ -876,7 +882,10 @@
       <div style="margin-top:4px"><span style="color:var(--muted)">Cliente:</span> <span id="fac-cliente" style="font-weight:600"></span></div>
     </div>
     <div class="form-grid cols2" style="gap:12px">
-      <div class="form-group"><label>CUIT / CUIL / DNI</label><input id="fac-cuit" placeholder="Sin guiones"></div>
+      <div class="form-group"><label>CUIT / CUIL / DNI</label>
+        <input id="fac-cuit" placeholder="Sin guiones" oninput="_consultarPadronOnInput()">
+        <div id="fac-cuit-arca" class="fac-cuit-arca"></div>
+      </div>
       <div class="form-group"><label>Condición IVA</label>
         <select id="fac-cond-iva">
           <option>Consumidor Final</option>
@@ -3526,6 +3535,71 @@ function _toggleCartelPasos() {
   const abierto = pasos.style.display !== 'none';
   pasos.style.display = abierto ? 'none' : 'block';
   if (btn) btn.textContent = abierto ? 'Ver pasos ▾' : 'Ocultar pasos ▴';
+}
+
+// ============ CONSULTA PADRÓN ARCA (en modal factura) ============
+let _padronTimer = null;
+let _padronUltimoCuit = '';
+
+function _consultarPadronOnInput() {
+  const inp = document.getElementById('fac-cuit');
+  if (!inp) return;
+  const cuit = String(inp.value || '').replace(/[^\d]/g, '');
+  const box = document.getElementById('fac-cuit-arca');
+  if (!box) return;
+
+  if (cuit.length < 11) {
+    box.textContent = '';
+    box.className = 'fac-cuit-arca';
+    _padronUltimoCuit = '';
+    return;
+  }
+  if (cuit.length > 11) return;
+  if (cuit === _padronUltimoCuit) return;
+
+  // Debounce 400ms — evita disparar mientras el user sigue tipeando
+  clearTimeout(_padronTimer);
+  _padronTimer = setTimeout(() => _consultarPadronARCA(cuit), 400);
+}
+
+async function _consultarPadronARCA(cuit) {
+  const box = document.getElementById('fac-cuit-arca');
+  const selCond = document.getElementById('fac-cond-iva');
+  if (!box || !selCond) return;
+
+  _padronUltimoCuit = cuit;
+  box.textContent = '🔄 consultando ARCA...';
+  box.className = 'fac-cuit-arca arca-loading';
+
+  try {
+    const r = await gsCall('consultarPadron', { cuit });
+    if (!r || !r.ok) {
+      box.textContent = '⚠️ ' + (r?.error || 'no se pudo consultar').substring(0, 120);
+      box.className = 'fac-cuit-arca arca-warn';
+      return;
+    }
+    const d = r.data;
+    if (!d.razonSocial) {
+      box.textContent = '⚠️ CUIT sin datos en padrón';
+      box.className = 'fac-cuit-arca arca-warn';
+      return;
+    }
+    // Autocompletar condición IVA en el select
+    const cond = d.condicionIva;
+    for (let i = 0; i < selCond.options.length; i++) {
+      if (selCond.options[i].value === cond || selCond.options[i].text === cond) {
+        selCond.selectedIndex = i; break;
+      }
+    }
+    // Mostrar razón social + condición
+    const cache = r.fromCache ? ' · cache' : '';
+    box.textContent = '✓ ' + d.razonSocial + ' — ' + d.condicionIva + cache;
+    box.className = 'fac-cuit-arca arca-ok';
+  } catch (e) {
+    box.textContent = '⚠️ error de red';
+    box.className = 'fac-cuit-arca arca-error';
+    console.error('consultarPadron:', e);
+  }
 }
 
 // =========== BREAKDOWN por Forma de Cobro ===========
