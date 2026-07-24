@@ -1190,9 +1190,10 @@
 
   <!-- Escenarios -->
   <div class="mono-sim-escenarios" id="mono-sim-escenarios" style="display:none">
-    <span class="mono-sim-esc-label">Autocompletar meses futuros con:</span>
+    <span class="mono-sim-esc-label">Autocompletar meses con:</span>
     <input type="number" id="mono-sim-esc-input" min="0" step="100000" placeholder="Ej: 5000000" />
-    <button class="btn btn-sm" onclick="aplicarEscenarioMono('custom')">✅ Aplicar</button>
+    <button class="btn btn-sm" onclick="aplicarEscenarioMono('hastaDic')" title="Simula recategorización de enero 2027">✅ Hasta dic 2026</button>
+    <button class="btn btn-sm" onclick="aplicarEscenarioMono('todos')" title="Simula recategorización de julio 2027">📅 Los 12 meses</button>
     <button class="btn btn-sm" onclick="aplicarEscenarioMono('cero')">🔄 Reset</button>
   </div>
 
@@ -3391,20 +3392,32 @@ function _recalcularMonoSim() {
 }
 
 function aplicarEscenarioMono(tipo) {
-  let valor = 0;
-  if (tipo === 'custom') {
-    const inp = document.getElementById('mono-sim-esc-input');
-    valor = Number(inp.value) || 0;
-    if (valor <= 0) { notify('Ingresá un monto mayor a 0', 'yellow'); return; }
-  }
-  const meses = _mesesVentana();
-  // Aplicar a todos los meses (incluyendo el actual)
   Object.keys(_monoSimProyecciones).forEach(k => delete _monoSimProyecciones[k]);
-  if (valor > 0) {
-    meses.forEach(mes => {
-      _monoSimProyecciones[mes.key] = valor;
-    });
+  if (tipo === 'cero') {
+    _construirTablaMonoSim();
+    _recalcularMonoSim();
+    return;
   }
+  const inp = document.getElementById('mono-sim-esc-input');
+  const valor = Number(inp.value) || 0;
+  if (valor <= 0) { notify('Ingresá un monto mayor a 0', 'yellow'); return; }
+
+  const meses = _mesesVentana();
+  const hoy = new Date(_monoSimData.hoy + 'T12:00:00-03:00');
+  const anioActual = hoy.getFullYear();
+
+  meses.forEach(mes => {
+    // key es 'YYYY-MM'
+    const [yStr, mStr] = mes.key.split('-');
+    const y = parseInt(yStr, 10);
+    if (tipo === 'hastaDic') {
+      // Solo hasta diciembre del año actual (relevante para recat de enero siguiente)
+      if (y === anioActual) _monoSimProyecciones[mes.key] = valor;
+    } else if (tipo === 'todos') {
+      _monoSimProyecciones[mes.key] = valor;
+    }
+  });
+
   _construirTablaMonoSim();
   _recalcularMonoSim();
 }
