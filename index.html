@@ -137,6 +137,18 @@
   .mono-sim-total-mes{text-align:right;color:var(--accent2);font-weight:600;}
   .mono-sim-input{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-family:var(--mono);font-size:13px;width:140px;text-align:right;}
   .mono-sim-input:focus{border-color:var(--accent);outline:none;}
+  /* ===== CARTEL SEMESTRAL ===== */
+  .mono-cartel{background:linear-gradient(90deg,rgba(234,179,8,.10),rgba(234,179,8,.03));border:1px solid rgba(234,179,8,.35);border-left:4px solid var(--yellow);border-radius:8px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:flex-start;gap:14px;position:relative;}
+  .mono-cartel.mono-cartel-rojo{background:linear-gradient(90deg,rgba(239,68,68,.10),rgba(239,68,68,.03));border-color:rgba(239,68,68,.35);border-left-color:var(--red);}
+  .mono-cartel-icon{font-size:22px;flex-shrink:0;line-height:1;}
+  .mono-cartel-body{flex:1;color:var(--text);}
+  .mono-cartel-titulo{font-weight:600;font-size:13px;margin-bottom:2px;}
+  .mono-cartel-msg{color:var(--muted);font-size:12px;line-height:1.5;}
+  .mono-cartel-pasos{margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08);color:var(--text);font-size:12px;line-height:1.6;}
+  .mono-cartel-pasos ol{margin:6px 0 0 20px;padding:0;}
+  .mono-cartel-pasos code{background:var(--surface2);padding:1px 6px;border-radius:4px;font-family:var(--mono);font-size:11px;color:var(--accent2);}
+  .mono-cartel-toggle{background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px;align-self:flex-start;transition:all .15s;}
+  .mono-cartel-toggle:hover{background:var(--surface2);color:var(--text);}
   .chip.red{background:#2d1a22;color:var(--red);}
   .chip.yellow{background:#2d2a14;color:var(--yellow);}
   .chip.blue{background:#1a2540;color:var(--accent);}
@@ -1032,6 +1044,26 @@
     </div>
   </div>
 
+  <!-- CARTEL SEMESTRAL — recordatorio actualizar base ARCA -->
+  <div class="mono-cartel" id="mono-cartel" style="display:none">
+    <div class="mono-cartel-icon">⚠️</div>
+    <div class="mono-cartel-body">
+      <div class="mono-cartel-titulo" id="mono-cartel-titulo">—</div>
+      <div class="mono-cartel-msg" id="mono-cartel-msg">—</div>
+      <div class="mono-cartel-pasos" id="mono-cartel-pasos" style="display:none">
+        <b>Pasos:</b>
+        <ol>
+          <li>Entrar a <b>ARCA → Mis Comprobantes Emitidos</b>.</li>
+          <li>Descargar CSV de los últimos 12 meses hasta el corte requerido.</li>
+          <li>Sumar la columna <b>Imp. Total</b>.</li>
+          <li>Ir a <b>Apps Script → facturador.gs</b> y correr <code>_aplicarBasePuente()</code> con la fecha nueva, o actualizar manualmente <code>Script Properties</code>: <code>MONO_BASE_MONTO</code> y <code>MONO_BASE_FECHA</code>.</li>
+          <li><b>Ctrl+Shift+R</b> en el ERP.</li>
+        </ol>
+      </div>
+    </div>
+    <button class="mono-cartel-toggle" onclick="_toggleCartelPasos()">Ver pasos ▾</button>
+  </div>
+
   <!-- RADAR MONOTRIBUTO — Capa 2 -->
   <div class="radar-mono-widget" id="radar-mono-widget" style="display:none">
     <div class="radar-mono-head">
@@ -1169,6 +1201,15 @@
   <div class="section-header">
     <div class="section-title">🎯 Simulador Monotributo</div>
     <button class="btn btn-primary" onclick="renderSimuladorMono()">🔄 Refrescar</button>
+  </div>
+
+  <!-- CARTEL SEMESTRAL (en solapa Monotributo también) -->
+  <div class="mono-cartel" id="mono-cartel-sim" style="display:none">
+    <div class="mono-cartel-icon">⚠️</div>
+    <div class="mono-cartel-body">
+      <div class="mono-cartel-titulo" id="mono-cartel-sim-titulo">—</div>
+      <div class="mono-cartel-msg" id="mono-cartel-sim-msg">—</div>
+    </div>
   </div>
 
   <!-- Base ARCA info -->
@@ -3246,6 +3287,7 @@ async function renderRadarMonotributoDash() {
       return;
     }
     const d = r.data;
+    _renderCartelSemestral(d.ventanaActual && d.ventanaActual.baseFecha, 'mono-cartel');
     const fmtM = (n) => (n == null || isNaN(n)) ? '—' : '$' + Math.round(Number(n)).toLocaleString('es-AR');
 
     // CARD A · Ventana 12M actual
@@ -3307,6 +3349,7 @@ async function renderSimuladorMono() {
     // Base info
     document.getElementById('mono-sim-fecha-corte').textContent = _monoSimData.baseArca.fechaCorte;
     document.getElementById('mono-sim-base-monto').textContent = _fmtMonoSim(_monoSimData.baseArca.monto);
+    _renderCartelSemestral(_monoSimData.baseArca.fechaCorte, 'mono-cartel-sim');
 
     _construirTablaMonoSim();
     _recalcularMonoSim();
@@ -3430,6 +3473,59 @@ function _fmtMonoSim(n) {
 function _nombreMes(m) {
   const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   return meses[m - 1];
+}
+
+// ============ CARTEL SEMESTRAL — recordatorio actualizar base ARCA ============
+// Devuelve {ok, urgente, titulo, msg} o null si la base está al día
+function _chequearCartelSemestral(baseFechaISO) {
+  if (!baseFechaISO) return { urgente: true, titulo: 'Base ARCA no configurada', msg: 'No se detecta fecha de corte. Configurá MONO_BASE_FECHA en Script Properties.' };
+  const hoy = new Date();
+  const mes = hoy.getMonth() + 1;   // 1-12
+  const anio = hoy.getFullYear();
+  const base = new Date(baseFechaISO + 'T00:00:00');
+
+  // Corte requerido según semestre en curso
+  let cutoffFecha, cutoffLabel;
+  if (mes >= 7) {
+    cutoffFecha = new Date(anio, 5, 30);      // 30/06/anio
+    cutoffLabel = '30/06/' + anio;
+  } else {
+    cutoffFecha = new Date(anio - 1, 11, 31); // 31/12/anio-1
+    cutoffLabel = '31/12/' + (anio - 1);
+  }
+
+  if (base >= cutoffFecha) return null; // Base al día
+
+  const esMesRecat = (mes === 1 || mes === 7);
+  return {
+    urgente: esMesRecat,
+    titulo: esMesRecat
+      ? '⚠️ Recategorización en curso — actualizá la base ARCA'
+      : 'Base ARCA desactualizada',
+    msg: 'La base guardada es al ' + baseFechaISO + '. Corresponde actualizarla con el CSV oficial al ' + cutoffLabel + '.'
+  };
+}
+
+function _renderCartelSemestral(baseFechaISO, idPrefix) {
+  const cartel = document.getElementById(idPrefix);
+  if (!cartel) return;
+  const info = _chequearCartelSemestral(baseFechaISO);
+  if (!info) { cartel.style.display = 'none'; return; }
+  cartel.style.display = 'flex';
+  cartel.classList.toggle('mono-cartel-rojo', info.urgente);
+  const tit = document.getElementById(idPrefix + '-titulo');
+  const msg = document.getElementById(idPrefix + '-msg');
+  if (tit) tit.textContent = info.titulo;
+  if (msg) msg.textContent = info.msg;
+}
+
+function _toggleCartelPasos() {
+  const pasos = document.getElementById('mono-cartel-pasos');
+  const btn = document.querySelector('#mono-cartel .mono-cartel-toggle');
+  if (!pasos) return;
+  const abierto = pasos.style.display !== 'none';
+  pasos.style.display = abierto ? 'none' : 'block';
+  if (btn) btn.textContent = abierto ? 'Ver pasos ▾' : 'Ocultar pasos ▴';
 }
 
 // =========== BREAKDOWN por Forma de Cobro ===========
