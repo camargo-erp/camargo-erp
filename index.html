@@ -3414,13 +3414,14 @@ function _onProyMonoInput(key, val) {
 
 function _recalcularMonoSim() {
   const baseArca = _monoSimData.baseArca.monto;
+  const facturadoPostCorte = Number(_monoSimData.facturadoPostCorte || 0);
   const meses = _mesesVentana();
-  let sumaReal = 0, sumaProy = 0;
+  let sumaProy = 0;
   meses.forEach(mes => {
-    sumaReal += Number(_monoSimData.facturadoPorMes[mes.key] || 0);
     sumaProy += Number(_monoSimProyecciones[mes.key] || 0);
   });
-  const totalVentana = baseArca + sumaReal + sumaProy;
+  // Total = base (ya incluye lo pre-corte) + facturado post-corte + proyectado
+  const totalVentana = baseArca + facturadoPostCorte + sumaProy;
 
   // Categoría
   const cats = _monoSimData.categorias;
