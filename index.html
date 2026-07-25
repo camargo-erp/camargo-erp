@@ -1289,6 +1289,7 @@
     <input id="flt-cliente" oninput="renderVentas()" placeholder="🔍 Cliente..." style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;width:160px">
     <select id="flt-fpago" onchange="renderVentas()" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px">
       <option value="">Forma Pago: Todas</option>
+      <option value="__no_efectivo">Forma Pago: No Efectivo</option>
       <option>Transferencia</option><option>Efectivo</option>
       <option>Echeq</option><option>Cuenta corriente</option>
     </select>
@@ -5040,7 +5041,8 @@ function getVentasFiltradas_tabla() {
     if(anio      && getAnioVenta(v.fecha) !== anio)                        return false;
     if(mes       && getMesVenta(v.fecha)  !== mes)                         return false;
     if(cliente   && !(v.cliente||'').toLowerCase().includes(cliente))      return false;
-    if(fpago     && v.fpago     !== fpago)                                 return false;
+    if(fpago === '__no_efectivo' && (v.fpago === 'Efectivo' || !v.fpago)) return false;
+    else if(fpago && fpago !== '__no_efectivo' && v.fpago !== fpago)      return false;
     if(pagado    && v.pagado    !== pagado)                                 return false;
     if(entrega   && v.entrega   !== entrega)                               return false;
     if(entregado && v.entregado !== entregado)                             return false;
