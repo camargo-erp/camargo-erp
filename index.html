@@ -816,11 +816,16 @@
       <div class="form-group" style="grid-column:1/-1"><label>Fecha de cierre (corte) *</label>
         <input type="date" id="cm-fecha" onchange="actualizarResumenCierre()">
       </div>
+    </div>
+    <div id="cm-resumen" style="margin-top:4px;padding:10px 14px;background:var(--surface2);border-radius:8px;font-size:13px;font-family:var(--mono)"></div>
+    <div class="form-grid cols2" style="gap:12px;margin-top:12px">
+      <div class="form-group" style="grid-column:1/-1"><label>Saldo de cierre * (el sistema lo calcula solo con lo que tiene cargado, pero lo podés pisar a mano si no coincide con la cuenta real de Arrayan)</label>
+        <input type="number" id="cm-saldo-cierre" placeholder="Ej: 904074">
+      </div>
       <div class="form-group" style="grid-column:1/-1"><label>Nota (opcional)</label>
         <input id="cm-nota" placeholder="Ej: Cierre de Agosto 2026">
       </div>
     </div>
-    <div id="cm-resumen" style="margin-top:4px;padding:10px 14px;background:var(--surface2);border-radius:8px;font-size:13px;font-family:var(--mono)"></div>
     <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end">
       <button class="btn btn-ghost" onclick="cerrarModal('modal-cerrar-mes')">Cancelar</button>
       <button class="btn btn-primary" onclick="confirmarCierreMes()">🔒 Confirmar cierre</button>
@@ -9108,22 +9113,29 @@ function actualizarResumenCierre() {
 
   if(resumenEl) resumenEl.innerHTML =
     (ultimoCierre ? 'Saldo anterior (cierre ' + ultimoCierre.fecha + '): <b>' + fmt(saldoAnterior) + '</b><br>' : 'Sin cierres anteriores — se toma todo el histórico.<br>') +
-    '➕ Créditos del período: <b style="color:var(--green)">' + fmt(totalCred) + '</b> (' + creditos.length + ')<br>' +
-    '➖ Débitos del período: <b style="color:var(--red)">' + fmt(totalDeb) + '</b> (' + debitosCC.length + ')' +
+    '➕ Créditos del período (cargados en el ERP): <b style="color:var(--green)">' + fmt(totalCred) + '</b> (' + creditos.length + ')<br>' +
+    '➖ Débitos del período (cargados en el ERP): <b style="color:var(--red)">' + fmt(totalDeb) + '</b> (' + debitosCC.length + ')' +
     '<hr style="border-color:var(--border);margin:8px 0">' +
-    '💰 Saldo al cierre: <b style="color:' + (saldoCierre>=0?'var(--green)':'var(--red)') + '">' + fmt(saldoCierre) + '</b>';
+    '💰 Saldo sugerido según el ERP: <b style="color:' + (saldoCierre>=0?'var(--green)':'var(--red)') + '">' + fmt(saldoCierre) + '</b> — ajustalo abajo si no coincide con Arrayan';
+
+  // Precargar el campo editable con el sugerido; el usuario lo puede pisar antes de confirmar
+  const saldoInput = document.getElementById('cm-saldo-cierre');
+  if(saldoInput) saldoInput.value = Math.round(saldoCierre);
 
   const dd = String(hasta.getDate()).padStart(2,'0'), mm = String(hasta.getMonth()+1).padStart(2,'0'), yyyy = hasta.getFullYear();
-  _cierrePreview = { fecha: dd+'/'+mm+'/'+yyyy, saldoAnterior, totalCreditos: totalCred, totalDebitos: totalDeb, saldoCierre };
+  _cierrePreview = { fecha: dd+'/'+mm+'/'+yyyy, saldoAnterior, totalCreditos: totalCred, totalDebitos: totalDeb, saldoCierreSugerido: saldoCierre };
 }
 
 async function confirmarCierreMes() {
   if(!esAdmin()) { notify('⚠️ Solo admin puede cerrar el mes'); return; }
-  actualizarResumenCierre();
   if(!_cierrePreview) { notify('⚠ Elegí una fecha de cierre', 'warn'); return; }
 
+  const saldoManual = parseFloat(document.getElementById('cm-saldo-cierre').value);
+  if(isNaN(saldoManual)) { notify('⚠ Ingresá el saldo de cierre', 'warn'); return; }
+
   const nota = document.getElementById('cm-nota').value.trim();
-  const cierre = { ..._cierrePreview, usuario: SESION.usuario, nota };
+  const { saldoCierreSugerido, ...base } = _cierrePreview;
+  const cierre = { ...base, saldoCierre: saldoManual, usuario: SESION.usuario, nota };
 
   if(!confirm('¿Cerrar el período con saldo ' + fmt(cierre.saldoCierre) + ' al ' + cierre.fecha + '? Después solo se puede deshacer el último cierre, no editarlo.')) return;
 
