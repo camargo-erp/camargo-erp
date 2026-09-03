@@ -723,9 +723,12 @@
     <div class="section-title" id="ctacte-titulo">🏭 Cuenta Corriente — Proveedor</div>
     <div style="display:flex;gap:8px">
       <select id="sel-proveedor" onchange="renderArrayan()" style="padding:7px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;min-width:180px"></select>
+      <button class="btn btn-ghost btn-sm" id="btn-historial-cierres" onclick="toggleHistorialCierres()" style="display:none">📜 Historial de cierres</button>
+      <button class="btn btn-primary btn-sm" id="btn-cerrar-mes" onclick="abrirModalCerrarMes()" style="display:none">🔒 Cerrar mes</button>
       <button class="btn btn-warn btn-sm" onclick="exportArrayanExcel()">📊 Excel</button>
     </div>
   </div>
+  <div class="card" id="arrayan-historial-cierres" style="margin-bottom:16px;display:none"></div>
   <div class="kpi-grid" id="arrayan-kpis" style="margin-bottom:24px"></div>
   <div class="card" id="arrayan-escala" style="margin-bottom:16px"></div>
   <div class="card">
@@ -801,6 +804,26 @@
     <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end">
       <button class="btn btn-ghost" onclick="cerrarModal('modal-pago-arrayan')">Cancelar</button>
       <button class="btn btn-primary" onclick="guardarPagoArrayan()">💾 Registrar Pago</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CERRAR MES ARRAYAN -->
+<div class="modal-overlay" id="modal-cerrar-mes">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-title">🔒 Cerrar mes — Cuenta Corriente Arrayan</div>
+    <div class="form-grid cols2" style="gap:12px">
+      <div class="form-group" style="grid-column:1/-1"><label>Fecha de cierre (corte) *</label>
+        <input type="date" id="cm-fecha" onchange="actualizarResumenCierre()">
+      </div>
+      <div class="form-group" style="grid-column:1/-1"><label>Nota (opcional)</label>
+        <input id="cm-nota" placeholder="Ej: Cierre de Agosto 2026">
+      </div>
+    </div>
+    <div id="cm-resumen" style="margin-top:4px;padding:10px 14px;background:var(--surface2);border-radius:8px;font-size:13px;font-family:var(--mono)"></div>
+    <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="cerrarModal('modal-cerrar-mes')">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarCierreMes()">🔒 Confirmar cierre</button>
     </div>
   </div>
 </div>
@@ -6378,6 +6401,7 @@ async function cargarDesdeSheets() {
       }
       if(res.compras?.length)    COMPRAS    = res.compras;
       if(res.pagosArrayan?.length) PAGOS_ARRAYAN = res.pagosArrayan;
+      if(res.cierresArrayan?.length) CIERRES_ARRAYAN = res.cierresArrayan;
       if(res.gastos?.length)     GASTOS     = res.gastos;
       if(res.echeqs?.length)     ECHEQS     = res.echeqs;
       // Precios y escala Arrayan (módulo Catálogo)
@@ -7173,6 +7197,8 @@ async function guardarEdicionCliente() {
 // =========== COMPRAS ===========
 let COMPRAS = [];
 let PAGOS_ARRAYAN = []; // Pagos parciales de ventas Arrayan
+let CIERRES_ARRAYAN = []; // Cierres mensuales de la Cta Cte Arrayan
+let _cierrePreview = null; // Preview del cierre en curso en el modal "Cerrar mes"
 let GASTOS = []; // Gastos operativos (módulo Finanzas)
 let ECHEQS = []; // eCheqs recibidos (módulo Finanzas > Vencimientos)
 // === CONTROL DE STOCK (continuo, derivado de ventas/compras) ===
@@ -8788,6 +8814,78 @@ async function eliminarPagoArrayan(idx) {
   gsCall('deletePagoArrayan', {idx});
 }
 
+// =========== CIERRE MENSUAL CTA CTE ARRAYAN ===========
+// La cta cte de Arrayan se liquida por período (no siempre coincide con fin de mes:
+// ej. agosto se puede cerrar el 02/09). Al cerrar, el saldo queda fijo en CIERRES_ARRAYAN
+// y el período siguiente arranca desde ese saldo, solo con movimientos posteriores a esa fecha.
+
+function parseFechaDMY(f) {
+  const p = String(f||'').split('/');
+  if(p.length !== 3) return null;
+  const d = new Date(+p[2], +p[1]-1, +p[0]);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function getUltimoCierreArrayan() {
+  if(!CIERRES_ARRAYAN.length) return null;
+  return [...CIERRES_ARRAYAN].sort((a,b) => parseFechaDMY(a.fecha) - parseFechaDMY(b.fecha)).pop();
+}
+
+// Créditos y débitos de Arrayan en un rango de fechas: desde (exclusive) y hasta (inclusive).
+// null en cualquiera de los dos = sin límite de ese lado. Se usa tanto para el ledger del
+// período abierto (renderArrayan) como para previsualizar un cierre antes de confirmarlo.
+function getMovsArrayanRango(desde, hasta) {
+  const enRango = (fechaStr) => {
+    const f = parseFechaDMY(fechaStr);
+    if(!f) return false;
+    if(desde && f <= desde) return false;
+    if(hasta && f > hasta) return false;
+    return true;
+  };
+  const esArr = (nombre) => (nombre||'').toLowerCase().includes('arrayan');
+  const ventasConPagos = new Set(PAGOS_ARRAYAN.map(p => p.ventaId));
+
+  const creditosPagos = PAGOS_ARRAYAN.filter(p => enRango(p.fecha)).map(p => ({
+    fecha: p.fecha, tipo: 'credito',
+    desc: p.concepto + (p.obs ? ' (' + p.obs + ')' : ''),
+    monto: p.monto, fpago: 'Pago parcial',
+    pagoIdx: PAGOS_ARRAYAN.indexOf(p)
+  }));
+
+  const creditosVentasDirectas = VENTAS.filter(v =>
+    v.arrayan &&
+    v.pagado === 'Sí' &&
+    v.arrayanTipo !== 'parcial' &&
+    v.arrayanTipo !== 'arrayanCobra' &&
+    !ventasConPagos.has(ventaId(v)) &&
+    enRango(v.fecha)
+  ).map(v => ({
+    fecha: v.fecha, tipo: 'credito',
+    desc: v.producto.substring(0,50) + ' (' + v.cant + ' Lts)',
+    monto: v.total, fpago: 'Pago único'
+  }));
+
+  const creditosIngreso = COMPRAS.filter(c =>
+    esArr(c.proveedor) &&
+    (c.fpago||'').toLowerCase().includes('ingreso a cta cte') &&
+    enRango(c.fecha)
+  ).map(c => ({
+    fecha: c.fecha, tipo: 'credito',
+    desc: '➕ Ingreso propio: ' + c.producto,
+    monto: c.costoTotal, fpago: 'Ingreso propio'
+  }));
+
+  const debitosCC = COMPRAS.filter(c =>
+    esArr(c.proveedor) && esCuentaCorrienteArrayan(c.fpago) && enRango(c.fecha)
+  ).map(c => ({
+    fecha: c.fecha, tipo: 'debito',
+    desc: 'Compra: ' + c.producto + ' (' + c.cant + ' ' + (c.unidad||'Lts') + ') — ' + c.proveedor,
+    monto: c.costoTotal, fpago: c.fpago
+  }));
+
+  return { creditos: [...creditosPagos, ...creditosVentasDirectas, ...creditosIngreso], debitosCC };
+}
+
 function renderArrayan() {
   // Poblar selector de proveedores (de COMPRAS_ERP, deduplicados por nombre)
   const sel = document.getElementById('sel-proveedor');
@@ -8824,57 +8922,45 @@ function renderArrayan() {
 
   // Verificar si es Arrayan (tiene lógica especial de ventas con toggle)
   const esArrayan = provSel.includes('arrayan');
+  const ventasConPagos = new Set(PAGOS_ARRAYAN.map(p => p.ventaId)); // usado más abajo en "estado de cobro"
 
-  // Créditos: pagos parciales registrados (solo para Arrayan)
-  const creditosPagos = esArrayan ? PAGOS_ARRAYAN.map(p => ({
-    fecha: p.fecha, tipo: 'credito',
-    desc: p.concepto + (p.obs ? ' (' + p.obs + ')' : ''),
-    monto: p.monto, fpago: 'Pago parcial',
-    pagoIdx: PAGOS_ARRAYAN.indexOf(p)
-  })) : [];
+  // Cierre mensual: solo aplica a Arrayan. El período abierto arranca justo
+  // después de la fecha del último cierre (o desde siempre si nunca se cerró nada).
+  const ultimoCierre = esArrayan ? getUltimoCierreArrayan() : null;
+  const fechaDesdeCierre = ultimoCierre ? parseFechaDMY(ultimoCierre.fecha) : null;
+  const saldoAnteriorCierre = ultimoCierre ? ultimoCierre.saldoCierre : 0;
 
-  // Créditos: ventas con pago único (solo Arrayan tiene toggle de ventas)
-  const ventasConPagos = new Set(PAGOS_ARRAYAN.map(p => p.ventaId));
-  const creditosVentasDirectas = esArrayan ? VENTAS.filter(v =>
-    v.arrayan &&
-    v.pagado === 'Sí' &&
-    v.arrayanTipo !== 'parcial' &&
-    v.arrayanTipo !== 'arrayanCobra' &&
-    !ventasConPagos.has(ventaId(v))
-  ).map(v => ({
-    fecha: v.fecha, tipo: 'credito',
-    desc: v.producto.substring(0,50) + ' (' + v.cant + ' Lts)',
-    monto: v.total, fpago: 'Pago único'
-  })) : [];
-
-  // Créditos: ingresos propios a cta cte
-  const creditosIngreso = COMPRAS.filter(c =>
-    matchProv(c.proveedor) &&
-    (c.fpago||'').toLowerCase().includes('ingreso a cta cte')
-  ).map(c => ({
-    fecha: c.fecha, tipo: 'credito',
-    desc: '➕ Ingreso propio: ' + c.producto,
-    monto: c.costoTotal, fpago: 'Ingreso propio'
-  }));
-
-  const creditos = [...creditosPagos, ...creditosVentasDirectas, ...creditosIngreso];
-
-  // Débitos: solo compras cta cte del proveedor seleccionado
-  const debitosCC = COMPRAS.filter(c =>
-    matchProv(c.proveedor) && esCuentaCorrienteArrayan(c.fpago)
-  ).map(c => ({
-    fecha: c.fecha, tipo: 'debito',
-    desc: 'Compra: ' + c.producto + ' (' + c.cant + ' ' + (c.unidad||'Lts') + ') — ' + c.proveedor,
-    monto: c.costoTotal, fpago: c.fpago
-  }));
+  let creditos, debitosCC;
+  if(esArrayan) {
+    const r = getMovsArrayanRango(fechaDesdeCierre, null);
+    creditos = r.creditos;
+    debitosCC = r.debitosCC;
+  } else {
+    // Otros proveedores: sin concepto de cierre, se mantiene el histórico acumulado de siempre.
+    creditos = COMPRAS.filter(c =>
+      matchProv(c.proveedor) &&
+      (c.fpago||'').toLowerCase().includes('ingreso a cta cte')
+    ).map(c => ({
+      fecha: c.fecha, tipo: 'credito',
+      desc: '➕ Ingreso propio: ' + c.producto,
+      monto: c.costoTotal, fpago: 'Ingreso propio'
+    }));
+    debitosCC = COMPRAS.filter(c =>
+      matchProv(c.proveedor) && esCuentaCorrienteArrayan(c.fpago)
+    ).map(c => ({
+      fecha: c.fecha, tipo: 'debito',
+      desc: 'Compra: ' + c.producto + ' (' + c.cant + ' ' + (c.unidad||'Lts') + ') — ' + c.proveedor,
+      monto: c.costoTotal, fpago: c.fpago
+    }));
+  }
 
   const movs = [...creditos, ...debitosCC].sort((a,b) => {
     const pa = String(a.fecha||'').split('/'), pb = String(b.fecha||'').split('/');
     return new Date(+pa[2]||0, +pa[1]-1||0, +pa[0]||1) - new Date(+pb[2]||0, +pb[1]-1||0, +pb[0]||1);
   });
 
-  let saldo = 0;
-  const rows = movs.map(m => {
+  let saldo = saldoAnteriorCierre;
+  const rowsMovs = movs.map(m => {
     if(m.tipo==='credito') saldo += m.monto; else saldo -= m.monto;
     const sc = saldo >= 0 ? 'var(--green)' : 'var(--red)';
     const delBtn = m.pagoIdx !== undefined
@@ -8890,14 +8976,25 @@ function renderArrayan() {
       '</tr>';
   });
 
-  document.getElementById('arrayan-body').innerHTML = rows.length ? rows.join('') :
+  // Fila "saldo trasladado" del último cierre (solo Arrayan, cuando ya hay al menos un cierre)
+  const filaSaldoAnterior = (esArrayan && ultimoCierre) ?
+    '<tr style="background:var(--surface2)">' +
+      '<td>' + ultimoCierre.fecha + '</td>' +
+      '<td><span class="chip">🔒 Cierre</span></td>' +
+      '<td style="font-size:12px;color:var(--muted)">Saldo trasladado del cierre anterior' + (ultimoCierre.nota ? ' — ' + ultimoCierre.nota : '') + '</td>' +
+      '<td style="text-align:right">—</td><td style="text-align:right">—</td>' +
+      '<td style="text-align:right;font-family:var(--mono);font-weight:700;color:' + (saldoAnteriorCierre>=0?'var(--green)':'var(--red)') + '">' + fmt(saldoAnteriorCierre) + '</td>' +
+    '</tr>' : '';
+
+  document.getElementById('arrayan-body').innerHTML = (filaSaldoAnterior || rowsMovs.length) ? (filaSaldoAnterior + rowsMovs.join('')) :
     '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Sin movimientos. Registrá ventas con el toggle 🏭 y compras de Arrayan.</td></tr>';
 
   const totalCred = creditos.reduce((s,m) => s+m.monto, 0);
   const totalDeb  = debitosCC.reduce((s,m) => s+m.monto, 0);
-  const sf = totalCred - totalDeb;
+  const sf = saldoAnteriorCierre + totalCred - totalDeb;
   const sc2 = sf >= 0 ? 'var(--green)' : 'var(--red)';
   const saldoLabel = sf >= 0 ? 'A tu favor — ' + (sel?.value||'Proveedor') + ' te debe mercadería' : 'Debés a ' + (sel?.value||'Proveedor') + ' — retirá mercadería para saldar';
+  const periodoLabel = (esArrayan && ultimoCierre) ? ' · período desde ' + ultimoCierre.fecha : '';
 
   const comprasOtras = COMPRAS.filter(c =>
     matchProv(c.proveedor) && !esCuentaCorrienteArrayan(c.fpago) &&
@@ -8910,7 +9007,18 @@ function renderArrayan() {
     '<div class="kpi highlight2"><div class="kpi-label">💰 Saldo Cuenta Corriente</div><div class="kpi-value" style="color:' + sc2 + '">' + fmt(Math.abs(sf)) + '</div><div class="kpi-sub">' + saldoLabel + '</div></div>' +
     '<div class="kpi"><div class="kpi-label">➕ Total Créditos</div><div class="kpi-value accent">' + fmt(totalCred) + '</div><div class="kpi-sub">' + creditos.length + ' movimientos</div></div>' +
     '<div class="kpi"><div class="kpi-label">➖ Débitos Cta Cte</div><div class="kpi-value" style="color:var(--red)">' + fmt(totalDeb) + '</div><div class="kpi-sub">' + debitosCC.length + ' compras descontadas' + subLabelOtras + '</div></div>' +
-    '<div class="kpi"><div class="kpi-label">📦 Movimientos</div><div class="kpi-value">' + movs.length + '</div><div class="kpi-sub">Total operaciones</div></div>';
+    '<div class="kpi"><div class="kpi-label">📦 Movimientos</div><div class="kpi-value">' + movs.length + '</div><div class="kpi-sub">Total operaciones' + periodoLabel + '</div></div>';
+
+  // Botón "Cerrar mes" e "Historial de cierres": solo tienen sentido para Arrayan, y cerrar es solo admin
+  const btnCerrarMes = document.getElementById('btn-cerrar-mes');
+  if(btnCerrarMes) btnCerrarMes.style.display = (esArrayan && esAdmin()) ? 'inline-flex' : 'none';
+  const btnHistCierres = document.getElementById('btn-historial-cierres');
+  if(btnHistCierres) btnHistCierres.style.display = esArrayan ? 'inline-flex' : 'none';
+  const panelHistCierres = document.getElementById('arrayan-historial-cierres');
+  if(panelHistCierres) {
+    if(!esArrayan) panelHistCierres.style.display = 'none';
+    else if(panelHistCierres.style.display === 'block') renderHistorialCierresArrayan();
+  }
 
   // Ventas con detalle de pagos (solo Arrayan tiene este flujo)
   const ventasArrayan = esArrayan ? VENTAS.filter(v => v.arrayan && ventasConPagos.has(ventaId(v))) : [];
@@ -8971,6 +9079,108 @@ function renderArrayan() {
 
   renderEscalaArrayan();
 }
+
+// ===== Modal "Cerrar mes" =====
+function abrirModalCerrarMes() {
+  if(!esAdmin()) { notify('⚠️ Solo admin puede cerrar el mes'); return; }
+  document.getElementById('cm-fecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('cm-nota').value = '';
+  actualizarResumenCierre();
+  abrirModal('modal-cerrar-mes');
+}
+
+function actualizarResumenCierre() {
+  const fechaRaw = document.getElementById('cm-fecha').value;
+  const resumenEl = document.getElementById('cm-resumen');
+  if(!fechaRaw) { _cierrePreview = null; if(resumenEl) resumenEl.innerHTML = ''; return; }
+
+  const ultimoCierre = getUltimoCierreArrayan();
+  const fechaDesdeCierre = ultimoCierre ? parseFechaDMY(ultimoCierre.fecha) : null;
+  const saldoAnterior = ultimoCierre ? ultimoCierre.saldoCierre : 0;
+
+  const partes = fechaRaw.split('-');
+  const hasta = new Date(+partes[0], +partes[1]-1, +partes[2]);
+
+  const { creditos, debitosCC } = getMovsArrayanRango(fechaDesdeCierre, hasta);
+  const totalCred = creditos.reduce((s,m) => s+m.monto, 0);
+  const totalDeb  = debitosCC.reduce((s,m) => s+m.monto, 0);
+  const saldoCierre = saldoAnterior + totalCred - totalDeb;
+
+  if(resumenEl) resumenEl.innerHTML =
+    (ultimoCierre ? 'Saldo anterior (cierre ' + ultimoCierre.fecha + '): <b>' + fmt(saldoAnterior) + '</b><br>' : 'Sin cierres anteriores — se toma todo el histórico.<br>') +
+    '➕ Créditos del período: <b style="color:var(--green)">' + fmt(totalCred) + '</b> (' + creditos.length + ')<br>' +
+    '➖ Débitos del período: <b style="color:var(--red)">' + fmt(totalDeb) + '</b> (' + debitosCC.length + ')' +
+    '<hr style="border-color:var(--border);margin:8px 0">' +
+    '💰 Saldo al cierre: <b style="color:' + (saldoCierre>=0?'var(--green)':'var(--red)') + '">' + fmt(saldoCierre) + '</b>';
+
+  const dd = String(hasta.getDate()).padStart(2,'0'), mm = String(hasta.getMonth()+1).padStart(2,'0'), yyyy = hasta.getFullYear();
+  _cierrePreview = { fecha: dd+'/'+mm+'/'+yyyy, saldoAnterior, totalCreditos: totalCred, totalDebitos: totalDeb, saldoCierre };
+}
+
+async function confirmarCierreMes() {
+  if(!esAdmin()) { notify('⚠️ Solo admin puede cerrar el mes'); return; }
+  actualizarResumenCierre();
+  if(!_cierrePreview) { notify('⚠ Elegí una fecha de cierre', 'warn'); return; }
+
+  const nota = document.getElementById('cm-nota').value.trim();
+  const cierre = { ..._cierrePreview, usuario: SESION.usuario, nota };
+
+  if(!confirm('¿Cerrar el período con saldo ' + fmt(cierre.saldoCierre) + ' al ' + cierre.fecha + '? Después solo se puede deshacer el último cierre, no editarlo.')) return;
+
+  CIERRES_ARRAYAN.push(cierre);
+  cerrarModal('modal-cerrar-mes');
+  notify('🔒 Mes cerrado — saldo ' + fmt(cierre.saldoCierre));
+  renderArrayan();
+
+  gsCall('cerrarMesArrayan', {cierre}).catch(() => notify('⚠ Error al sincronizar el cierre', '#ff4d6a'));
+}
+
+async function eliminarUltimoCierreArrayan() {
+  if(!esAdmin()) { notify('⚠️ Solo admin puede deshacer un cierre'); return; }
+  if(!CIERRES_ARRAYAN.length) return;
+  const ordenados = [...CIERRES_ARRAYAN].sort((a,b) => parseFechaDMY(a.fecha) - parseFechaDMY(b.fecha));
+  const ultimo = ordenados[ordenados.length - 1];
+  const idx = CIERRES_ARRAYAN.indexOf(ultimo);
+  if(!confirm('¿Deshacer el cierre del ' + ultimo.fecha + ' (saldo ' + fmt(ultimo.saldoCierre) + ')? Los movimientos de ese período vuelven a acumularse sobre el cierre anterior.')) return;
+
+  CIERRES_ARRAYAN.splice(idx, 1);
+  renderArrayan();
+  notify('Cierre deshecho');
+  gsCall('deleteCierreArrayan', {idx});
+}
+
+function toggleHistorialCierres() {
+  const el = document.getElementById('arrayan-historial-cierres');
+  if(!el) return;
+  const mostrar = el.style.display !== 'block';
+  el.style.display = mostrar ? 'block' : 'none';
+  if(mostrar) renderHistorialCierresArrayan();
+}
+
+function renderHistorialCierresArrayan() {
+  const el = document.getElementById('arrayan-historial-cierres');
+  if(!el) return;
+  if(!CIERRES_ARRAYAN.length) {
+    el.innerHTML = '<div class="card-title">📜 Historial de cierres — Arrayan</div><div style="color:var(--muted);font-size:13px">Todavía no cerraste ningún período.</div>';
+    return;
+  }
+  const ordenados = [...CIERRES_ARRAYAN].sort((a,b) => parseFechaDMY(b.fecha) - parseFechaDMY(a.fecha));
+  const filas = ordenados.map((c, i) => {
+    const esUltimo = i === 0;
+    return '<tr>' +
+      '<td>' + c.fecha + '</td>' +
+      '<td style="text-align:right;font-family:var(--mono)">' + fmt(c.saldoAnterior) + '</td>' +
+      '<td style="text-align:right;font-family:var(--mono);color:var(--green)">' + fmt(c.totalCreditos) + '</td>' +
+      '<td style="text-align:right;font-family:var(--mono);color:var(--red)">' + fmt(c.totalDebitos) + '</td>' +
+      '<td style="text-align:right;font-family:var(--mono);font-weight:700;color:' + (c.saldoCierre>=0?'var(--green)':'var(--red)') + '">' + fmt(c.saldoCierre) + '</td>' +
+      '<td style="font-size:12px;color:var(--muted)">' + (c.usuario||'') + (c.nota ? ' · ' + c.nota : '') + '</td>' +
+      '<td>' + (esUltimo && esAdmin() ? '<button onclick="eliminarUltimoCierreArrayan()" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:12px" title="Deshacer este cierre">🗑</button>' : '') + '</td>' +
+      '</tr>';
+  }).join('');
+  el.innerHTML = '<div class="card-title">📜 Historial de cierres — Arrayan</div>' +
+    '<div class="table-wrap"><table><thead><tr><th>Fecha cierre</th><th style="text-align:right">Saldo anterior</th><th style="text-align:right">Créditos</th><th style="text-align:right">Débitos</th><th style="text-align:right">Saldo cierre</th><th>Usuario / Nota</th><th></th></tr></thead><tbody>' + filas + '</tbody></table></div>';
+}
+
 function renderVentasArrayan() {
   const PRODS_ARRAYAN = PRODUCTOS_USD.map(p => p.nombre.toLowerCase());
 
