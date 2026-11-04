@@ -451,7 +451,7 @@
 <div id="diferencia-fpago" style="display:none;margin-top:8px">
   <div style="font-size:12px;color:var(--muted);margin-bottom:6px">¿Cómo pagás la diferencia?</div>
   <select id="nc-fpago-diferencia" style="width:100%;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:13px">
-    <option>Efectivo</option><option>Transferencia</option>
+    <option value="TODO_CTA_CTE">Todo a cuenta corriente (queda saldo deudor)</option><option>Efectivo</option><option>Transferencia</option>
   </select>
 </div>
       </div>
@@ -7252,15 +7252,18 @@ function checkSaldoArrayan() {
     return;
   }
 
-  // Calcular saldo actual del proveedor seleccionado
+  // Calcular saldo actual del proveedor seleccionado.
+  // Arrayan: mismo saldo que muestra la Cta Cte (último cierre + movimientos del período abierto).
+  // Otros proveedores: histórico acumulado (no tienen cierres).
   const matchP = (nombre) => provModal && (nombre||'').toLowerCase().includes(provModal);
-  const ventasConPagos2 = new Set(PAGOS_ARRAYAN.map(p => p.ventaId));
-  const creditosPagos2 = esArrProv ? PAGOS_ARRAYAN.reduce((s,p)=>s+p.monto, 0) : 0;
-  const creditosDirectos2 = esArrProv ? VENTAS.filter(v=>v.arrayan && v.pagado === 'Sí' && v.arrayanTipo !== 'parcial' && v.arrayanTipo !== 'arrayanCobra' && !ventasConPagos2.has(ventaId(v))).reduce((s,v)=>s+v.total, 0) : 0;
-  const creditosIngreso2 = COMPRAS.filter(c=>matchP(c.proveedor)&&(c.fpago||'').toLowerCase().includes('ingreso a cta cte')).reduce((s,c)=>s+c.costoTotal, 0);
-  const creditos = creditosPagos2 + creditosDirectos2 + creditosIngreso2;
-  const debitos  = COMPRAS.filter(c=>matchP(c.proveedor)&&esCuentaCorrienteArrayan(c.fpago)).reduce((s,c)=>s+c.costoTotal, 0);
-  const saldo    = creditos - debitos;
+  let saldo;
+  if(esArrProv) {
+    saldo = getSaldoActualArrayan();
+  } else {
+    const creditosIngreso2 = COMPRAS.filter(c=>matchP(c.proveedor)&&(c.fpago||'').toLowerCase().includes('ingreso a cta cte')).reduce((s,c)=>s+c.costoTotal, 0);
+    const debitos2 = COMPRAS.filter(c=>matchP(c.proveedor)&&esCuentaCorrienteArrayan(c.fpago)).reduce((s,c)=>s+c.costoTotal, 0);
+    saldo = creditosIngreso2 - debitos2;
+  }
   const provNombre = document.getElementById('nc-proveedor')?.value || 'Proveedor';
 
   const costoTotal = parseFloat(document.getElementById('nc-costoTotal').value) || 0;
@@ -7354,22 +7357,40 @@ function guardarCompra() {
   const costoTotal = esIngreso ? (parseFloat(document.getElementById('nc-costoTotal').value) || 0) : cant * precioU;
   const esArrayan = proveedor.toLowerCase().includes('arrayan');
 
-  // Calcular saldo Arrayan si paga con cuenta corriente
+  // Aviso: si la fecha cae dentro de un período de Cta Cte Arrayan ya cerrado, el movimiento
+  // no va a aparecer en la cuenta corriente (el período abierto arranca después del último cierre).
+  if(esArrayan && (fpago === 'Cuenta corriente' || esIngreso)) {
+    const ultCierre = getUltimoCierreArrayan();
+    const fCompra = parseFechaDMY(fecha);
+    if(ultCierre && fCompra && fCompra <= parseFechaDMY(ultCierre.fecha)) {
+      if(!confirm('⚠️ La fecha ' + fecha + ' es igual o anterior al último cierre de Arrayan (' + ultCierre.fecha + ').\n\nEste movimiento NO va a figurar en la cuenta corriente. Para que figure, deshacé el cierre o cargalo con fecha posterior.\n\n¿Guardar igual?')) return;
+    }
+  }
+
+  // Pago con cuenta corriente Arrayan: se usa el saldo real del período abierto
   let fpagoFinal = fpago;
   let fpagoMixto = null;
   let montoCcteCorriente = costoTotal;
   let montoDiferencia = 0;
 
   if(fpago === 'Cuenta corriente' && esArrayan) {
-    const creditos = VENTAS.filter(v=>v.arrayan && v.pagado === 'Sí').reduce((s,v)=>s+v.total, 0);
-    const debitos  = COMPRAS.filter(c=>(c.proveedor||'').toLowerCase().includes('arrayan')&&!(c.fpago||'').toLowerCase().includes('ingreso')&&((c.fpago||'').toLowerCase()==='cuenta corriente'||(c.fpago||'').toLowerCase().includes('cta cte'))).reduce((s,c)=>s+c.costoTotal, 0);
-    const saldo    = creditos - debitos;
+    const saldo = getSaldoActualArrayan();
+    const difSel = document.getElementById('nc-fpago-diferencia').value;
 
-    if(saldo < costoTotal) {
-      montoCcteCorriente = saldo;
-      montoDiferencia    = costoTotal - saldo;
-      fpagoMixto         = document.getElementById('nc-fpago-diferencia').value;
-      fpagoFinal         = `Cta cte $${Math.round(saldo).toLocaleString('es-AR')} + ${fpagoMixto} $${Math.round(montoDiferencia).toLocaleString('es-AR')}`;
+    // Solo se parte el pago si hay saldo a favor insuficiente Y el usuario eligió pagar la diferencia aparte.
+    // "Todo a cuenta corriente" (default) deja la compra entera en cta cte aunque el saldo quede deudor.
+    if(saldo < costoTotal && difSel !== 'TODO_CTA_CTE') {
+      fpagoMixto = difSel;
+      if(saldo <= 0) {
+        // Sin saldo a favor: se paga todo con el medio elegido, no toca la cta cte
+        montoCcteCorriente = 0;
+        montoDiferencia    = costoTotal;
+        fpagoFinal         = fpagoMixto;
+      } else {
+        montoCcteCorriente = saldo;
+        montoDiferencia    = costoTotal - saldo;
+        fpagoFinal         = `Cta cte $${Math.round(saldo).toLocaleString('es-AR')} + ${fpagoMixto} $${Math.round(montoDiferencia).toLocaleString('es-AR')}`;
+      }
     }
   }
 
@@ -8694,6 +8715,30 @@ function esCuentaCorrienteArrayan(fpago) {
          f.includes('cuenta corriente') || f.includes('cc ') || f === 'cc';
 }
 
+// Monto de una compra que se descuenta de la cta cte.
+// Pago mixto bien formado ("Cta cte $294.080 + Efectivo $587.920") → solo la parte de cta cte.
+// Cualquier otro caso (incluidos los textos viejos con montos negativos) → costo total, como siempre.
+function montoCtaCteDeCompra(c) {
+  const total = c.costoTotal || 0;
+  const m = String(c.fpago||'').match(/^\s*cta cte \$\s*(-?[\d.]+)/i);
+  if(m) {
+    const n = parseFloat(m[1].replace(/\./g, ''));
+    if(!isNaN(n) && n > 0 && n < total) return n;
+  }
+  return total;
+}
+
+// Saldo actual de la Cta Cte Arrayan: saldo del último cierre + créditos − débitos del período abierto.
+// Es el mismo número que muestra el KPI "Saldo Cuenta Corriente".
+function getSaldoActualArrayan() {
+  const ult = getUltimoCierreArrayan();
+  const desde = ult ? parseFechaDMY(ult.fecha) : null;
+  const r = getMovsArrayanRango(desde, null);
+  const cred = r.creditos.reduce((s,m) => s+m.monto, 0);
+  const deb  = r.debitosCC.reduce((s,m) => s+m.monto, 0);
+  return (ult ? (ult.saldoCierre||0) : 0) + cred - deb;
+}
+
 function ventaId(v) {
   var f = (v.fecha || '').split('/');
   var fn = (parseInt(f[0])||0) + '/' + (parseInt(f[1])||0) + '/' + (f[2]||'');
@@ -8885,7 +8930,7 @@ function getMovsArrayanRango(desde, hasta) {
   ).map(c => ({
     fecha: c.fecha, tipo: 'debito',
     desc: 'Compra: ' + c.producto + ' (' + c.cant + ' ' + (c.unidad||'Lts') + ') — ' + c.proveedor,
-    monto: c.costoTotal, fpago: c.fpago
+    monto: montoCtaCteDeCompra(c), fpago: c.fpago
   }));
 
   return { creditos: [...creditosPagos, ...creditosVentasDirectas, ...creditosIngreso], debitosCC };
@@ -9088,7 +9133,11 @@ function renderArrayan() {
 // ===== Modal "Cerrar mes" =====
 function abrirModalCerrarMes() {
   if(!esAdmin()) { notify('⚠️ Solo admin puede cerrar el mes'); return; }
-  document.getElementById('cm-fecha').value = new Date().toISOString().split('T')[0];
+  // Por defecto: último día del mes anterior (hora local). Antes ponía "hoy" en UTC, y al cerrar
+  // octubre el 04/11 se metían en el cierre los movimientos del 01 al 04/11.
+  const hoyCm = new Date();
+  const finMesAnt = new Date(hoyCm.getFullYear(), hoyCm.getMonth(), 0);
+  document.getElementById('cm-fecha').value = finMesAnt.getFullYear() + '-' + String(finMesAnt.getMonth()+1).padStart(2,'0') + '-' + String(finMesAnt.getDate()).padStart(2,'0');
   document.getElementById('cm-nota').value = '';
   actualizarResumenCierre();
   abrirModal('modal-cerrar-mes');
@@ -9129,6 +9178,13 @@ function actualizarResumenCierre() {
 async function confirmarCierreMes() {
   if(!esAdmin()) { notify('⚠️ Solo admin puede cerrar el mes'); return; }
   if(!_cierrePreview) { notify('⚠ Elegí una fecha de cierre', 'warn'); return; }
+
+  // No permitir un cierre con fecha igual o anterior al último (generaba cierres vacíos/duplicados)
+  const ultPrevio = getUltimoCierreArrayan();
+  if(ultPrevio && parseFechaDMY(_cierrePreview.fecha) <= parseFechaDMY(ultPrevio.fecha)) {
+    notify('⚠ La fecha de cierre tiene que ser posterior al último cierre (' + ultPrevio.fecha + ')', 'warn');
+    return;
+  }
 
   const saldoManual = parseFloat(document.getElementById('cm-saldo-cierre').value);
   if(isNaN(saldoManual)) { notify('⚠ Ingresá el saldo de cierre', 'warn'); return; }
