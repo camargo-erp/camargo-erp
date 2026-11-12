@@ -7705,18 +7705,14 @@ function exportReporteCompletoExcel() {
   var pctActual = getPctArrayan(totalLts);
   var colCorr = 'Precio Correcto $/Lt (' + (pctActual*100).toFixed(1) + '%)';
   var rowsEscala = comprasEscala.map(function(c){
-    var esCereal = (c.producto||'').toLowerCase().includes('cereal') || (c.producto||'').toLowerCase().includes('tri');
-    var precios = getPrecioArrayanVigente(c.fecha);
-    var lista = esCereal ? precios.cereal : precios.etilico;
+    var lista = precioListaArrayan(c);
     var row = { 'Fecha':c.fecha, 'Cantidad (Lts)':c.cant, 'Producto':c.producto, 'Forma de Pago':c.fpago||'', 'Precio Pagado ($/Lt)':c.precioU, 'Total Pagado ($)':c.costoTotal };
     row[colCorr] = (lista != null && isFinite(lista)) ? Math.round(lista * (1 + pctActual)) : '';
     return row;
   });
   var totalPagEsc = comprasEscala.reduce(function(s,c){ return s + c.costoTotal; }, 0);
   var totalCorrEsc = comprasEscala.reduce(function(s,c){
-    var esCereal = (c.producto||'').toLowerCase().includes('cereal') || (c.producto||'').toLowerCase().includes('tri');
-    var precios = getPrecioArrayanVigente(c.fecha);
-    var lista = esCereal ? precios.cereal : precios.etilico;
+    var lista = precioListaArrayan(c);
     if(lista == null || !isFinite(lista)) return s;
     return s + c.cant * lista * (1 + pctActual);
   }, 0);
@@ -8568,6 +8564,16 @@ let PRECIOS_ARRAYAN_HIST = [
 ];
 
 // Devuelve {cereal, etilico} vigente para una fecha dada (formato dd/mm/yyyy o yyyy-mm-dd)
+// Precio de lista Arrayan que corresponde a una compra, segun el nombre del producto.
+// Cereal: "cereal" o "tri". Etilico: "etil"/"etíl" o "BG". Cualquier otra cosa (IBC, IVA, envases) -> null (no entra en la escala).
+function precioListaArrayan(c) {
+  const p = String(c.producto || '').toLowerCase();
+  const precios = getPrecioArrayanVigente(c.fecha);
+  if (p.includes('cereal') || p.includes('tri')) return precios.cereal;
+  if (p.includes('etil') || p.includes('etíl') || /\bbg\b/.test(p)) return precios.etilico;
+  return null;
+}
+
 function getPrecioArrayanVigente(fechaCompra) {
   let fechaISO = '';
   if(fechaCompra instanceof Date) {
@@ -8776,9 +8782,7 @@ function renderEscalaArrayan() {
   const comprasEscala = [];
   const comprasExcluidas = [];
   comprasMes.forEach(c => {
-    const esCereal = (c.producto||'').toLowerCase().includes('cereal') || (c.producto||'').toLowerCase().includes('tri');
-    const precios = getPrecioArrayanVigente(c.fecha);
-    const lista = esCereal ? precios.cereal : precios.etilico;
+    const lista = precioListaArrayan(c);
     if(lista != null && isFinite(lista)) comprasEscala.push(c);
     else comprasExcluidas.push(c);
   });
@@ -8789,9 +8793,7 @@ function renderEscalaArrayan() {
 
   // Calcular precio correcto por cada compra usando el precio de lista VIGENTE A SU FECHA
   const totalCorrecto = comprasEscala.reduce((s,c)=>{
-    const esCereal = (c.producto||'').toLowerCase().includes('cereal') || (c.producto||'').toLowerCase().includes('tri');
-    const precios = getPrecioArrayanVigente(c.fecha);
-    const lista = esCereal ? precios.cereal : precios.etilico;
+    const lista = precioListaArrayan(c);
     return s + c.cant * lista * (1 + pctActual);
   }, 0);
 
@@ -8801,9 +8803,7 @@ function renderEscalaArrayan() {
   const totalExcluido = comprasExcluidas.reduce((s,c)=>s+c.costoTotal, 0);
 
   const filas = comprasMes.map(c => {
-    const esCereal = (c.producto||'').toLowerCase().includes('cereal') || (c.producto||'').toLowerCase().includes('tri');
-    const precios = getPrecioArrayanVigente(c.fecha);
-    const lista = esCereal ? precios.cereal : precios.etilico;
+    const lista = precioListaArrayan(c);
     const precioCorr = (lista != null && isFinite(lista)) ? lista * (1 + pctActual) : null;
     const precioCorrTxt = precioCorr != null ? '$' + Math.round(precioCorr).toLocaleString('es-AR') : '<span style="color:var(--muted);font-size:11px">sin precio</span>';
     const fpago = c.fpago || '—';
