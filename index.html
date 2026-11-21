@@ -1472,7 +1472,7 @@
         <div style="font-size:12px;font-weight:600;color:var(--accent2);margin-bottom:10px">📍 Zona y envase — definen caja y envío</div>
         <div class="form-grid cols2">
           <div class="form-group"><label>Zona de entrega</label>
-            <select id="nv-zona" onchange="calcularPrecio()">
+            <select id="nv-zona" onchange="onZonaChange()">
               <option value="caba">🚚 CABA / GBA — envío a domicilio</option>
               <option value="interior">📦 Interior — envío hasta transporte</option>
               <option value="retira">🏭 Retira en depósito</option>
@@ -1486,6 +1486,7 @@
             <div style="font-size:10px;color:var(--muted);margin-top:4px">Al interior siempre con envase. El recambio de tambor es otro producto.</div>
           </div>
         </div>
+        <div style="font-size:10px;color:var(--muted);margin-top:6px">La zona y la <em>Forma de Entrega</em> de arriba se mantienen sincronizadas: CABA/GBA = Propio · Interior = Envío transporte · Retira en depósito = Retiro cliente.</div>
         <div style="font-size:11px;color:var(--muted);margin-top:8px" id="nv-zona-info"></div>
       </div>
       <div class="form-grid" style="margin-bottom:14px">
@@ -1498,7 +1499,7 @@
           <select id="nv-pagado"><option>No</option><option>Sí</option></select>
         </div>
         <div class="form-group"><label>Forma de Entrega</label>
-          <select id="nv-entrega" onchange="calcularPrecio()">
+          <select id="nv-entrega" onchange="sincronizarZonaDesdeEntrega();calcularPrecio()">
             <option>Propio</option><option>Retiro cliente</option><option>Envío transporte</option>
           </select>
         </div>
@@ -5691,7 +5692,9 @@ function onProductoChange() {
   // Bloque Zona/Envase: solo para el fraccionado BASE
   const base = getFilaBase();
   const zw = document.getElementById('nv-zona-wrap');
-  if(zw) zw.style.display = (base && prod === base.prod) ? 'block' : 'none';
+  const esBaseProd = base && prod === base.prod;
+  if(zw) zw.style.display = esBaseProd ? 'block' : 'none';
+  if(esBaseProd) sincronizarZonaDesdeEntrega();
   calcularPrecio();
 }
 
@@ -5788,6 +5791,29 @@ function calcAdicionales(prod, cant){
     adicPrecio: precioEnvases + precioCajas,
     adicCosto:  costoEnvases  + costoCajas
   };
+}
+
+// Zona y Forma de Entrega son el mismo concepto visto de dos maneras, así que se
+// mantienen sincronizadas para que no se contradigan (ej: zona CABA con retiro de
+// cliente haría que el precio sume envío y la agenda diga que no ocupa camioneta).
+const ZONA_A_ENTREGA = { caba:'Propio', interior:'Envío transporte', retira:'Retiro cliente' };
+
+// Al elegir zona, se ajusta la forma de entrega
+function onZonaChange(){
+  const z = document.getElementById('nv-zona')?.value;
+  const e = document.getElementById('nv-entrega');
+  if(e && ZONA_A_ENTREGA[z]) e.value = ZONA_A_ENTREGA[z];
+  calcularPrecio();
+}
+
+// Al revés: cuando aparece el bloque, la zona se deduce de la forma de entrega que
+// ya venía cargada (por ejemplo la que trae el cliente de su ficha).
+function sincronizarZonaDesdeEntrega(){
+  const e = document.getElementById('nv-entrega')?.value;
+  const z = document.getElementById('nv-zona');
+  if(!z || !e) return;
+  const mapa = {'Retiro cliente':'retira', 'Envío transporte':'interior', 'Propio':'caba'};
+  if(mapa[e]) z.value = mapa[e];
 }
 
 // Habilita o deshabilita "Recambio" según la zona. Al Interior no hay recambio de
