@@ -1502,6 +1502,9 @@
             <option>Propio</option><option>Retiro cliente</option><option>Envío transporte</option>
           </select>
         </div>
+        <div class="form-group"><label>📅 Fecha de entrega <span style="font-weight:400;color:var(--muted);font-size:10px">— opcional</span></label>
+          <input type="date" id="nv-fecha-entrega">
+        </div>
       </div>
       <!-- Bloque opcional de datos del echeq — aparece solo cuando fpago=Echeq -->
       <div id="nv-echeq-bloque" style="display:none;margin-bottom:14px;padding:14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px">
@@ -1593,6 +1596,7 @@
   <!-- TABS internos -->
   <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:20px;align-items:center">
     <div class="pend-tab active" id="ptab-entregas" onclick="showPendTab('entregas')" style="padding:10px 20px;cursor:pointer;font-size:13px;border-bottom:2px solid var(--accent);color:var(--accent);font-weight:500">⏳ Sin Entregar (<span id="cnt-entregas">0</span>)</div>
+    <div class="pend-tab" id="ptab-agenda" onclick="showPendTab('agenda')" style="padding:10px 20px;cursor:pointer;font-size:13px;border-bottom:2px solid transparent;color:var(--muted)">📅 Agenda (<span id="cnt-agenda">0</span>)</div>
     <div class="pend-tab" id="ptab-cobros" onclick="showPendTab('cobros')" style="padding:10px 20px;cursor:pointer;font-size:13px;border-bottom:2px solid transparent;color:var(--muted)">💳 Sin Cobrar (<span id="cnt-cobros">0</span>)</div>
     <div class="pend-tab" id="ptab-contador" onclick="showPendTab('contador')" style="padding:10px 20px;cursor:pointer;font-size:13px;border-bottom:2px solid transparent;color:var(--muted)">📝 A Facturar (<span id="cnt-facturar">0</span>)</div>
     <div style="margin-left:auto;display:flex;gap:8px" id="pend-btns-entregas">
@@ -1610,6 +1614,30 @@
   <div id="panel-entregas">
     <div id="resumen-entregas"></div>
     <div id="lista-entregas"></div>
+  </div>
+
+  <!-- Panel Agenda de entregas -->
+  <div id="panel-agenda" style="display:none">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+      <button class="btn btn-ghost btn-sm" onclick="agendaSemana(-1)">‹ Semana anterior</button>
+      <div id="agenda-rango" style="font-size:13px;font-weight:600;color:var(--accent2);min-width:200px;text-align:center"></div>
+      <button class="btn btn-ghost btn-sm" onclick="agendaSemana(1)">Semana siguiente ›</button>
+      <button class="btn btn-ghost btn-sm" onclick="agendaSemana(0)">Hoy</button>
+      <div style="margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <span style="font-size:11px;color:var(--muted)">Zona:</span>
+        <select id="agenda-filtro-zona" onchange="renderAgenda()" style="padding:6px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:12px">
+          <option value="">Todas</option>
+          <option value="CABA/GBA">CABA/GBA</option>
+          <option value="Interior">Interior</option>
+          <option value="Retira depósito">Retira depósito</option>
+        </select>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:12px">
+      Arrastrá una entrega de un día a otro para reprogramarla. Desde el celular usá el campo de fecha de cada tarjeta.
+      Capacidad por viaje: <strong id="agenda-cap-txt"></strong>.
+    </div>
+    <div id="agenda-board"></div>
   </div>
 
   <!-- Panel Sin Cobrar -->
@@ -5975,7 +6003,7 @@ function guardarVenta() {
 }
 
 function limpiarForm(){
-  ['nv-cliente','nv-producto','nv-canal','nv-precio','nv-cantidad','nv-envio','nv-precio-manual','nv-costo-manual',
+  ['nv-cliente','nv-producto','nv-canal','nv-precio','nv-cantidad','nv-envio','nv-precio-manual','nv-costo-manual','nv-fecha-entrega',
    'nv-transporte','nv-transporte-otro','nv-transporte-modo','nv-transporte-dir','nv-obs-logistica']
     .forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   const wrapTO=document.getElementById('nv-transporte-otro-wrap'); if(wrapTO) wrapTO.style.display='none';
@@ -6025,11 +6053,271 @@ function logisticaVenta(v){
   };
 }
 
+// ===================== AGENDA DE ENTREGAS =====================
+// Capacidad real de la camioneta. Un tambor ocupa 200 L, por eso 3 tambores llenan
+// el viaje. El que retira en depósito no ocupa lugar.
+const CAP_VIAJE = { litros: 600, tambores: 3, entregas: 5 };
+
+let _agendaLunes = null;   // lunes de la semana que se está mostrando
+let _agendaDragIdx = null; // índice de la venta que se está arrastrando
+
+const DIAS_SEM = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+
+function _lunesDe(d){
+  const x = new Date(d);
+  const dow = (x.getDay()+6)%7;      // 0 = lunes
+  x.setDate(x.getDate()-dow);
+  x.setHours(0,0,0,0);
+  return x;
+}
+function _fmtDMY(d){ return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear(); }
+function _fmtISO(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function _mismaFecha(a,b){ return a && b && a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate(); }
+
+// La fecha de entrega puede volver de Sheets como texto DD/MM/AAAA o como fecha ISO
+function fechaEntregaDate(v){ return _stockFechaADate(v.fechaEntrega); }
+
+// Tambores que ocupa la venta (200 L cada uno)
+function tamboresVenta(v){
+  if(!String(v.producto||'').toLowerCase().includes('tambor')) return 0;
+  return Math.ceil((parseFloat(v.cant)||0)/200);
+}
+// ¿Ocupa lugar en la camioneta? El retiro en depósito no.
+function ocupaCamioneta(v){
+  if(String(v.zona||'').toLowerCase().includes('retira')) return false;
+  if(String(v.entrega||'') === 'Retiro cliente') return false;
+  return true;
+}
+// Cuántos viajes hacen falta para las entregas de un día, respetando capacidad
+function viajesNecesarios(items){
+  const carga = items.filter(o=>ocupaCamioneta(o.v));
+  let viajes=0, lts=0, tam=0;
+  carga.forEach(o=>{
+    const l = parseFloat(o.v.cant)||0, t = tamboresVenta(o.v);
+    if(viajes===0 || lts+l > CAP_VIAJE.litros || tam+t > CAP_VIAJE.tambores){ viajes++; lts=l; tam=t; }
+    else { lts+=l; tam+=t; }
+  });
+  return viajes;
+}
+
+function agendaSemana(delta){
+  if(!_agendaLunes) _agendaLunes = _lunesDe(new Date());
+  if(delta===0) _agendaLunes = _lunesDe(new Date());
+  else { const d=new Date(_agendaLunes); d.setDate(d.getDate()+delta*7); _agendaLunes=d; }
+  renderAgenda();
+}
+
+// --- Arrastrar y soltar ---
+function agendaDragStart(e, idx){
+  _agendaDragIdx = idx;
+  try{ e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain', String(idx)); }catch(_){}
+}
+function agendaDragOver(e, el){
+  e.preventDefault();
+  try{ e.dataTransfer.dropEffect='move'; }catch(_){}
+  if(el) el.style.outline='2px dashed var(--accent2)';
+}
+function agendaDragLeave(el){ if(el) el.style.outline='none'; }
+function agendaDrop(e, iso, el){
+  e.preventDefault();
+  if(el) el.style.outline='none';
+  let idx = _agendaDragIdx;
+  if(idx===null || idx===undefined){
+    const d = (()=>{ try{ return e.dataTransfer.getData('text/plain'); }catch(_){ return ''; } })();
+    idx = d==='' ? null : parseInt(d);
+  }
+  _agendaDragIdx = null;
+  if(idx===null || isNaN(idx)) return;
+  asignarFechaEntrega(idx, iso);
+}
+
+// Asigna (o borra, con iso vacío) la fecha de entrega y la persiste
+async function asignarFechaEntrega(idx, iso){
+  const v = VENTAS[idx];
+  if(!v) return;
+  const d = iso ? _stockFechaADate(iso) : null;
+  v.fechaEntrega = d ? _fmtDMY(d) : '';
+  renderAgenda();
+  notify(d ? '📅 Entrega para el '+v.fechaEntrega : '📅 Entrega sin fecha');
+  await gsActualizarVenta(idx, {fechaEntrega: v.fechaEntrega});
+}
+
+// Sube o baja una parada dentro del día y renumera todo el día
+async function moverOrden(idx, dir){
+  const v = VENTAS[idx];
+  const f = fechaEntregaDate(v);
+  if(!f) return;
+  const items = VENTAS.map((x,i)=>({v:x,i}))
+    .filter(o=>esPendienteEntrega(o.v) && _mismaFecha(fechaEntregaDate(o.v), f))
+    .sort(ordenAgenda);
+  const pos = items.findIndex(o=>o.i===idx);
+  const destino = pos + dir;
+  if(pos<0 || destino<0 || destino>=items.length) return;
+  const tmp = items[pos]; items[pos]=items[destino]; items[destino]=tmp;
+  items.forEach((o,k)=>{ o.v.ordenEntrega = k+1; });
+  renderAgenda();
+  for(const o of items) await gsActualizarVenta(o.i, {ordenEntrega: o.v.ordenEntrega});
+}
+function ordenAgenda(a,b){
+  const oa = parseFloat(a.v.ordenEntrega)||999, ob = parseFloat(b.v.ordenEntrega)||999;
+  if(oa!==ob) return oa-ob;
+  return String(a.v.cliente||'').localeCompare(String(b.v.cliente||''));
+}
+
+function renderAgenda(){
+  const board = document.getElementById('agenda-board');
+  if(!board) return;
+  const capTxt = document.getElementById('agenda-cap-txt');
+  if(capTxt) capTxt.textContent = CAP_VIAJE.litros+' L · '+CAP_VIAJE.tambores+' tambores · '+CAP_VIAJE.entregas+' entregas por día';
+  if(!_agendaLunes) _agendaLunes = _lunesDe(new Date());
+
+  const filtro = document.getElementById('agenda-filtro-zona')?.value || '';
+  let pend = VENTAS.map((v,i)=>({v,i})).filter(o=>esPendienteEntrega(o.v));
+  if(filtro) pend = pend.filter(o=>String(o.v.zona||'')===filtro);
+  const cnt = document.getElementById('cnt-agenda');
+  if(cnt) cnt.textContent = pend.length;
+
+  const dias = [];
+  for(let k=0;k<6;k++){ const d=new Date(_agendaLunes); d.setDate(d.getDate()+k); dias.push(d); }
+  const rango = document.getElementById('agenda-rango');
+  if(rango) rango.textContent = _fmtDMY(dias[0])+' al '+_fmtDMY(dias[5]);
+
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  const sinFecha = pend.filter(o=>!fechaEntregaDate(o.v)).sort(ordenAgenda);
+  const fueraSemana = pend.filter(o=>{
+    const f = fechaEntregaDate(o.v);
+    return f && !dias.some(d=>_mismaFecha(d,f));
+  });
+
+  const chipZona = z => {
+    const t = String(z||'');
+    if(!t) return '';
+    const col = t.includes('CABA') ? '#3d7fff' : (t.includes('Interior') ? '#ffd166' : '#8b94b0');
+    return `<span style="background:${col}22;color:${col};padding:1px 7px;border-radius:20px;font-size:10px">${t}</span>`;
+  };
+
+  const tarjeta = (o, conOrden) => {
+    const v=o.v, L=logisticaVenta(v);
+    const tam = tamboresVenta(v);
+    const lts = parseFloat(v.cant)||0;
+    return `
+    <div draggable="true" ondragstart="agendaDragStart(event,${o.i})"
+         style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 10px;margin-bottom:8px;cursor:grab">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px">
+        <div style="font-weight:600;font-size:12px;line-height:1.3">${conOrden&&v.ordenEntrega?'<span style="color:var(--accent2)">'+v.ordenEntrega+'.</span> ':''}${v.cliente}</div>
+        ${conOrden?`<div style="display:flex;gap:2px">
+          <button class="btn btn-ghost" style="padding:0 5px;font-size:10px;line-height:18px" onclick="moverOrden(${o.i},-1)" title="Subir">▲</button>
+          <button class="btn btn-ghost" style="padding:0 5px;font-size:10px;line-height:18px" onclick="moverOrden(${o.i},1)" title="Bajar">▼</button>
+        </div>`:''}
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:3px">
+        <strong style="color:var(--text);font-family:var(--mono)">${Math.round(lts).toLocaleString('es-AR')} L</strong>${tam?' · 🛢️ '+tam+(tam>1?' tambores':' tambor'):''}
+      </div>
+      <div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap;align-items:center">${chipZona(v.zona)}${!ocupaCamioneta(v)?'<span style="background:#8b94b022;color:#8b94b0;padding:1px 7px;border-radius:20px;font-size:10px">no ocupa camioneta</span>':''}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">📍 ${L.loc}${L.tel&&L.tel!=='—'?' · 📞 '+L.tel:''}</div>
+      <div style="display:flex;gap:5px;margin-top:7px;align-items:center;flex-wrap:wrap">
+        <input type="date" value="${(()=>{const f=fechaEntregaDate(v);return f?_fmtISO(f):'';})()}"
+               onchange="asignarFechaEntrega(${o.i}, this.value)"
+               style="font-size:10px;padding:2px 5px;background:var(--surface);border:1px solid var(--border);border-radius:5px;color:var(--text)">
+        <button class="btn btn-success btn-sm" style="padding:2px 8px;font-size:10px" onclick="marcarEntregado(${o.i})">✅</button>
+        <button class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:10px" onclick="imprimirRemito(${o.i})">🖨️</button>
+      </div>
+    </div>`;
+  };
+
+  const colDia = (d) => {
+    const iso = _fmtISO(d);
+    const items = pend.filter(o=>_mismaFecha(fechaEntregaDate(o.v), d)).sort(ordenAgenda);
+    const carga = items.filter(o=>ocupaCamioneta(o.v));
+    const lts = carga.reduce((s,o)=>s+(parseFloat(o.v.cant)||0),0);
+    const tam = carga.reduce((s,o)=>s+tamboresVenta(o.v),0);
+    const viajes = viajesNecesarios(items);
+    const excede = lts > CAP_VIAJE.litros || tam > CAP_VIAJE.tambores || items.length > CAP_VIAJE.entregas;
+    const col = excede ? 'var(--yellow)' : 'var(--green)';
+    const esHoy = _mismaFecha(d, hoy);
+    return `
+    <div ondragover="agendaDragOver(event,this)" ondragleave="agendaDragLeave(this)" ondrop="agendaDrop(event,'${iso}',this)"
+         style="background:var(--surface);border:1px solid ${esHoy?'var(--accent)':'var(--border)'};border-radius:10px;padding:10px;min-height:120px">
+      <div style="border-bottom:1px solid var(--border);padding-bottom:7px;margin-bottom:9px">
+        <div style="font-size:12px;font-weight:600;color:${esHoy?'var(--accent)':'var(--text)'}">${DIAS_SEM[(d.getDay()+6)%7]} ${d.getDate()}/${d.getMonth()+1}${esHoy?' · HOY':''}</div>
+        <div style="font-size:10px;font-family:var(--mono);color:${col};margin-top:2px">
+          ${Math.round(lts).toLocaleString('es-AR')}/${CAP_VIAJE.litros} L · ${items.length} ${items.length===1?'entrega':'entregas'}${tam?' · '+tam+'🛢️':''}
+        </div>
+        ${viajes>1?`<div style="font-size:10px;color:var(--yellow);margin-top:2px">⚠️ ${viajes} viajes</div>`:''}
+        ${items.length?`<button class="btn btn-ghost btn-sm" style="padding:1px 7px;font-size:10px;margin-top:5px" onclick="imprimirHojaRuta('${iso}')">🖨️ Hoja de ruta</button>`:''}
+      </div>
+      ${items.map(o=>tarjeta(o,true)).join('') || '<div style="font-size:11px;color:var(--muted);text-align:center;padding:10px 0">—</div>'}
+    </div>`;
+  };
+
+  board.innerHTML = `
+    <div style="display:grid;grid-template-columns:260px 1fr;gap:14px;align-items:start">
+      <div ondragover="agendaDragOver(event,this)" ondragleave="agendaDragLeave(this)" ondrop="agendaDrop(event,'',this)"
+           style="background:var(--surface);border:1px dashed var(--border);border-radius:10px;padding:10px;min-height:120px">
+        <div style="border-bottom:1px solid var(--border);padding-bottom:7px;margin-bottom:9px">
+          <div style="font-size:12px;font-weight:600;color:var(--yellow)">📥 Sin fecha (${sinFecha.length})</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px">Arrastralas al día que corresponda</div>
+        </div>
+        ${sinFecha.map(o=>tarjeta(o,false)).join('') || '<div style="font-size:11px;color:var(--muted);text-align:center;padding:10px 0">Todo programado ✓</div>'}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px">
+        ${dias.map(colDia).join('')}
+      </div>
+    </div>
+    ${fueraSemana.length?`<div style="margin-top:12px;font-size:11px;color:var(--muted)">📌 Hay ${fueraSemana.length} ${fueraSemana.length===1?'entrega programada':'entregas programadas'} fuera de esta semana.</div>`:''}
+  `;
+}
+
+// Hoja de ruta imprimible de un día
+function imprimirHojaRuta(iso){
+  const d = _stockFechaADate(iso);
+  if(!d) return;
+  const items = VENTAS.map((v,i)=>({v,i}))
+    .filter(o=>esPendienteEntrega(o.v) && _mismaFecha(fechaEntregaDate(o.v), d))
+    .sort(ordenAgenda);
+  if(!items.length){ notify('No hay entregas ese día'); return; }
+  const totLts = items.filter(o=>ocupaCamioneta(o.v)).reduce((s,o)=>s+(parseFloat(o.v.cant)||0),0);
+  const filas = items.map((o,k)=>{
+    const v=o.v, L=logisticaVenta(v);
+    return `<tr>
+      <td style="text-align:center;font-weight:bold">${v.ordenEntrega||k+1}</td>
+      <td>${v.cliente}</td>
+      <td>${L.dir}</td>
+      <td>${L.loc}</td>
+      <td>${L.tel}</td>
+      <td>${v.producto}</td>
+      <td style="text-align:right">${Math.round(parseFloat(v.cant)||0).toLocaleString('es-AR')} L</td>
+      <td>${v.zona||'—'}</td>
+      <td>${String(v.pagado||'')==='Sí'?'PAGADO':'A COBRAR $'+Math.round(v.total||0).toLocaleString('es-AR')}</td>
+      <td style="width:90px"></td>
+    </tr>`;
+  }).join('');
+  const html = `<html><head><meta charset="utf-8"><style>
+    @page{size:landscape}
+    body{font-family:Arial,sans-serif;font-size:11px;padding:16px}
+    h2{color:#1a3a6e;border-bottom:2px solid #1a3a6e;padding-bottom:6px;margin-bottom:6px}
+    table{width:100%;border-collapse:collapse;margin-top:10px}
+    th{background:#1a3a6e;color:#fff;padding:6px 8px;text-align:left;font-size:10px}
+    td{padding:7px 8px;border-bottom:1px solid #ddd;font-size:11px}
+    tr:nth-child(even)td{background:#f5f7fa}
+  </style></head><body>
+  <h2>🚚 Hoja de Ruta — ${_fmtDMY(d)}</h2>
+  <p style="color:#666;margin:0">${items.length} paradas · ${Math.round(totLts).toLocaleString('es-AR')} litros en camioneta · capacidad ${CAP_VIAJE.litros} L por viaje</p>
+  <table><thead><tr>
+    <th>#</th><th>Cliente</th><th>Dirección</th><th>Localidad</th><th>Teléfono</th>
+    <th>Producto</th><th>Cant.</th><th>Zona</th><th>Cobro</th><th>Firma</th>
+  </tr></thead><tbody>${filas}</tbody></table>
+  </body></html>`;
+  const w = window.open('','_blank');
+  w.document.write(html); w.document.close(); w.print();
+}
+
 function renderPendientes() {
   const sinEntregar=VENTAS.filter(esPendienteEntrega);
   const sinCobrar=VENTAS.filter(v=>esVentaPropia(v)&&v.pagado!=='Sí');
   document.getElementById('cnt-entregas').textContent=sinEntregar.length;
   document.getElementById('cnt-cobros').textContent=sinCobrar.length;
+  const _ca=document.getElementById('cnt-agenda'); if(_ca) _ca.textContent=sinEntregar.length;
   // Totales en plata/litros
   const totLtsEnt = sinEntregar.reduce((s,v)=>s+(parseFloat(v.cant)||0),0);
   const totEnt    = sinEntregar.reduce((s,v)=>s+(parseFloat(v.total)||0),0);
@@ -6188,7 +6476,7 @@ function aplicarRol() {
 
 // =========== TABS DE PENDIENTES ===========
 function showPendTab(tab){
-  ['entregas','cobros','contador'].forEach(t=>{
+  ['entregas','agenda','cobros','contador'].forEach(t=>{
     document.getElementById('panel-'+t).style.display = t===tab?'block':'none';
     const el=document.getElementById('ptab-'+t);
     el.style.borderBottomColor = t===tab?'var(--accent)':'transparent';
@@ -6197,6 +6485,7 @@ function showPendTab(tab){
     if(btns) btns.style.display = t===tab?'flex':'none';
   });
   if(tab==='contador') renderContador();
+  if(tab==='agenda')   renderAgenda();
 }
 
 // =========== EXPORTAR PENDIENTES — solo sin entregar ===========
@@ -7126,6 +7415,8 @@ async function guardarVenta() {
     esArrayan:esArrayan2,
     arrayan:toggleArrOn,
     arrayanTipo: arrayanTipo2,
+    // --- Agenda de entregas (columna fechaEntrega en VENTAS_ERP) ---
+    fechaEntrega: (()=>{ const f=document.getElementById('nv-fecha-entrega')?.value; if(!f) return ''; const [y,m,d]=f.split('-'); return d+'/'+m+'/'+y; })(),
     // --- Desglose modular (requiere columnas zona/envases/cajas/envio en VENTAS_ERP) ---
     zona:    ad ? ad.zonaLabel : '',
     envases: ad ? ad.envases   : '',
@@ -7245,6 +7536,7 @@ async function marcarEntregado(idx){
   actualizarBadge();
   notify('✓ Marcado como entregado');
   renderPendientes();
+  if(document.getElementById('panel-agenda')?.style.display === 'block') renderAgenda();
   if(typeof renderStock==='function') renderStock();
   if(_comprometidoClaveActual) verComprometido(_comprometidoClaveActual);
   await gsActualizarVenta(idx, {entregado:'Sí', envasado:''});
