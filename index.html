@@ -1179,6 +1179,12 @@
     <div class="card" id="dash-proyeccion-card"></div>
   </div>
 
+  <!-- PROYECCIÓN LITROS FIN DE MES (sólo en modo 'month') -->
+  <div id="dash-proyeccion-lts-wrap" style="display:none;margin-bottom:24px">
+    <div style="font-size:11px;font-weight:600;letter-spacing:2px;color:#00d4aa;text-transform:uppercase;margin:8px 0 12px">🧪 Proyección Litros Fin de Mes</div>
+    <div class="card" id="dash-proyeccion-lts-card"></div>
+  </div>
+
   <!-- PROYECCIÓN GANANCIA FIN DE MES (sólo en modo 'month') -->
   <div id="dash-proyeccion-gan-wrap" style="display:none;margin-bottom:24px">
     <div style="font-size:11px;font-weight:600;letter-spacing:2px;color:#22c987;text-transform:uppercase;margin:8px 0 12px">✅ Proyección Ganancia Fin de Mes</div>
@@ -1211,6 +1217,10 @@
     </div>
   </div>
   <div class="grid2">
+    <div class="card">
+      <div class="card-title" id="chart-title-litros">Evolución Mensual — Litros vendidos</div>
+      <canvas id="chart-litros-mes" height="140"></canvas>
+    </div>
     <div class="card">
       <div class="card-title" id="chart-title-canal">Minorista vs Mayorista — Evolución</div>
       <canvas id="chart-canales-mes" height="140"></canvas>
@@ -3404,6 +3414,7 @@ function renderDashboard() {
   renderChartsMensual();
   // Proyección fin de mes (sólo se muestra si dashPeriodo==='month')
   renderProyeccionMes();
+  renderProyeccionLitros();
   renderProyeccionGanancia();
   // P&L Real — Finanzas
   renderPnL();
@@ -4502,6 +4513,30 @@ function renderPnL() {
     </div>`;
 }
 
+// ===== LITROS VENDIDOS =====
+// Qué cuenta como "litro vendido": los productos de alcohol, que son los que se miden
+// en Lts. Deja afuera glicerina y soda (kg) y los químicos de Arrayan.
+// Si algún día querés sumar otro producto, agregá su palabra clave acá.
+const LITROS_KEYWORDS = ['alcohol'];
+
+function litrosVenta(v){
+  const prod = String(v.producto||'').toLowerCase();
+  if(!LITROS_KEYWORDS.some(k => prod.includes(k))) return 0;
+  return parseFloat(v.cant) || 0;
+}
+
+// Litros del período, separando fraccionado de tambor (para el detalle de la card)
+function litrosDesglose(ventas){
+  let fracc = 0, tambor = 0;
+  ventas.forEach(v => {
+    const l = litrosVenta(v);
+    if(!l) return;
+    if(String(v.producto||'').toLowerCase().includes('tambor')) tambor += l;
+    else fracc += l;
+  });
+  return {fracc, tambor, total: fracc + tambor};
+}
+
 function getMonthlyData() {
   // Para modo 'all': mostrar evolución por año (2024, 2025, 2026)
   if(dashPeriodo==='all') {
@@ -4516,6 +4551,7 @@ function getMonthlyData() {
         mes:a, label:String(a),
         ventas:ventasTotal,
         gan:ganTotal,
+        litros:vs.reduce((s,v)=>s+litrosVenta(v),0),
         ops:vs.length,
         minor:vs.filter(v=>v.canal==='Minorista').reduce((s,v)=>s+v.total,0),
         mayor:vs.filter(v=>v.canal==='Mayorista').reduce((s,v)=>s+v.total,0),
@@ -4536,6 +4572,7 @@ function getMonthlyData() {
       mes:m, label:MESES_ABREV[m-1],
       ventas:ventasTotal,
       gan:ganTotal,
+      litros:vs.reduce((s,v)=>s+litrosVenta(v),0),
       ops:vs.length,
       minor:vs.filter(v=>v.canal==='Minorista').reduce((s,v)=>s+v.total,0),
       mayor:vs.filter(v=>v.canal==='Mayorista').reduce((s,v)=>s+v.total,0),
@@ -4704,6 +4741,101 @@ function renderProyeccionMes() {
       </div>
       <div style="height:8px;background:#1a2040;border-radius:4px;overflow:hidden">
         <div style="height:100%;width:${progresoPct}%;background:linear-gradient(90deg,#3d7fff,#ffd166);transition:width 0.4s"></div>
+      </div>
+    </div>
+  `;
+  wrap.style.display = 'block';
+}
+
+// ===== Proyección de LITROS fin de mes =====
+// Misma mecánica que renderProyeccionMes (días hábiles + promedio de los últimos 3 meses)
+// pero midiendo volumen en vez de plata. Solo se muestra en modo 'month'.
+function renderProyeccionLitros() {
+  const wrap = document.getElementById('dash-proyeccion-lts-wrap');
+  const card = document.getElementById('dash-proyeccion-lts-card');
+  if(!wrap || !card) return;
+  if(dashPeriodo !== 'month') { wrap.style.display = 'none'; return; }
+
+  const fmtL = n => Math.round(n).toLocaleString('es-AR') + ' L';
+
+  const anio = parseInt(document.getElementById('dash-anio-sel')?.value || new Date().getFullYear());
+  const mes  = parseInt(document.getElementById('dash-mes-sel')?.value  || (new Date().getMonth()+1));
+
+  const vsMes = VENTAS.filter(v => esVentaPropia(v) && getAnioVenta(v.fecha)===anio && getMesVenta(v.fecha)===mes);
+  const des = litrosDesglose(vsMes);
+  const acumulado = des.total;
+
+  // Días hábiles (mismo criterio que la proyección de ventas)
+  const primerDiaMes = new Date(anio, mes-1, 1);
+  const ultimoDiaMes = new Date(anio, mes, 0);
+  const diasHabilesTotales = contarDiasHabiles(primerDiaMes, ultimoDiaMes);
+  const hoy = new Date();
+  const esMesActual = (anio === hoy.getFullYear() && mes === (hoy.getMonth()+1));
+  const fechaCorte = esMesActual ? hoy : ultimoDiaMes;
+  const diasHabilesTranscurridos = contarDiasHabiles(primerDiaMes, fechaCorte);
+
+  let proyectado;
+  if(!esMesActual || diasHabilesTranscurridos >= diasHabilesTotales) proyectado = acumulado;
+  else if(diasHabilesTranscurridos <= 0) proyectado = 0;
+  else proyectado = (acumulado / diasHabilesTranscurridos) * diasHabilesTotales;
+
+  const ritmoDia = diasHabilesTranscurridos>0 ? (acumulado/diasHabilesTranscurridos) : 0;
+
+  // Promedio de litros de los últimos 3 meses con ventas
+  const ultimos3 = [];
+  for(let i=1;i<=3;i++) {
+    let mAux = mes - i, aAux = anio;
+    if(mAux <= 0) { mAux += 12; aAux -= 1; }
+    const vsA = VENTAS.filter(v => esVentaPropia(v) && getAnioVenta(v.fecha)===aAux && getMesVenta(v.fecha)===mAux);
+    const lts = vsA.reduce((s,v)=>s+litrosVenta(v),0);
+    if(lts>0) ultimos3.push(lts);
+  }
+  const promedio3 = ultimos3.length>0 ? (ultimos3.reduce((a,b)=>a+b,0)/ultimos3.length) : 0;
+  const tieneRef = promedio3 > 0;
+  const gapL = proyectado - promedio3;
+  const gapPct = promedio3>0 ? (gapL/promedio3*100) : 0;
+  const gapColor = gapL >= 0 ? '#22c987' : '#ff5e6d';
+  const gapIcono = gapL >= 0 ? '▲' : '▼';
+  const gapTexto = gapL >= 0 ? 'sobre' : 'bajo';
+
+  const progresoPct = diasHabilesTotales>0 ? Math.min(100,(diasHabilesTranscurridos/diasHabilesTotales*100)) : 0;
+  const nombreMes = MESES_ABREV[mes-1];
+
+  card.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;align-items:center">
+      <div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Litros vendidos ${nombreMes}</div>
+        <div style="font-size:24px;font-weight:600;color:#00d4aa">${fmtL(acumulado)}</div>
+        <div style="font-size:11px;color:var(--muted)">día hábil ${diasHabilesTranscurridos}/${diasHabilesTotales}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">🧴 ${fmtL(des.fracc)} fraccionado · 🛢️ ${fmtL(des.tambor)} tambor</div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Proyectado fin de mes</div>
+        <div style="font-size:24px;font-weight:600;color:#ffd166">${fmtL(proyectado)}</div>
+        <div style="font-size:11px;color:var(--muted)">${esMesActual?'Ritmo '+Math.round(ritmoDia).toLocaleString('es-AR')+' L/día hábil':'Mes cerrado'}</div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Prom. últ. 3 meses</div>
+        <div style="font-size:24px;font-weight:600;color:#e0e6ff">${tieneRef?fmtL(promedio3):'—'}</div>
+        <div style="font-size:11px;color:var(--muted)">${tieneRef?ultimos3.length+' meses con ventas':'Sin datos previos'}</div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Gap vs promedio</div>
+        ${tieneRef ? `
+          <div style="font-size:24px;font-weight:600;color:${gapColor}">${gapIcono} ${fmtL(Math.abs(gapL))}</div>
+          <div style="font-size:11px;color:${gapColor}">${gapPct>=0?'+':''}${gapPct.toFixed(1)}% ${gapTexto} promedio</div>
+        ` : `
+          <div style="font-size:24px;font-weight:600;color:var(--muted)">—</div>
+          <div style="font-size:11px;color:var(--muted)">Sin referencia</div>
+        `}
+      </div>
+    </div>
+    <div style="margin-top:16px">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px">
+        <span>Progreso del mes (días hábiles)</span><span>${progresoPct.toFixed(0)}%</span>
+      </div>
+      <div style="height:8px;background:#1a2040;border-radius:4px;overflow:hidden">
+        <div style="height:100%;width:${progresoPct}%;background:linear-gradient(90deg,#00d4aa,#ffd166);transition:width 0.4s"></div>
       </div>
     </div>
   `;
@@ -5123,6 +5255,8 @@ function renderChartsMensual() {
   const t3=document.getElementById('chart-title-canal');
   const t4=document.getElementById('chart-title-margen');
   const t5=document.getElementById('chart-title-ops-line');
+  const tL=document.getElementById('chart-title-litros');
+  if(tL) tL.textContent='Evolución '+tipoLabel+' — Litros vendidos'+anio;
   if(t1) t1.textContent='Evolución '+tipoLabel+' — Ventas'+anio;
   if(t2) t2.textContent='Evolución '+tipoLabel+' — Ganancia Neta'+anio;
   if(t3) t3.textContent='Minorista vs Mayorista — Evolución'+anio;
@@ -5142,6 +5276,7 @@ function renderChartsMensual() {
   }
   setTimeout(()=>{
     drawBarCanvas('chart-ventas-mes',labels,[{data:md.map(m=>m.ventas),color:'#3d7fff'}],{trendline:true, trendUpTo});
+    drawBarCanvas('chart-litros-mes',labels,[{data:md.map(m=>m.litros),color:'#00d4aa'}],{trendline:true, trendUpTo});
     drawBarCanvas('chart-gan-mes',labels,[{data:md.map(m=>m.gan),color:'#22c987'}],{trendline:true, trendUpTo});
     drawLineCanvas('chart-canales-mes',labels,[
       {data:md.map(m=>m.minor),color:'#3d7fff'},
