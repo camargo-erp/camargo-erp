@@ -1457,6 +1457,26 @@
           <input class="auto-field" id="nv-precio" readonly>
         </div>
       </div>
+      <!-- ZONA + ENVASE — solo aparece con el fraccionado BASE (modo modular) -->
+      <div id="nv-zona-wrap" style="display:none;margin-bottom:14px;background:var(--surface2);border:1px solid var(--accent2);border-radius:8px;padding:12px">
+        <div style="font-size:12px;font-weight:600;color:var(--accent2);margin-bottom:10px">📍 Zona y envase — definen caja y envío</div>
+        <div class="form-grid cols2">
+          <div class="form-group"><label>Zona de entrega</label>
+            <select id="nv-zona" onchange="calcularPrecio()">
+              <option value="caba">🚚 CABA / GBA — envío a domicilio</option>
+              <option value="interior">📦 Interior — envío hasta transporte</option>
+              <option value="retira">🏭 Retira en depósito</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Envase</label>
+            <select id="nv-envase" onchange="calcularPrecio()">
+              <option value="con">Con envase 5L (se lo lleva)</option>
+              <option value="recambio">Recambio (trae los bidones)</option>
+            </select>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:8px" id="nv-zona-info"></div>
+      </div>
       <div class="form-grid" style="margin-bottom:14px">
         <div class="form-group"><label>Forma de Pago</label>
           <select id="nv-fpago" onchange="toggleFpagoArrayan();toggleEcheqForm()">
@@ -1525,8 +1545,8 @@
           <div class="form-group" style="grid-column:1/-1"><label>Observación de logística</label>
             <input type="text" id="nv-obs-logistica" placeholder="Ej: avisar antes de ir / entregar por la tarde / retira Juan">
           </div>
-          <div class="form-group"><label>Precio Envío Propio ($)</label>
-            <input type="number" id="nv-envio" placeholder="0" oninput="calcularPrecio()">
+          <div class="form-group"><label>Envío ($) <span style="font-weight:400;color:var(--muted);font-size:10px">— automático por zona, editable</span></label>
+            <input type="number" id="nv-envio" placeholder="0" oninput="calcularPrecio('envio')">
           </div>
         </div>
       </div>
@@ -1540,6 +1560,8 @@
           <div class="precio-row"><span style="color:var(--muted)">Costo unitario</span><span id="res-costo" style="font-family:var(--mono)">—</span></div>
           <div class="precio-row"><span style="color:var(--muted)">Cantidad</span><span id="res-cant" style="font-family:var(--mono)">—</span></div>
           <div class="precio-row"><span style="color:var(--muted)">Subtotal venta</span><span id="res-subtotal" style="font-family:var(--mono)">—</span></div>
+          <div class="precio-row" id="res-envases-row" style="display:none"><span style="color:var(--muted)">+ Envases 5L</span><span id="res-envases" style="font-family:var(--mono)">—</span></div>
+          <div class="precio-row" id="res-cajas-row" style="display:none"><span style="color:var(--muted)">+ Cajas (x4 env.)</span><span id="res-cajas" style="font-family:var(--mono)">—</span></div>
           <div class="precio-row"><span style="color:var(--muted)">+ Envío</span><span id="res-envio" style="font-family:var(--mono)">—</span></div>
           <div class="precio-row total"><span>TOTAL VENTA</span><span id="res-total">—</span></div>
           <div class="precio-row ganancia"><span>✓ Ganancia neta</span><span id="res-ganancia">—</span></div>
@@ -1677,12 +1699,38 @@
     </div>
   </div>
 
+  <!-- MIGRACIÓN LISTA NOV-2026 -->
+  <div class="card" style="margin-bottom:16px;border-color:var(--accent2)">
+    <div class="card-title">⬆️ Cargar lista mayorista 21/11/2026</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px">
+      Carga de una sola vez la escala nueva (1.970 / 1.930 / 1.910 / 1.760 / 1.710 / 1.650) en la fila BASE
+      y en las 3 filas legacy del bot, más los adicionales. <strong>No guarda nada solo</strong>: completa los
+      campos para que los revises y después tocás 💾 Guardar Cambios.
+    </div>
+    <button class="btn btn-ghost" onclick="aplicarListaNueva()">⬆️ Cargar lista nueva en los campos</button>
+  </div>
+
+  <!-- ADICIONALES MODULARES -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-title">🧮 Adicionales y Envíos — Fraccionado</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:14px">
+      El precio del alcohol sale de la fila <strong>⭐ BASE</strong> de la tabla de abajo (alcohol solo, sin envase).
+      Acá se cargan los adicionales que se suman automáticamente en Nueva Venta según la zona.
+      <strong>Las cajas se cobran solo en Interior</strong> (embalaje para encomienda); en CABA/GBA y retiro en depósito no.
+    </div>
+    <div class="form-grid cols4" id="adicionales-grid"></div>
+  </div>
+
   <!-- TABLA TRIDESTILADO -->
   <div class="card" style="margin-bottom:16px">
     <div class="card-title">🧪 Alcohol de Cereal Tridestilado — PRECIOS_TRIDEST</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px">
+      <strong>Lím N</strong> = litraje <em>donde arranca</em> el escalón siguiente. Con Lím 1 = 60, el precio E1 rige hasta 59 L y desde 60 L pasa a E2.
+      Las filas <em>(legacy bot)</em> las sigue leyendo el bot de WhatsApp por posición: no las borres ni las muevas de lugar.
+    </div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Modalidad</th><th>Costo/L</th><th>Lím 1 (L)</th><th>Lím 2 (L)</th><th>Lím 3 (L)</th><th>Lím 4 (L)</th><th>P. E1</th><th>P. E2</th><th>P. E3</th><th>P. E4</th><th>P. E5</th><th>Costo Tambor</th><th>Precio Tambor</th><th>Gan. Alcohol</th><th>Gan. Tambor</th><th>Gan. Total</th></tr></thead>
+        <thead><tr><th>Modalidad</th><th>Costo/L</th><th>Lím 1 (L)</th><th>Lím 2 (L)</th><th>Lím 3 (L)</th><th>Lím 4 (L)</th><th>Lím 5 (L)</th><th>P. E1</th><th>P. E2</th><th>P. E3</th><th>P. E4</th><th>P. E5</th><th>P. E6</th><th>Costo Tambor</th><th>Precio Tambor</th><th>Gan. Alcohol</th><th>Gan. Tambor</th><th>Gan. Total</th></tr></thead>
         <tbody id="precios-body"></tbody>
       </table>
     </div>
@@ -1870,15 +1918,20 @@ let TODOS_PRODUCTOS = [
   {nombre:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO tambor recambio",codigo:"ALCCERNEU",unidad:"Lts",tipo:"Comercial",costo:1440,precioMayor:1600,precioMenor:1600,obs:"Múltiplos de 200L"},
   {nombre:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO tambor venta",codigo:"ALCCERNEU2",unidad:"Lts",tipo:"Comercial",costo:1520,precioMayor:1726.25,precioMenor:1726.25,obs:"Múltiplos de 200L. Incluye cargo tambor"},
   {nombre:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO fracc envase caja",codigo:"ALCCERNEU3",unidad:"Lts",tipo:"Comercial",costo:1596.4,precioMayor:2151,precioMenor:2390,obs:"Mín 20L múltiplos 20L. Tramos: 0-79→2390 | 80-119→2294 | 120-199→2223 | 200+→2151"},
+  {nombre:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO fraccionado",codigo:"ALCCERNEU6",unidad:"Lts",tipo:"Comercial",costo:1450,precioMayor:1760,precioMenor:1970,obs:"BASE modular — alcohol solo. Envase/caja/envío se suman por zona. Tramos: <60→1970 | 60-99→1930 | 100-199→1910 | 200-599→1760 | 600-999→1710 | 1000+→1650"},
   {nombre:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO fracc envase",codigo:"ALCCERNEU4",unidad:"Lts",tipo:"Comercial",costo:1556.4,precioMayor:2041,precioMenor:2268,obs:"Tramos: 0-79→2268 | 80-119→2177 | 120-199→2109 | 200+→2041"},
   {nombre:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO fracc recambio",codigo:"ALCCERNEU5",unidad:"Lts",tipo:"Comercial",costo:1440,precioMayor:1899,precioMenor:2110,obs:"Tramos: 0-79→2110 | 80-119→2026 | 120-199→1962 | 200+→1899"},
 ];
 
 let PRECIOS = [
-  // CEREAL fraccionados — 5 escalones (lim1=80, lim2=195, lim3=495, lim4=995)
-  {modal:"CON Envase 5L SIN caja",costo:1675,lim1:80,lim2:195,lim3:495,lim4:995,p_e1:2280,p_e2:2100,p_e3:1910,p_e4:1880,p_e5:1880,costoTambor:null,precioTambor:null,esTambor:false,esRecambio:false,prod:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO fracc envase"},
-  {modal:"CON Envase 5L CON caja",costo:1706,lim1:80,lim2:195,lim3:495,lim4:995,p_e1:2300,p_e2:2200,p_e3:2050,p_e4:1980,p_e5:1930,costoTambor:null,precioTambor:null,esTambor:false,esRecambio:false,prod:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO fracc envase caja"},
-  {modal:"SIN Envase 5L SIN caja",costo:1495,lim1:80,lim2:195,lim3:495,lim4:995,p_e1:2100,p_e2:1930,p_e3:1800,p_e4:1730,p_e5:1670,costoTambor:null,precioTambor:null,esTambor:false,esRecambio:false,prod:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO fracc recambio"},
+  // CEREAL fraccionados LEGACY — las usa el BOT de WhatsApp (getPrecioProducto7 elige
+  // la fila por POSICIÓN: datos[1]=CABA con envase, datos[2]=Interior, datos[3]=recambio).
+  // NO mover ni borrar estas 3 filas hasta migrar el bot a la fila BASE.
+  // Precios = base + envase ($180/L) + caja ($50/L). Escalones: 60/100/200/600 L.
+  // Costos reales de la hoja: alcohol 1450 | envase $730 (146/L) | caja $1.000 (50/L).
+  {modal:"CON Envase 5L SIN caja (legacy bot)",costo:1596,lim1:60,lim2:100,lim3:200,lim4:600,p_e1:2150,p_e2:2110,p_e3:2090,p_e4:1940,p_e5:1890,costoTambor:null,precioTambor:null,esTambor:false,esRecambio:false,prod:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO fracc envase"},
+  {modal:"CON Envase 5L CON caja (legacy bot)",costo:1646,lim1:60,lim2:100,lim3:200,lim4:600,p_e1:2200,p_e2:2160,p_e3:2140,p_e4:1990,p_e5:1940,costoTambor:null,precioTambor:null,esTambor:false,esRecambio:false,prod:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO fracc envase caja"},
+  {modal:"SIN Envase 5L SIN caja (legacy bot)",costo:1450,lim1:60,lim2:100,lim3:200,lim4:600,p_e1:1970,p_e2:1930,p_e3:1910,p_e4:1760,p_e5:1710,costoTambor:null,precioTambor:null,esTambor:false,esRecambio:false,prod:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO fracc recambio"},
   // CEREAL TAMBOR RECAMBIO — 3 escalones (lim1=400, lim2=800, resto null)
   {modal:"CEREAL TAMBOR 200L RECAMBIO",costo:1495,lim1:400,lim2:800,lim3:null,lim4:null,p_e1:1720,p_e2:1680,p_e3:1640,p_e4:null,p_e5:null,costoTambor:null,precioTambor:null,esTambor:true,esRecambio:true,prod:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO tambor recambio"},
   // CEREAL TAMBOR VENTA — 5 escalones (lim1=200, lim2=400, lim3=600, lim4=800) + tambor $33.000
@@ -1886,6 +1939,21 @@ let PRECIOS = [
   // ETÍLICO TAMBOR — sin escalones definidos (solo p_e1, todos los lim null)
   {modal:"ETÍLICO TAMBOR 200L RECAMBIO",costo:1315,lim1:null,lim2:null,lim3:null,lim4:null,p_e1:1505,p_e2:null,p_e3:null,p_e4:null,p_e5:null,costoTambor:null,precioTambor:null,esTambor:true,esRecambio:true,prod:"Alcohol Etílico al 96% Buen gusto tambor recambio"},
   {modal:"ETÍLICO TAMBOR 200L VENTA",costo:1395,lim1:null,lim2:null,lim3:null,lim4:null,p_e1:1631.25,p_e2:null,p_e3:null,p_e4:null,p_e5:null,costoTambor:null,precioTambor:null,esTambor:true,esRecambio:false,prod:"Alcohol Etílico al 96% Buen gusto tambor venta"},
+  // ⭐ FILA BASE MODULAR — precio del ALCOHOL SOLO (sin envase, sin caja, sin envío).
+  // Los adicionales (envase, caja, envíos, mínimos) viajan como columnas adi_* de esta
+  // misma fila, así se guardan solos en la hoja precios_erp (savePrecios escribe por
+  // nombre de columna, no hace falta tocar el Apps Script).
+  // Escalones: <60 | 60-99 | 100-199 | 200-599 | 600-999 | 1000+
+  {modal:"⭐ BASE fraccionado (alcohol solo)",costo:1450,
+   lim1:60,lim2:100,lim3:200,lim4:600,lim5:1000,
+   p_e1:1970,p_e2:1930,p_e3:1910,p_e4:1760,p_e5:1710,p_e6:1650,
+   costoTambor:null,precioTambor:null,esTambor:false,esRecambio:false,esBase:true,
+   adi_envase:900, adi_envaseCosto:730,
+   adi_caja:1000,  adi_cajaCosto:1000,
+   adi_envioCaba:12000,  adi_cabaGratisDesde:150,
+   adi_envioTransp:9000, adi_transpGratisDesde:60,
+   adi_minCaba:40, adi_minInterior:20,
+   prod:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO fraccionado"},
 ];
 
 let VALOR_DOLAR = 1200;
@@ -5268,7 +5336,10 @@ function initForm() {
   // Cliente: limpiar input (ya no es select)
   document.getElementById('nv-cliente').value='';
   const sp=document.getElementById('nv-producto');
-  const triProds=PRECIOS.map(p=>p.prod);
+  // Las 3 filas legacy (las que consume el bot) no se ofrecen acá: en Nueva Venta
+  // se vende el fraccionado BASE y la modalidad sale de Zona + Envase.
+  const hayBase = !!getFilaBase();
+  const triProds=PRECIOS.filter(p => !hayBase || !esFraccLegacy(p)).map(p=>p.prod);
   const glicProds=PRECIOS_GLICERINA.map(p=>p.prod);
   const otrosProds=OTROS_PROD.map(p=>p.nombre);
   const arrayanProds = PRODUCTOS_USD.map(p=>p.nombre);
@@ -5453,22 +5524,121 @@ function onProductoChange() {
   const tieneTambor = arr && !arr.sinTambor;
   const wrap = document.getElementById('nv-tambor-wrap');
   if(wrap) wrap.style.display = tieneTambor ? 'block' : 'none';
+  // Bloque Zona/Envase: solo para el fraccionado BASE
+  const base = getFilaBase();
+  const zw = document.getElementById('nv-zona-wrap');
+  if(zw) zw.style.display = (base && prod === base.prod) ? 'block' : 'none';
   calcularPrecio();
 }
 
+// ===================== ADICIONALES MODULARES =====================
+// Envase, caja y envíos dejaron de estar metidos adentro del $/litro. Ahora viven
+// como columnas adi_* de la fila BASE de PRECIOS y se suman según la zona.
+
+// Valores por defecto (se usan si la hoja todavía no tiene las columnas adi_*)
+const ADI_DEF = {
+  adi_envase:900, adi_envaseCosto:730,
+  adi_caja:1000,  adi_cajaCosto:1000,
+  adi_envioCaba:12000,  adi_cabaGratisDesde:150,
+  adi_envioTransp:9000, adi_transpGratisDesde:60,
+  adi_minCaba:40, adi_minInterior:20
+};
+
+// Google Sheets puede devolver booleanos como texto (TRUE / VERDADERO)
+function _esTrue(v){
+  if (v === true || v === 1) return true;
+  const t = String(v).trim().toUpperCase();
+  return t === 'TRUE' || t === 'VERDADERO' || t === 'SI' || t === 'SÍ' || t === '1';
+}
+
+// Devuelve la fila BASE del fraccionado (o null si todavía no existe en la hoja)
+function getFilaBase(){
+  let b = PRECIOS.find(p => _esTrue(p.esBase));
+  if (!b) b = PRECIOS.find(p => String(p.modal||'').toUpperCase().includes('BASE'));
+  return b || null;
+}
+
+// Lee un adicional de la fila BASE, con fallback al default
+function adi(k){
+  const b = getFilaBase();
+  const v = b ? parseFloat(b[k]) : NaN;
+  return isNaN(v) ? ADI_DEF[k] : v;
+}
+
+// ¿Esta fila es una de las 3 legacy que todavía usa el bot? (no se muestran en Nueva Venta)
+function esFraccLegacy(p){
+  return !p.esTambor && !_esTrue(p.esBase) && !String(p.modal||'').toUpperCase().includes('BASE');
+}
+
+// Desglose modular para el fraccionado BASE. Devuelve null si el producto es otro.
+function calcAdicionales(prod, cant){
+  const base = getFilaBase();
+  if(!base || !prod || prod !== base.prod) return null;
+  const zona       = document.getElementById('nv-zona')?.value   || 'caba';
+  const envaseModo = document.getElementById('nv-envase')?.value || 'con';
+  const litros  = parseFloat(cant) || 0;
+  const envases = envaseModo === 'con' ? Math.ceil(litros/5) : 0;
+  // Las cajas son embalaje de encomienda: solo al Interior y solo si hay envases
+  const cajas   = (zona === 'interior' && envases > 0) ? Math.ceil(envases/4) : 0;
+
+  let envio = 0, envioTxt = '';
+  if(zona === 'caba'){
+    const gratis = adi('adi_cabaGratisDesde');
+    envio = litros >= gratis ? 0 : adi('adi_envioCaba');
+    envioTxt = envio ? 'Envío a domicilio' : `Envío sin cargo (≥ ${gratis}L)`;
+  } else if(zona === 'interior'){
+    const gratis = adi('adi_transpGratisDesde');
+    envio = litros >= gratis ? 0 : adi('adi_envioTransp');
+    envioTxt = envio ? 'Envío hasta transporte' : `Envío al transporte sin cargo (≥ ${gratis}L)`;
+  } else {
+    envioTxt = 'Retira en depósito — sin envío';
+  }
+
+  const precioEnvases = envases * adi('adi_envase');
+  const precioCajas   = cajas   * adi('adi_caja');
+  const costoEnvases  = envases * adi('adi_envaseCosto');
+  const costoCajas    = cajas   * adi('adi_cajaCosto');
+
+  // El nombre que se guarda en VENTAS mantiene las modalidades históricas,
+  // así los reportes por producto siguen cuadrando con las ventas viejas
+  const RAIZ = 'Alcohol de Cereal ( tridestilado) EXTRA NEUTRO ';
+  let prodNombre;
+  if(envaseModo === 'recambio') prodNombre = RAIZ + 'fracc recambio';
+  else if(cajas > 0)            prodNombre = RAIZ + 'fracc envase caja';
+  else                          prodNombre = RAIZ + 'fracc envase';
+
+  // Aviso de mínimo (avisa, no bloquea)
+  let aviso = '';
+  const minZ = zona === 'caba' ? adi('adi_minCaba') : adi('adi_minInterior');
+  if(litros > 0 && litros < minZ) aviso = `⚠️ Mínimo para esta zona: ${minZ}L`;
+
+  const zonaLabel = zona === 'caba' ? 'CABA/GBA' : (zona === 'interior' ? 'Interior' : 'Retira depósito');
+
+  return {
+    zona, zonaLabel, envaseModo, envases, cajas,
+    precioEnvases, precioCajas, costoEnvases, costoCajas,
+    envio, envioTxt, aviso, prodNombre,
+    adicPrecio: precioEnvases + precioCajas,
+    adicCosto:  costoEnvases  + costoCajas
+  };
+}
+
 // Helper: precio según escalón de cantidad (compartido entre productos del array PRECIOS)
+// IMPORTANTE: el criterio es "cant < lim → escalón N", igual que el Apps Script del bot.
+// Antes el HTML usaba "cant <= lim" y en el borde exacto (ej: 80L) el ERP y el bot
+// cotizaban distinto. Ahora lim1 es el litraje DONDE EMPIEZA el escalón 2.
 function _precioPorEscala(item, cant) {
-  const lims = [item.lim1, item.lim2, item.lim3, item.lim4];
-  const pes  = [item.p_e1, item.p_e2, item.p_e3, item.p_e4, item.p_e5];
-  for (let n = 0; n < 4; n++) {
+  const lims = [item.lim1, item.lim2, item.lim3, item.lim4, item.lim5];
+  const pes  = [item.p_e1, item.p_e2, item.p_e3, item.p_e4, item.p_e5, item.p_e6];
+  for (let n = 0; n < 5; n++) {
     const lim = parseFloat(lims[n]);
-    if (!isNaN(lim) && cant <= lim) {
+    if (!isNaN(lim) && lim > 0 && cant < lim) {
       const p = parseFloat(pes[n]);
       if (!isNaN(p) && p > 0) return p;
     }
   }
   // Fallback: último escalón válido (cuando supera todos los límites o no hay límites definidos)
-  for (let k = 4; k >= 0; k--) {
+  for (let k = 5; k >= 0; k--) {
     const p = parseFloat(pes[k]);
     if (!isNaN(p) && p > 0) return p;
   }
@@ -5520,21 +5690,40 @@ function getPrecio(prod,cant) {
   return null;
 }
 
-function calcularPrecio() {
+// origen==='envio' cuando el usuario está escribiendo a mano el campo de envío:
+// en ese caso NO se pisa el valor con el sugerido por zona.
+function calcularPrecio(origen) {
   const prod=document.getElementById('nv-producto').value;
   const cant=parseFloat(document.getElementById('nv-cantidad').value)||0;
-  const envio=parseFloat(document.getElementById('nv-envio').value)||0;
-  const entrega=document.getElementById('nv-entrega').value;
   const pc=getPrecio(prod,cant);
+  // === Desglose modular: envases, cajas y envío según zona (solo fraccionado BASE) ===
+  const ad = calcAdicionales(prod, cant);
+  if(ad && origen !== 'envio') document.getElementById('nv-envio').value = ad.envio || '';
+  const envio=parseFloat(document.getElementById('nv-envio').value)||0;
+  const info=document.getElementById('nv-zona-info');
+  if(info) info.innerHTML = ad
+    ? (ad.aviso ? '<span style="color:var(--yellow)">'+ad.aviso+'</span> · ' : '')
+      + ad.envases+' envases · '+ad.cajas+' cajas · '+ad.envioTxt
+      + ' · se registra como <em>'+ad.prodNombre.replace('Alcohol de Cereal ( tridestilado) EXTRA NEUTRO ','')+'</em>'
+    : '';
+  const rowEnv=document.getElementById('res-envases-row'), rowCaj=document.getElementById('res-cajas-row');
+  if(rowEnv) rowEnv.style.display=(ad && ad.envases>0)?'flex':'none';
+  if(rowCaj) rowCaj.style.display=(ad && ad.cajas>0)?'flex':'none';
+  if(ad && ad.envases>0) document.getElementById('res-envases').textContent=ad.envases+' × '+fmt(adi('adi_envase'))+' = '+fmt(ad.precioEnvases);
+  if(ad && ad.cajas>0)   document.getElementById('res-cajas').textContent  =ad.cajas  +' × '+fmt(adi('adi_caja'))  +' = '+fmt(ad.precioCajas);
   if(!pc||!cant){
     ['res-precio','res-costo','res-cant','res-subtotal','res-envio','res-total','res-ganancia','res-margen']
       .forEach(id=>document.getElementById(id).textContent='—');
     document.getElementById('nv-precio').value='';
     return;
   }
-  const subtotal=cant*pc.precio + (pc.precioTambor || 0);
-  const costoTotal=cant*pc.costo + (pc.costoTambor || 0);
-  const envioTotal=entrega==='Propio'?envio:0;
+  const adicPrecio = ad ? ad.adicPrecio : 0;
+  const adicCosto  = ad ? ad.adicCosto  : 0;
+  const subtotal=cant*pc.precio + (pc.precioTambor || 0) + adicPrecio;
+  const costoTotal=cant*pc.costo + (pc.costoTambor || 0) + adicCosto;
+  // El envío cargado se cobra SIEMPRE. Antes era "entrega==='Propio' ? envio : 0",
+  // y por eso el envío hasta transporte del interior nunca se facturaba.
+  const envioTotal=envio;
   const total=subtotal+envioTotal;
   const ganBruta=total-costoTotal;
   // Si es "Arrayan cobra y entrega", ganancia = 5% comisión
@@ -5558,9 +5747,10 @@ function calcularPrecio() {
   // Mostrar subtotal con desglose si hay tambor
   const subAlcohol = cant * pc.precio;
   if(pc.precioTambor > 0) {
-    document.getElementById('res-subtotal').textContent=fmt(subAlcohol) + ' + tambor ' + fmt(pc.precioTambor) + ' = ' + fmt(subtotal);
+    document.getElementById('res-subtotal').textContent=fmt(subAlcohol) + ' + tambor ' + fmt(pc.precioTambor) + ' = ' + fmt(subtotal - adicPrecio);
   } else {
-    document.getElementById('res-subtotal').textContent=fmt(subtotal);
+    // En modo modular el subtotal es solo el alcohol: envases y cajas van en sus filas
+    document.getElementById('res-subtotal').textContent=fmt(subtotal - adicPrecio);
   }
   document.getElementById('res-envio').textContent=envioTotal>0?fmt(envioTotal):'$0';
   document.getElementById('res-total').textContent=fmt(total);
@@ -5636,6 +5826,12 @@ function limpiarForm(){
   const dirT=document.getElementById('nv-transporte-dir'); if(dirT) dirT.dataset.auto='1';
   const wrapT = document.getElementById('nv-tambor-wrap'); if(wrapT) wrapT.style.display='none';
   const selT = document.getElementById('nv-tambor-tipo'); if(selT) selT.value='recambio';
+  // Reset bloque Zona/Envase
+  const wrapZ = document.getElementById('nv-zona-wrap'); if(wrapZ) wrapZ.style.display='none';
+  const selZ = document.getElementById('nv-zona');   if(selZ) selZ.value='caba';
+  const selE = document.getElementById('nv-envase'); if(selE) selE.value='con';
+  const infoZ = document.getElementById('nv-zona-info'); if(infoZ) infoZ.innerHTML='';
+  ['res-envases-row','res-cajas-row'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
   document.getElementById('toggle-especial').checked=false;
   document.getElementById('especial-fields').classList.remove('show');
   // Reset toggle arrayan
@@ -6204,6 +6400,79 @@ function exportReporteContadorExcel(){
 }
 
 // =========== PRECIOS ===========
+// Campos del panel de adicionales: [clave, etiqueta, sufijo]
+const ADI_CAMPOS = [
+  ['adi_envase',          'Envase 5L — precio',        '$'],
+  ['adi_envaseCosto',     'Envase 5L — costo',         '$'],
+  ['adi_caja',            'Caja x4 envases — precio',  '$'],
+  ['adi_cajaCosto',       'Caja x4 envases — costo',   '$'],
+  ['adi_envioCaba',       'Envío CABA/GBA',            '$'],
+  ['adi_cabaGratisDesde', 'CABA/GBA sin cargo desde',  'L'],
+  ['adi_envioTransp',     'Envío hasta transporte',    '$'],
+  ['adi_transpGratisDesde','Interior sin cargo desde', 'L'],
+  ['adi_minCaba',         'Mínimo CABA/GBA',           'L'],
+  ['adi_minInterior',     'Mínimo Interior / retiro',  'L'],
+];
+
+// Lista mayorista del 21/11/2026. Se aplica por NOMBRE de producto (no por posición),
+// así no importa en qué orden estén las filas en la hoja.
+const LISTA_NOV2026 = {
+  "Alcohol de Cereal ( tridestilado) EXTRA NEUTRO fraccionado":
+    {costo:1450,lim1:60,lim2:100,lim3:200,lim4:600,lim5:1000,
+     p_e1:1970,p_e2:1930,p_e3:1910,p_e4:1760,p_e5:1710,p_e6:1650},
+  // Legacy del bot = base + envase ($180/L) + caja ($50/L). Sin 6º escalón: el bot
+  // solo lee 5, así que arriba de 1.000 L cotiza 1.710 en vez de 1.650.
+  "Alcohol de Cereal ( tridestilado) EXTRA NEUTRO fracc recambio":
+    {costo:1450,lim1:60,lim2:100,lim3:200,lim4:600,p_e1:1970,p_e2:1930,p_e3:1910,p_e4:1760,p_e5:1710},
+  "Alcohol de Cereal ( tridestilado) EXTRA NEUTRO fracc envase":
+    {costo:1596,lim1:60,lim2:100,lim3:200,lim4:600,p_e1:2150,p_e2:2110,p_e3:2090,p_e4:1940,p_e5:1890},
+  "Alcohol de Cereal ( tridestilado) EXTRA NEUTRO fracc envase caja":
+    {costo:1646,lim1:60,lim2:100,lim3:200,lim4:600,p_e1:2200,p_e2:2160,p_e3:2140,p_e4:1990,p_e5:1940},
+};
+
+function aplicarListaNueva(){
+  let tocadas = 0, faltaBase = false;
+  Object.entries(LISTA_NOV2026).forEach(([prod, vals]) => {
+    const fila = PRECIOS.find(p => p.prod === prod);
+    if(!fila) return;
+    Object.assign(fila, vals);
+    tocadas++;
+  });
+  // Si la hoja todavía no trae la fila BASE, la creamos acá
+  if(!getFilaBase()){
+    faltaBase = true;
+    PRECIOS.push({
+      modal:"⭐ BASE fraccionado (alcohol solo)", esBase:true,
+      esTambor:false, esRecambio:false, costoTambor:null, precioTambor:null,
+      prod:"Alcohol de Cereal ( tridestilado) EXTRA NEUTRO fraccionado",
+      ...LISTA_NOV2026["Alcohol de Cereal ( tridestilado) EXTRA NEUTRO fraccionado"],
+      ...ADI_DEF
+    });
+    tocadas++;
+  }
+  // Adicionales por defecto sobre la fila BASE (solo los que estén vacíos)
+  const base = getFilaBase();
+  if(base) Object.keys(ADI_DEF).forEach(k => { if(base[k] == null || base[k] === '') base[k] = ADI_DEF[k]; });
+  renderPrecios();
+  precioEditado();
+  notify('⬆️ Lista nueva cargada en '+tocadas+' filas'+(faltaBase?' (se creó la fila BASE)':'')+' — revisá y tocá 💾 Guardar Cambios');
+}
+
+function renderAdicionales() {
+  const cont = document.getElementById('adicionales-grid');
+  if(!cont) return;
+  const base = getFilaBase();
+  if(!base){
+    cont.innerHTML = '<div style="grid-column:1/-1;color:var(--yellow);font-size:12px">⚠️ Falta la fila BASE en la hoja <strong>precios_erp</strong>. Mientras tanto se usan los valores por defecto del código.</div>';
+    return;
+  }
+  cont.innerHTML = ADI_CAMPOS.map(([k,label,suf]) => `
+    <div class="form-group">
+      <label>${label} (${suf})</label>
+      <input class="precio-edit" type="number" id="adi-${k}" value="${adi(k)}" oninput="precioEditado()">
+    </div>`).join('');
+}
+
 function renderPrecios() {
   document.getElementById('precios-body').innerHTML=PRECIOS.map((p,i)=>{
     const esTambor = p.esTambor === true;
@@ -6220,18 +6489,21 @@ function renderPrecios() {
     // Helper: input para límite o precio (acepta null)
     const inpNum = (val, id, ph) => `<input class="precio-edit" type="number" placeholder="${ph||''}" value="${val!=null?val:''}" id="${id}" oninput="precioEditado()" style="width:80px">`;
 
-    return `<tr style="${esTambor?'background:#0f1820;':''}"}>
-      <td><strong>${p.modal}</strong>${esTambor?'<br><span style="font-size:10px;color:var(--muted)">tambor 200L</span>':''}</td>
+    const esBase = _esTrue(p.esBase) || String(p.modal||'').toUpperCase().includes('BASE');
+    return `<tr style="${esBase?'background:#10231a;':(esTambor?'background:#0f1820;':'')}"}>
+      <td><strong>${p.modal}</strong>${esBase?'<br><span style="font-size:10px;color:var(--green)">la usa Nueva Venta</span>':''}${esTambor?'<br><span style="font-size:10px;color:var(--muted)">tambor 200L</span>':''}</td>
       <td>${inpNum(p.costo, `pc-${i}-costo`, '$/L')}</td>
-      <td>${inpNum(p.lim1, `pc-${i}-lim1`, 'Hasta')}</td>
-      <td>${inpNum(p.lim2, `pc-${i}-lim2`, 'Hasta')}</td>
-      <td>${inpNum(p.lim3, `pc-${i}-lim3`, 'Hasta')}</td>
-      <td>${inpNum(p.lim4, `pc-${i}-lim4`, 'Hasta')}</td>
+      <td>${inpNum(p.lim1, `pc-${i}-lim1`, 'Desde')}</td>
+      <td>${inpNum(p.lim2, `pc-${i}-lim2`, 'Desde')}</td>
+      <td>${inpNum(p.lim3, `pc-${i}-lim3`, 'Desde')}</td>
+      <td>${inpNum(p.lim4, `pc-${i}-lim4`, 'Desde')}</td>
+      <td>${inpNum(p.lim5, `pc-${i}-lim5`, 'Desde')}</td>
       <td>${inpNum(p.p_e1, `pc-${i}-p_e1`, '$/L')}</td>
       <td>${inpNum(p.p_e2, `pc-${i}-p_e2`, '$/L')}</td>
       <td>${inpNum(p.p_e3, `pc-${i}-p_e3`, '$/L')}</td>
       <td>${inpNum(p.p_e4, `pc-${i}-p_e4`, '$/L')}</td>
       <td>${inpNum(p.p_e5, `pc-${i}-p_e5`, '$/L')}</td>
+      <td>${inpNum(p.p_e6, `pc-${i}-p_e6`, '$/L')}</td>
       <td>${esVenta ? inpNum(p.costoTambor, `pc-${i}-costoTambor`, 'Costo') : dash}</td>
       <td>${esVenta ? inpNum(p.precioTambor, `pc-${i}-precioTambor`, 'Precio') : dash}</td>
       <td style="font-family:var(--mono);color:var(--accent2)" id="pc-${i}-ganAlc">${ganAlc !== null ? '$'+ganAlc.toLocaleString('es-AR') : dash}</td>
@@ -6239,6 +6511,8 @@ function renderPrecios() {
       <td style="font-family:var(--mono);color:var(--green);font-weight:700" id="pc-${i}-ganTotal">${ganTotal !== null ? '$'+ganTotal.toLocaleString('es-AR') : dash}</td>
     </tr>`;
   }).join('');
+
+  renderAdicionales();
 
   // Render tabla Glicerina
   document.getElementById('precios-glicerina-body').innerHTML = PRECIOS_GLICERINA.map((p,i) => {
@@ -6546,7 +6820,16 @@ async function cargarDesdeSheets() {
           res.transportes.forEach(t=>{ if(!nombresLocales.has(t.nombre)) TRANSPORTES.push(t); });
         }
       }
-      if(res.precios?.length)    PRECIOS    = res.precios;
+      if(res.precios?.length) {
+        // Si la hoja precios_erp todavía no tiene la fila BASE (migración pendiente),
+        // se agrega la del código para que el modo modular funcione igual.
+        const base = PRECIOS.find(p => _esTrue(p.esBase));
+        PRECIOS = res.precios;
+        if(base && !PRECIOS.some(p => _esTrue(p.esBase) || String(p.modal||'').toUpperCase().includes('BASE'))) {
+          PRECIOS.push(base);
+          console.warn('precios_erp sin fila BASE — usando la del código. Agregá la fila y las columnas adi_* a la hoja.');
+        }
+      }
       if(res.productosUSD?.length) PRODUCTOS_USD = res.productosUSD.map((p,i) => ({...PRODUCTOS_USD[i], ...p}));
       if(res.valorDolar)         VALOR_DOLAR = res.valorDolar;
       setSyncStatus('ok');
@@ -6635,9 +6918,14 @@ async function guardarVenta() {
   if(!fecha||!cliente||!prod||!cant){alert('Completá Fecha, Cliente, Producto y Cantidad');return;}
   const pc=getPrecio(prod,cant);
   if(!pc){alert('Ingresá precio y costo manual');return;}
-  const subtotal=cant*pc.precio + (pc.precioTambor || 0);
-  const costoTotal=cant*pc.costo + (pc.costoTambor || 0);
-  const envioTotal=entrega==='Propio'?envio:0;
+  // === Desglose modular: envases, cajas y envío según zona ===
+  const ad = calcAdicionales(prod, cant);
+  const adicPrecio = ad ? ad.adicPrecio : 0;
+  const adicCosto  = ad ? ad.adicCosto  : 0;
+  const subtotal=cant*pc.precio + (pc.precioTambor || 0) + adicPrecio;
+  const costoTotal=cant*pc.costo + (pc.costoTambor || 0) + adicCosto;
+  // El envío cargado se cobra SIEMPRE (antes se descartaba si la entrega no era Propio)
+  const envioTotal=envio;
   const total=subtotal+envioTotal;
   const gan=total-costoTotal;
   const esArrayanCobra2 = document.getElementById('arr-tipo-cobra')?.checked || false;
@@ -6670,7 +6958,10 @@ async function guardarVenta() {
   }
   const venta = {
     fecha: (()=>{ const [y,m,d]=fecha.split('-'); return d.padStart(2,'0')+'/'+m.padStart(2,'0')+'/'+y; })(),
-    canal:canal||'Mayorista',cliente,producto:prodNombre2,
+    canal:canal||'Mayorista',cliente,
+    // En modo modular el nombre sale de zona+envase, para que los reportes por
+    // producto sigan cuadrando con las ventas históricas
+    producto: ad ? ad.prodNombre : prodNombre2,
     cant,precioU:pc.precio,total,
     costoU:esArrayanCobra2 ? Math.round(costoTFinal2/cant) : pc.costo,
     costoT:costoTFinal2,gan:ganReal2,margen:total>0?ganReal2/total:0,
@@ -6679,6 +6970,11 @@ async function guardarVenta() {
     esArrayan:esArrayan2,
     arrayan:toggleArrOn,
     arrayanTipo: arrayanTipo2,
+    // --- Desglose modular (requiere columnas zona/envases/cajas/envio en VENTAS_ERP) ---
+    zona:    ad ? ad.zonaLabel : '',
+    envases: ad ? ad.envases   : '',
+    cajas:   ad ? ad.cajas     : '',
+    envio:   envioTotal || '',
     // --- Logística ---
     transporte: getTransporteNV(),
     transporteModo: document.getElementById('nv-transporte-modo')?.value || '',
@@ -6746,15 +7042,15 @@ async function guardarTransporte(){
 async function guardarPrecios(){
   PRECIOS.forEach((p,i)=>{
     p.costo = parseFloat(document.getElementById(`pc-${i}-costo`)?.value) || p.costo;
-    // Límites (acepta vacío → null)
-    [1,2,3,4].forEach(n => {
+    // Límites (acepta vacío → null) — 5 límites = 6 escalones
+    [1,2,3,4,5].forEach(n => {
       const el = document.getElementById(`pc-${i}-lim${n}`);
       if(!el) return;
       const v = el.value;
       p['lim'+n] = (v === '' || v == null) ? null : (parseFloat(v) || null);
     });
     // Precios por escalón (acepta vacío → null)
-    [1,2,3,4,5].forEach(n => {
+    [1,2,3,4,5,6].forEach(n => {
       const el = document.getElementById(`pc-${i}-p_e${n}`);
       if(!el) return;
       const v = el.value;
@@ -6765,6 +7061,17 @@ async function guardarPrecios(){
       p.precioTambor = parseFloat(document.getElementById(`pc-${i}-precioTambor`)?.value) || null;
     }
   });
+  // Guardar adicionales en la fila BASE (viajan como columnas adi_* de esa fila)
+  const _base = getFilaBase();
+  if(_base){
+    _base.esBase = true;
+    ADI_CAMPOS.forEach(([k]) => {
+      const el = document.getElementById('adi-'+k);
+      if(!el) return;
+      const v = parseFloat(el.value);
+      if(!isNaN(v)) _base[k] = v;
+    });
+  }
   // Guardar precios Glicerina
   PRECIOS_GLICERINA.forEach((p,i) => {
     p.costo  = parseFloat(document.getElementById(`pg-${i}-costo`)?.value)  || p.costo;
