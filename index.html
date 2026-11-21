@@ -1473,6 +1473,7 @@
               <option value="con">Con envase 5L (se lo lleva)</option>
               <option value="recambio">Recambio (trae los bidones)</option>
             </select>
+            <div style="font-size:10px;color:var(--muted);margin-top:4px">Al interior siempre con envase. El recambio de tambor es otro producto.</div>
           </div>
         </div>
         <div style="font-size:11px;color:var(--muted);margin-top:8px" id="nv-zona-info"></div>
@@ -5575,7 +5576,10 @@ function calcAdicionales(prod, cant){
   const base = getFilaBase();
   if(!base || !prod || prod !== base.prod) return null;
   const zona       = document.getElementById('nv-zona')?.value   || 'caba';
-  const envaseModo = document.getElementById('nv-envase')?.value || 'con';
+  // Al Interior NO existe recambio de bidones: los envases viajan por encomienda y no
+  // vuelven. El recambio solo aplica a tambor (producto aparte, desde 200L).
+  let envaseModo   = document.getElementById('nv-envase')?.value || 'con';
+  if(zona === 'interior') envaseModo = 'con';
   const litros  = parseFloat(cant) || 0;
   const envases = envaseModo === 'con' ? Math.ceil(litros/5) : 0;
   // Las cajas son embalaje de encomienda: solo al Interior y solo si hay envases
@@ -5621,6 +5625,22 @@ function calcAdicionales(prod, cant){
     adicPrecio: precioEnvases + precioCajas,
     adicCosto:  costoEnvases  + costoCajas
   };
+}
+
+// Habilita o deshabilita "Recambio" según la zona. Al Interior no hay recambio de
+// bidones fraccionados; el recambio de tambor es otro producto del catálogo.
+function sincronizarEnvasePorZona(){
+  const selZ = document.getElementById('nv-zona');
+  const selE = document.getElementById('nv-envase');
+  if(!selZ || !selE) return;
+  const opRec = selE.querySelector('option[value="recambio"]');
+  if(!opRec) return;
+  const esInterior = selZ.value === 'interior';
+  opRec.disabled = esInterior;
+  opRec.textContent = esInterior
+    ? 'Recambio — no disponible al interior'
+    : 'Recambio (trae los bidones)';
+  if(esInterior && selE.value === 'recambio') selE.value = 'con';
 }
 
 // Helper: precio según escalón de cantidad (compartido entre productos del array PRECIOS)
@@ -5696,6 +5716,7 @@ function calcularPrecio(origen) {
   const prod=document.getElementById('nv-producto').value;
   const cant=parseFloat(document.getElementById('nv-cantidad').value)||0;
   const pc=getPrecio(prod,cant);
+  sincronizarEnvasePorZona();
   // === Desglose modular: envases, cajas y envío según zona (solo fraccionado BASE) ===
   const ad = calcAdicionales(prod, cant);
   if(ad && origen !== 'envio') document.getElementById('nv-envio').value = ad.envio || '';
